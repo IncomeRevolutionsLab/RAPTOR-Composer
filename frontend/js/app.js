@@ -381,7 +381,7 @@ function initMain3DChart() {
 function render3DChart(myChart, categories, months, data, suffix='') {
     const option = {
         title: {
-            text: `SSPS V2.3 — 네이버 10대 분야 1년 클릭 트렌드 비교 (3D) ${suffix}`,
+            text: `SSPS 지능형 쇼핑 숏폼 상품 선정 시스템 — 네이버 10대 분야 1년 클릭 트렌드 비교 (3D) ${suffix}`,
             textStyle:{color:'#a1a1aa', fontSize:13, fontWeight:'normal'}, left:'center', top:0
         },
         tooltip: { formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
