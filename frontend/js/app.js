@@ -2,8 +2,8 @@
 // 전역 상태 및 환경 변수
 // ─────────────────────────────────────────────
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// [v2.34 SaaS Stable] 아키텍처 구조화: Vercel Proxy를 통한 상대 경로 호출 체계 확립
-const API_BASE_URL = '/api/v1';
+// [v2.343 Official Sync] Direct-Sync 아키텍처: Vercel 프록시 404 회피를 위한 백엔드 직접 연결
+const API_BASE_URL = IS_LOCAL ? `${window.location.origin}/api/v1` : 'https://ssps-engine-api.onrender.com/api/v1';
 
 // [Render 무료플랜 Cold Start 대응] 페이지 로드 시 백엔드 웜업 (Vercel Proxy 경로 사용)
 if (!IS_LOCAL) {

@@ -1,26 +1,16 @@
 {
   "version": 2,
   "name": "ssps-engine",
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/:path*",
-      "destination": "https://ssps-engine-api.onrender.com/api/:path*"
-    },
+      "src": "frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
     {
-      "source": "/data/:path*",
-      "destination": "/frontend/data/:path*"
-    },
-    {
-      "source": "/js/:path*",
-      "destination": "/frontend/js/:path*"
-    },
-    {
-      "source": "/css/:path*",
-      "destination": "/frontend/css/:path*"
-    },
-    {
-      "source": "/",
-      "destination": "/frontend/index.html"
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
     }
   ]
 }
