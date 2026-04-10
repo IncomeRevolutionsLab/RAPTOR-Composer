@@ -1,25 +1,26 @@
 {
   "version": 2,
   "name": "ssps-engine",
-  "builds": [
+  "rewrites": [
     {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "https://ssps-engine-api.onrender.com/api/$1",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
+      "source": "/api/:path*",
+      "destination": "https://ssps-engine-api.onrender.com/api/:path*"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "source": "/data/:path*",
+      "destination": "/frontend/data/:path*"
+    },
+    {
+      "source": "/js/:path*",
+      "destination": "/frontend/js/:path*"
+    },
+    {
+      "source": "/css/:path*",
+      "destination": "/frontend/css/:path*"
+    },
+    {
+      "source": "/",
+      "destination": "/frontend/index.html"
     }
   ]
 }
