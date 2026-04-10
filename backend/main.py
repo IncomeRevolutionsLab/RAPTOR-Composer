@@ -120,6 +120,21 @@ def get_site_stats():
     stats = supabase.get_site_stats()
     return jsonify(stats)
 
+@app.route("/api/v1/reset_stats_only", methods=["GET"])
+def reset_stats_only():
+    """[임시] DB 통계를 0으로 초기화"""
+    try:
+        # id=1 레코드를 0으로 강제 업데이트
+        supabase.client.table('site_stats').upsert({
+            "id": 1, 
+            "total_analysis": 0, 
+            "top_domain": "식품", 
+            "top_domain_desc": "(최근 7일 클릭 지수 1위)"
+        }).execute()
+        return "Reset Success"
+    except Exception as e:
+        return f"Reset Failed: {e}"
+
 # [Cold Start 대응] Render 무료 서버 웜업용 헬스체크 엔드포인트
 # 프론트엔드가 페이지 로드 시 이 주소를 호출해 잠든 서버를 깨웁니다.
 @app.route("/api/v1/health", methods=["GET"])
