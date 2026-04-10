@@ -12,11 +12,14 @@ from backend.utils.cache_manager import cache
 
 app = Flask(__name__, static_folder="../frontend")
 
-# 보안 CORS: 환경변수에 등록된 공식 도메인에서 온 요청만 허용
-# 로컬 개발 시에는 .env의 ALLOWED_ORIGIN=http://localhost:5000
-# 배포 후에는 Render/Vercel 환경변수에서 실제 도메인을 주입
-allowed_origin = os.environ.get("ALLOWED_ORIGIN", "http://localhost:5000")
-CORS(app, origins=[allowed_origin, "http://localhost:5000", "http://127.0.0.1:5000"])
+# CORS 설정
+# - 로컬 개발: localhost만 허용
+# - 클라우드 배포(Render): Vercel 도메인 + 모든 origin 허용 (Vercel 프론트 → Render 백엔드 통신을 위해)
+IS_PRODUCTION = os.environ.get("ENVIRONMENT", "development") == "production"
+if IS_PRODUCTION:
+    CORS(app)  # 클라우드에서는 완전 개방 (Vercel 도메인 포함 모든 연결 허용)
+else:
+    CORS(app, origins=["http://localhost:5000", "http://127.0.0.1:5000", "http://localhost:3000"])
 
 engine = ScoringEngine()
 packager = JsonPackager()
