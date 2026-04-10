@@ -2,7 +2,10 @@
 // 전역 상태 및 환경 변수
 // ─────────────────────────────────────────────
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = IS_LOCAL ? `${window.location.origin}/api/v1` : 'https://ssps-production.up.railway.app/api/v1'; // 외부 호스팅 연결 시 스위칭
+// 프론트엔드: ssps-engine-git-master-incomerevolutionslab.vercel.app (Vercel)
+// 백엔드: Render 배포 후 URL이 확정되면 아래 'RENDER_URL_HERE' 부분을 실제 URL로 교체
+const RENDER_BACKEND_URL = 'https://RENDER_URL_HERE.onrender.com';
+const API_BASE_URL = IS_LOCAL ? `${window.location.origin}/api/v1` : `${RENDER_BACKEND_URL}/api/v1`;
 const TOP_LEVEL_CATEGORIES = [
     '패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어',
     '출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의'
