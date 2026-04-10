@@ -2,12 +2,12 @@
 // 전역 상태 및 환경 변수
 // ─────────────────────────────────────────────
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// [PRODUCTION] Render 백엔드 주소로 강제 고정 
-const API_BASE_URL = IS_LOCAL ? `${window.location.origin}/api/v1` : 'https://ssps-engine-api.onrender.com/api/v1';
+// [v2.34 SaaS Stable] 아키텍처 구조화: Vercel Proxy를 통한 상대 경로 호출 체계 확립
+const API_BASE_URL = '/api/v1';
 
-// [Render 무료플랜 Cold Start 대응] 페이지 로드 시 백엔드에 워남업 핑을 하나 돌렰서 잠 자는 서버를 깨움고 시작
+// [Render 무료플랜 Cold Start 대응] 페이지 로드 시 백엔드 웜업 (Vercel Proxy 경로 사용)
 if (!IS_LOCAL) {
-  fetch(`${RENDER_BACKEND_URL}/api/v1/health`, { method: 'GET' }).catch(() => {});
+  fetch(`${API_BASE_URL}/health`, { method: 'GET' }).catch(() => {});
 }
 const TOP_LEVEL_CATEGORIES = [
     '패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어',
@@ -339,7 +339,8 @@ function initMain3DChart() {
         return { cats: slicedCats, data: filteredData };
     };
 
-    fetch('/data/main_trend_3d.json')
+    // 데이터 파일을 현재 정적 폴더 상대 경로에서 명확히 찾도록 수정
+    fetch('./data/main_trend_3d.json')
         .then(r => { if (!r.ok) throw new Error('no cache'); return r.json(); })
         .then(json => { 
             const p1 = filterData(json.categories, json.data, 0, 5);
