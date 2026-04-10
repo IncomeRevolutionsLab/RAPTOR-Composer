@@ -126,6 +126,8 @@ async function loadCategoryNode(payload) {
             } else {
                 renderPhase1(data, data.path || [payload.keyword]);
             }
+            // [v2.35] 분석 성공 시 하단 실시간 통계 즉시 갱신 (손맛 구현)
+            loadSiteStats();
         }, 400);
     } catch (err) {
         console.error(err);
@@ -306,10 +308,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (text) navigator.clipboard.writeText(text).then(() => showToast('JSON이 복사되었습니다.'));
     });
 
-    // 초기 3D 차트 및 기본 인기 검색어 로드
+    // 초기 데이터 로드 (차트, 키워드, 마이크로 통계)
     setTimeout(() => {
         initMain3DChart();
-        loadPopularKeywords("패션의류"); // 기본값 렌더링
+        loadPopularKeywords("패션의류");
+        loadSiteStats(); // [v2.35] DB 실제 통계 로드
     }, 500);
 });
 
@@ -570,6 +573,28 @@ async function loadPopularKeywords(domain) {
         console.error("Failed to load popular keywords:", e);
         listEl.innerHTML = '<span style="color:#a1a1aa; font-size:0.85rem; padding: 10px;">데이터를 불러오는 중 문제가 발생했습니다. API 서버 재구동 여부를 확인하세요.</span>';
         container.style.display = 'block';
+    }
+}
+
+/**
+ * [v2.35] 백엔드에서 실시간 통계(누적 분석 횟수, 주간 Top 분야) 정보를 가져와 화면에 출력합니다.
+ */
+async function loadSiteStats() {
+    const analysisEl = document.getElementById('stat-total-analysis');
+    const domainEl = document.getElementById('stat-top-domain');
+    
+    if (!analysisEl || !domainEl) return;
+    
+    try {
+        const stats = await fetch(`${API_BASE_URL}/stats`).then(res => res.json());
+        
+        if (stats) {
+            // 카운트 애니메이션 효과 (선택사항이나 여기서는 즉시 반영)
+            analysisEl.textContent = Number(stats.total_analysis || 0).toLocaleString();
+            domainEl.textContent = stats.top_domain || '식품';
+        }
+    } catch (e) {
+        console.error("Failed to load site stats:", e);
     }
 }
 

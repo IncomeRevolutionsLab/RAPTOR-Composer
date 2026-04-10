@@ -8,9 +8,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from backend.engine.scoring_engine import ScoringEngine
 from backend.engine.json_packager import JsonPackager
+from backend.connectors.supabase_client import SupabaseClient
 from backend.utils.cache_manager import cache
 
 app = Flask(__name__, static_folder="../frontend")
+supabase = SupabaseClient()
 
 # CORS 설정: 클라우드 배포(Render/Vercel) 환경에서는 완전 개방하여 통신 안정성 확보
 # 로컬 개발 환경(포트 정보 없음)에서만 특정 origin 제한
@@ -46,6 +48,9 @@ def analyze_domain():
         
         cache.set(domain, "json_output", final_json)
         
+        # [v2.35] 분석 성공 시 실시간 카운트 증가
+        supabase.increment_analysis_count()
+        
         return jsonify(final_json)
         
     except Exception as e:
@@ -73,6 +78,10 @@ def category_node():
         result = engine.run_category_node(path)
         if "error" in result:
             return jsonify(result), 400
+            
+        # [v2.35] N-Depth 분석 성공 시에도 실시간 카운트 증가
+        supabase.increment_analysis_count()
+        
         return jsonify(result)
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -104,6 +113,12 @@ def get_status():
             daiso_cb.get_status()
         ]
     })
+
+@app.route("/api/v1/stats", methods=["GET"])
+def get_site_stats():
+    """실시간 누적 분석 횟수 및 Top 분야 정보 반환"""
+    stats = supabase.get_site_stats()
+    return jsonify(stats)
 
 # [Cold Start 대응] Render 무료 서버 웜업용 헬스체크 엔드포인트
 # 프론트엔드가 페이지 로드 시 이 주소를 호출해 잠든 서버를 깨웁니다.

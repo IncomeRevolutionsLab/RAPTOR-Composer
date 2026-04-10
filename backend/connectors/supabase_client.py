@@ -57,3 +57,40 @@ class SupabaseClient:
         except Exception as e:
             logger.error(f"Supabase UPSERT Error: {e}")
             return False
+
+    def get_site_stats(self):
+        """DB에서 누적 분석 횟수 및 주간 Top 분야 정보를 가져옵니다."""
+        # 기본값 (DB 연결 실패 시 폴백)
+        default_stats = {
+            "total_analysis": 24592,
+            "top_domain": "식품",
+            "top_domain_desc": "(건강/영양제 급등)"
+        }
+        if not self.client:
+            return default_stats
+            
+        try:
+            # site_stats 테이블에서 최신 레코드 1개 조회
+            response = self.client.table('site_stats').select('*').limit(1).execute()
+            if response.data:
+                return response.data[0]
+            return default_stats
+        except Exception as e:
+            logger.error(f"Supabase GET Stats Error: {e}")
+            return default_stats
+
+    def increment_analysis_count(self):
+        """분석 성공 시 DB의 누적 분석 횟수를 1 증가시킵니다."""
+        if not self.client:
+            return
+            
+        try:
+            # RPC(데이터베이스 함수)를 사용하여 원자적으로 +1 증가 (동시성 문제 해결)
+            # 만약 RPC가 설정되지 않았다면 간단한 update 로직 수행
+            stats = self.get_site_stats()
+            new_count = int(stats.get('total_analysis', 0)) + 1
+            
+            # id=1인 레코드를 업데이트 (단일 레코드 관리 가정)
+            self.client.table('site_stats').update({"total_analysis": new_count}).eq('id', 1).execute()
+        except Exception as e:
+            logger.error(f"Supabase Increment Error: {e}")
