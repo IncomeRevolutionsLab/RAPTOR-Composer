@@ -2,10 +2,8 @@
 // 전역 상태 및 환경 변수
 // ─────────────────────────────────────────────
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// 프론트엔드: ssps-engine-git-master-incomerevolutionslab.vercel.app (Vercel)
-// 백엔드: https://ssps-engine-api.onrender.com (Render 무료)
-const RENDER_BACKEND_URL = 'https://ssps-engine-api.onrender.com';
-const API_BASE_URL = IS_LOCAL ? `${window.location.origin}/api/v1` : `${RENDER_BACKEND_URL}/api/v1`;
+// [PRODUCTION] Render 백엔드 주소로 강제 고정 
+const API_BASE_URL = IS_LOCAL ? `${window.location.origin}/api/v1` : 'https://ssps-engine-api.onrender.com/api/v1';
 
 // [Render 무료플랜 Cold Start 대응] 페이지 로드 시 백엔드에 워남업 핑을 하나 돌렰서 잠 자는 서버를 깨움고 시작
 if (!IS_LOCAL) {
