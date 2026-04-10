@@ -10,7 +10,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://RENDER_URL_HERE.onrender.com/api/$1",
+      "dest": "https://ssps-engine-api.onrender.com/api/$1",
       "headers": {
         "Access-Control-Allow-Origin": "https://ssps-engine-git-master-incomerevolutionslab.vercel.app"
       }

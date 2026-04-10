@@ -104,6 +104,12 @@ def get_status():
         ]
     })
 
+# [Cold Start 대응] Render 무료 서버 웜업용 헬스체크 엔드포인트
+# 프론트엔드가 페이지 로드 시 이 주소를 호출해 잠든 서버를 깨웁니다.
+@app.route("/api/v1/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok", "message": "SSPS Engine is running!"}), 200
+
 # 디폴트 라우터: index.html 렌더링 (대시보드 표시)
 @app.route("/")
 def serve_dashboard():
