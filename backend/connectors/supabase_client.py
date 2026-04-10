@@ -62,9 +62,9 @@ class SupabaseClient:
         """DB에서 누적 분석 횟수 및 주간 Top 분야 정보를 가져옵니다."""
         # 기본값 (DB 연결 실패 시 폴백)
         default_stats = {
-            "total_analysis": 24592,
+            "total_analysis": 0,
             "top_domain": "식품",
-            "top_domain_desc": "(건강/영양제 급등)"
+            "top_domain_desc": "(최근 7일 클릭 지수 1위)"
         }
         if not self.client:
             return default_stats
