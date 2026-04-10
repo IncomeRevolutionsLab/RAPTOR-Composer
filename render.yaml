@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ssps-engine-api
+    env: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "python backend/main.py"
+    envVars:
+      - key: NAVER_CLIENT_ID
+        sync: false
+      - key: NAVER_CLIENT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGIN
+        sync: false
+
+  - type: cron
+    name: ssps-daily-sync-bot
+    env: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "python backend/utils/scheduler.py"
+    schedule: "0 3 * * *"
+    envVars:
+      - key: NAVER_CLIENT_ID
+        sync: false
+      - key: NAVER_CLIENT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

@@ -1,0 +1,26 @@
+# 환경 설정 및 가상 환경 차단
+.env
+.env.*
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# 민감한 백업 압축 파일 차단
+*.zip
+*.tar.gz
+backup_*/
+
+# 임시 스크립트 및 디버그 파일
+tmp_script.py
+out.txt
+
+# Vercel / Render 캐시
+.vercel/
+.render/
+
+# Mac / Windows 시스템 파일
+.DS_Store
+Thumbs.db

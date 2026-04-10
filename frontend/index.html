@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSPS | 지능형 쇼핑 숏폼 선정 시스템</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://fastly.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://fastly.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+
+    <!-- Google Analytics (GA4) Tracking Script -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i data-lucide="sparkles"></i>
+                <h1>SSPS <span>Engine</span></h1>
+            </div>
+            <p class="subtitle">지능형 쇼핑 숏폼 상품 선정 시스템</p>
+        </header>
+
+        <main>
+            <!-- About SSPS & 통계 대시보드 -->
+            <div id="about-dashboard-section" style="margin-bottom: 30px; display: flex; gap: 20px; flex-wrap: wrap;">
+                <div class="glass-card" style="flex: 1; min-width: 300px; padding: 20px; border-radius: 16px;">
+                    <h2 style="font-size: 1.1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i data-lucide="info" style="color:var(--primary);"></i> About SSPS</h2>
+                    <p style="font-size: 0.85rem; color: #a1a1aa; line-height: 1.5;">SSPS (Shopping Short-form Product Selection) Engine은 빅데이터 분석을 통해 수백만 개의 쇼핑 키워드 중 요즘 가장 뜨거운 트렌드를 추출하여 최적의 숏폼 상품을 추천해 드립니다. 카테고리 수동 검색은 물론, 시스템이 매일 새벽 전체 쇼핑 카테고리의 최신 트렌드를 완전 자율 동기화합니다.</p>
+                </div>
+                <div class="glass-card" style="flex: 1; min-width: 300px; padding: 20px; border-radius: 16px;">
+                    <h2 style="font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i data-lucide="bar-chart-2" style="color:#03c75a;"></i> SSPS 실시간 통계</h2>
+                    <div style="display: flex; gap: 15px;">
+                        <div style="flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; text-align: center;">
+                            <div style="font-size: 0.75rem; color: #7d8590;">누적 분석 횟수</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #fff; margin-top: 5px;" id="stat-total-analysis">24,592</div>
+                        </div>
+                        <div style="flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; text-align: center;">
+                            <div style="font-size: 0.75rem; color: #7d8590;">주간 Top 분야</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #f1c40f; margin-top: 5px; margin-bottom: 2px;" id="stat-top-domain">식품</div>
+                            <div style="font-size: 0.65rem; color: #555;">(건강/영양제 급등)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 수익화 배너 (구글 애드센스 / 쿠팡 파트너스) -->
+            <div id="ad-banner-top" style="width: 100%; height: 90px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background='rgba(255,255,255,0.02)'">
+                <div style="color: #555; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <i data-lucide="megaphone" style="color: #888;"></i>
+                    <span>수익화 배너 공간 (Google AdSense / Coupang Partners 삽입 영역)</span>
+                </div>
+            </div>
+
+            <!-- 메인 화면 3D 트렌드 차트 (5+5 분야 분할 — 세로 배치 v1.5) -->
+            <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px;">
+                <!-- 차트 ①: 패션·뷰티·디지털 -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 16px 20px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <span style="background: linear-gradient(90deg,#7c3aed,#2563eb); color:#fff; font-size: 0.78rem; font-weight: 600; padding: 3px 12px; border-radius: 20px; letter-spacing: 0.05em;">① 패션 · 뷰티 · 디지털</span>
+                        <span style="font-size: 0.75rem; color: #555; margin-left: 4px;">패션의류 / 패션잡화 / 화장품·미용 / 디지털·가전 / 가구·인테리어</span>
+                    </div>
+                    <div id="main-3d-chart-1" style="width: 100%; height: 500px;"></div>
+                </div>
+                <!-- 차트 ②: 식품·스포츠·생활 -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 16px 20px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <span style="background: linear-gradient(90deg,#059669,#0ea5e9); color:#fff; font-size: 0.78rem; font-weight: 600; padding: 3px 12px; border-radius: 20px; letter-spacing: 0.05em;">② 식품 · 스포츠 · 생활</span>
+                        <span style="font-size: 0.75rem; color: #555; margin-left: 4px;">출산·육아 / 식품 / 스포츠·레저 / 생활·건강 / 여가·생활편의</span>
+                    </div>
+                    <div id="main-3d-chart-2" style="width: 100%; height: 500px;"></div>
+                </div>
+            </div>
+
+            <!-- 최근 1주 인기 검색어 섹션 -->
+            <div id="popular-keywords-section" style="margin-bottom: 30px; display: none;">
+                <div class="card glass-card">
+                    <div class="card-header flex-between" style="padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px;">
+                        <div class="flex-align">
+                            <i data-lucide="flame" style="color: #ff5722;"></i>
+                            <h2 id="popular-kw-title" style="font-size: 1.1rem;">🔥 최근 1주 인기 검색 상품 (실시간 이슈)</h2>
+                        </div>
+                        <span id="popular-kw-period" style="font-size: 0.85rem; color: #a1a1aa; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 12px;"></span>
+                    </div>
+                    <div class="card-body">
+                        <!-- 독립적인 분야 선택 탭 -->
+                        <div id="popular-kw-tabs" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 15px; border-bottom: 1px dashed rgba(255,255,255,0.05);">
+                            <!-- JS에서 렌더링됨 -->
+                        </div>
+                        
+                        <div style="font-size: 0.8rem; color: #7d8590; margin-bottom: 12px;">* 카테고리를 선택하면 해당 분야의 실시간 키워드를 조회합니다. 특정 상품 키워드 클릭 시 쿠팡 실시간 검색 창으로 즉시 이동합니다.</div>
+                        <div class="chips-scroll-container" id="popular-kw-list" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;">
+                            <!-- JS Inject -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <section class="search-panel glass-panel" id="search-panel-section">
+                <form id="analyze-form">
+                    <div class="input-group">
+                        <i data-lucide="search" class="input-icon"></i>
+                        <input type="text" id="domain-input" placeholder="분석할 쇼핑 분야를 입력하세요 (예: 여름 장마철 뷰티템, 가성비 주방수납)" required autocomplete="off">
+                        <button type="submit" id="submit-btn">
+                            <span>분석 시작</span>
+                            <i data-lucide="arrow-right"></i>
+                        </button>
+                    </div>
+
+                    <!-- 1차 분류 듀얼 인풋 칩셋 -->
+                    <div class="category-chips" id="category-chips">
+                        <button type="button" class="chip-btn" data-val="패션의류">패션의류</button>
+                        <button type="button" class="chip-btn" data-val="패션잡화">패션잡화</button>
+                        <button type="button" class="chip-btn" data-val="화장품/미용">화장품/미용</button>
+                        <button type="button" class="chip-btn" data-val="디지털/가전">디지털/가전</button>
+                        <button type="button" class="chip-btn" data-val="가구/인테리어">가구/인테리어</button>
+                        <button type="button" class="chip-btn" data-val="출산/육아">출산/육아</button>
+                        <button type="button" class="chip-btn" data-val="식품">식품</button>
+                        <button type="button" class="chip-btn" data-val="스포츠/레저">스포츠/레저</button>
+                        <button type="button" class="chip-btn" data-val="생활/건강">생활/건강</button>
+                        <button type="button" class="chip-btn" data-val="여가/생활편의">여가/생활편의</button>
+                    </div>
+
+                    <p style="text-align: center; font-size: 0.8rem; color: #7d8590; margin-top: 20px;">
+                        분석 시작(또는 카테고리 클릭) 시 데이터 수집 및 서비스 이용 약관에 동의한 것으로 간주합니다.
+                    </p>
+
+                    <div class="manual-input-section" style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <!-- 올리브영 데이터 -->
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid rgba(242, 123, 155, 0.3);">
+                            <label for="manual_oliveyoung" style="display: block; font-size: 0.85rem; margin-bottom: 6px; color: #f27b9b;">
+                                <i data-lucide="shield-alert" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i> 올리브영 수동 복사 (선택)
+                            </label>
+                            <textarea id="manual_oliveyoung" rows="3" placeholder="화면 텍스트 복사/붙여넣기..." style="width: 100%; border-radius: 6px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 0.85rem; resize: vertical;"></textarea>
+                        </div>
+                        
+                        <!-- 다이소 데이터 -->
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid rgba(238, 38, 43, 0.3);">
+                            <label for="manual_daiso" style="display: block; font-size: 0.85rem; margin-bottom: 6px; color: #ee262b;">
+                                <i data-lucide="shield-alert" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i> 다이소 수동 복사 (선택)
+                            </label>
+                            <textarea id="manual_daiso" rows="3" placeholder="화면 텍스트 복사/붙여넣기..." style="width: 100%; border-radius: 6px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; font-size: 0.85rem; resize: vertical;"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px;">
+                        <div class="fallback-radio-group" style="padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); flex: 1; margin-right: 15px;">
+                            <div style="margin-bottom: 6px;">
+                                <span style="font-size: 0.8rem; color: #7d8590; margin-right: 12px;"><i data-lucide="git-branch" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i> 주력 통신 장애 시 우회(Fallback) 대상:</span>
+                                <label style="font-size: 0.85rem; color: #fff; cursor: pointer; margin-right: 15px;">
+                                    <input type="radio" name="fallback_choice" value="coupang" checked style="vertical-align: middle;"> 쿠팡 우선 검색
+                                </label>
+                                <label style="font-size: 0.85rem; color: #fff; cursor: pointer;">
+                                    <input type="radio" name="fallback_choice" value="naver" style="vertical-align: middle;"> 네이버 쇼핑 노출
+                                </label>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #58a6ff; opacity: 0.85; margin-left: 2px;">
+                                <i data-lucide="info" style="width: 10px; height: 10px; display: inline-block;"></i> 기본 세팅은 쿠팡 파트너스 수익화 연동을 위해 <b>쿠팡(Coupang) 검색 리스트</b>를 최우선으로 대체하여 돌려줍니다.
+                            </div>
+                        </div>
+                        
+                        <button type="button" id="verify-manual-btn" style="background: #2b2b36; border: 1px solid #4a4a5a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; align-self: stretch; display: flex; align-items: center;">
+                            <i data-lucide="upload-cloud" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 5px;"></i> 수동 입력 적용
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- YouTube Tutorial 영상 임베드 섹션 -->
+            <div id="tutorial-section" style="margin-top: 30px; margin-bottom: 30px;">
+                <div class="glass-card" style="padding: 20px; border-radius: 16px;">
+                    <h2 style="font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><i data-lucide="youtube" style="color:#ff0000;"></i> SSPS 100% 활용 가이드 (튜토리얼 방식)</h2>
+                    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; background: #000;">
+                        <!-- 유튜브 영상 삽입을 위한 Placeholder -->
+                        <div style="position: absolute; top:0; left:0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(255,255,255,0.05); color: #888; border: 1px dashed rgba(255,255,255,0.1);">
+                            <i data-lucide="play-circle" style="width: 48px; height: 48px; margin-bottom: 10px; opacity: 0.5;"></i>
+                            <span>대표님의 유튜브 튜토리얼 영상이 삽입될 영역입니다.</span>
+                        </div>
+                        <!-- 실제 배포 시 아래 iframe의 주석을 해제하고 src에 영상 고유 ID를 넣으세요 -->
+                        <!-- <iframe src="https://www.youtube.com/embed/XXXXXXX" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading-state" class="state-panel hidden">
+                <div class="loader-container">
+                    <div class="loader-ring"></div>
+                    <i data-lucide="cpu" class="loader-icon pulse"></i>
+                </div>
+                <h3>지능형 시스템 분석 중...</h3>
+                <ul class="loading-steps">
+                    <li id="step-1" class="active"><i data-lucide="brain-circuit"></i> Input Router: 카테고리/시즌성 판별 중</li>
+                    <li id="step-2" class="pending"><i data-lucide="scale"></i> Weight Allocator: 동적 가중치 할당 중</li>
+                    <li id="step-3" class="pending"><i data-lucide="network"></i> Connectors: 몰 데이터 스크래핑 및 정규화 중</li>
+                    <li id="step-4" class="pending"><i data-lucide="package-check"></i> JSON Packager: 숏폼 훅 및 JSON 패키징 중</li>
+                </ul>
+            </div>
+
+            <!-- ★ Phase 1: N차 분류 트렌드 비교 및 선택 (Category Selection) -->
+            <div id="phase1-state" class="state-panel hidden">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                    <div id="p1-breadcrumb-container" style="display:flex; align-items:center; gap:8px; font-size:1rem; color:#a1a1aa; flex-wrap:wrap;">
+                        <!-- JS Inject Breadcrumb -->
+                    </div>
+                    <button onclick="resetToHome()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#a1a1aa; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="home" style="width:14px;"></i> 처음으로
+                    </button>
+                </div>
+
+                <div class="card glass-card" style="margin-bottom:20px;">
+                    <div class="card-header">
+                        <i data-lucide="trending-up"></i>
+                        <h2 id="p1-chart-title">하위 분류별 1년 트렌드 비교</h2>
+                    </div>
+                    <div id="p1-trend-chart" style="width:100%; height:280px;"></div>
+                    <p id="p1-simulated-notice" style="font-size:0.75rem; color:#f1c40f; text-align:center; padding:8px 0; background: rgba(0,0,0,0.2); border-radius: 4px; margin: 0 10px 10px 10px;">
+                        (기간 내 최고 클릭량=100 기준 상대 지수)
+                    </p>
+                </div>
+
+                <h3 style="font-size:1rem; color:#a1a1aa; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="mouse-pointer-click" style="width:18px; color:var(--primary);"></i>
+                    분석할 분류를 선택하세요
+                </h3>
+                <div id="p1-cards-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;"></div>
+            </div>
+
+            <!-- ★ Phase 2: 상품 랭킹 (Leaf Node) -->
+            <div id="phase2-state" class="state-panel hidden">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                    <div id="p2-breadcrumb-container" style="display:flex; align-items:center; gap:8px; font-size:1rem; color:#a1a1aa; flex-wrap:wrap;">
+                        <!-- JS Inject Breadcrumb -->
+                    </div>
+                    <button onclick="resetToHome()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#a1a1aa; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="home" style="width:14px;"></i> 처음으로
+                    </button>
+                </div>
+
+                <div class="card glass-card">
+                    <div class="card-header flex-between">
+                        <div class="flex-align">
+                            <i data-lucide="list-ordered"></i>
+                            <h2 id="p2-title">쿠팡 Top 10 랭킹</h2>
+                        </div>
+                        <a id="p2-coupang-link" href="#" target="_blank" style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:var(--primary); text-decoration:none; border:1px solid var(--primary); padding:6px 12px; border-radius:6px;">
+                            <i data-lucide="external-link" style="width:14px;"></i> 쿠팡에서 검색
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div id="p2-product-grid" class="sku-grid"></div>
+                        <!-- 스크래핑 불가 시 대체 UI -->
+                        <div id="p2-fallback-notice" style="display:none; text-align:center; padding:40px 20px;">
+                            <i data-lucide="alert-triangle" style="width:48px; height:48px; color:#f1c40f; margin-bottom:16px;"></i>
+                            <p style="color:#a1a1aa; margin-bottom:20px;">쿠팡 직접 스크래핑이 차단되었습니다.<br>아래 버튼으로 쿠팡 검색 결과를 직접 확인하세요.</p>
+                            <a id="p2-fallback-btn" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#e52c2c,#c0392b); color:#fff; padding:14px 28px; border-radius:10px; text-decoration:none; font-weight:600; font-size:1rem;">
+                                <i data-lucide="shopping-cart"></i>
+                                <span id="p2-fallback-label">쿠팡에서 검색하기</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="result-state" class="state-panel hidden">
+                <!-- [NEW] 처음으로 버튼 추가 -->
+                <div style="display:flex; justify-content:flex-end; margin-bottom:15px;">
+                    <button onclick="resetToHome()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#a1a1aa; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="home" style="width:14px;"></i> 처음으로
+                    </button>
+                </div>
+
+                <div id="matched-category-banner" style="background: rgba(88, 166, 255, 0.1); border: 1px solid var(--primary); padding: 12px 20px; margin-bottom: 20px; border-radius: 8px; color: #a5d6ff; display: flex; align-items: center; gap: 12px; font-size: 0.95rem;">
+                    <i data-lucide="info" style="width: 20px; height: 20px; color: var(--primary);"></i>
+                    <span id="matched-category-text">매칭된 카테고리 정보 로딩 중...</span>
+                </div>
+                
+                <div class="dashboard-grid">
+                    
+                    <!-- 1. 분석 요약 카드 -->
+                    <div class="card glass-card span-2 config-card">
+                        <div class="card-header">
+                            <i data-lucide="microscope"></i>
+                            <h2>분석 메타데이터</h2>
+                        </div>
+                        <div class="card-body meta-grid">
+                            <div class="meta-item tooltip-container">
+                                <span class="label">감지된 카테고리 <i data-lucide="help-circle" style="width: 12px; height: 12px;"></i></span>
+                                <span class="value badge category-badge" id="res-category">-</span>
+                                <div class="tooltip-text">입력어를 판별하여 뷰티, 저가형, 시즌성 등으로 분류합니다. (데이터 가중치 판별 기준)</div>
+                            </div>
+                            <div class="meta-item tooltip-container">
+                                <span class="label">시즌성 지수 <i data-lucide="help-circle" style="width: 12px; height: 12px;"></i></span>
+                                <span class="value" id="res-season">-</span>
+                                <div class="tooltip-text">시간 흐름이나 계절에 따라 수요 폭발성이 강한지(1.0에 가까움) 나타냅니다. (네이버 트렌드 가중치 폭발)</div>
+                            </div>
+                            <div class="meta-item tooltip-container">
+                                <span class="label">가격대 타겟 <i data-lucide="help-circle" style="width: 12px; height: 12px;"></i></span>
+                                <span class="value" id="res-price">-</span>
+                                <div class="tooltip-text">일반적인 시장형성 가격. LOW인 경우 다이소 데이터 가중치가 60% 이상으로 극대화됩니다.</div>
+                            </div>
+                            <div class="meta-item">
+                                <span class="label">소요 시간</span>
+                                <span class="value" id="res-time">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 동적 가중치 차트 -->
+                    <div class="card glass-card weight-card">
+                        <div class="card-header">
+                            <i data-lucide="pie-chart"></i>
+                            <h2>소스별 동적 가중치</h2>
+                        </div>
+                        <div class="card-body chart-container">
+                            <canvas id="weightChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. 추천 상품군 (1위) -->
+                    <div class="card glass-card span-3 focus-card">
+                        <div class="card-header flex-between">
+                            <div class="flex-align">
+                                <div class="rank-badge">1st</div>
+                                <h2 id="res-group-name">상품군명</h2>
+                            </div>
+                            <div class="signal-badge" id="res-signal">
+                                <i data-lucide="zap"></i> <span id="res-signal-text">Signal</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-body">
+                            <p style="font-size: 0.8rem; color: #7d8590; text-align: center; margin-bottom: 20px;">
+                                <i data-lucide="info" style="width: 14px; display: inline-block; vertical-align: -2px;"></i>
+                                우측 바의 수치는 각 채널별 <b>절대 파워 점수</b>(신뢰도/검색량 기반 산출)이며,<br>
+                                좌측 원형 도표는 소스별 동적 가중치가 반영된 <b>최종 가중 평균 점수(100점 만점)</b>입니다.
+                            </p>
+                            <div class="score-display">
+                                <div class="score-circle">
+                                    <svg viewBox="0 0 36 36" class="circular-chart">
+                                        <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                                        <path class="circle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" id="score-circle-path"/>
+                                        <text x="18" y="20.5" class="percentage" id="res-final-score">0</text>
+                                    </svg>
+                                </div>
+                                <div class="score-details flex-column gaps-small">
+                                    <div class="score-bar"><span class="label">Naver</span><div class="bar-bg"><div class="bar-fill" id="bar-naver"></div></div><span class="val" id="val-naver">0</span></div>
+                                    <div class="score-bar"><span class="label">OliveYoung</span><div class="bar-bg"><div class="bar-fill" id="bar-olive"></div></div><span class="val" id="val-olive">0</span></div>
+                                    <div class="score-bar"><span class="label">Daiso</span><div class="bar-bg"><div class="bar-fill" id="bar-daiso"></div></div><span class="val" id="val-daiso">0</span></div>
+                                </div>
+                            </div>
+
+                            <!-- 4. 드릴다운(2분류->3분류) 분석 트렌드 차트 (위치 이동) -->
+                            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+                            <div class="hooks-section" id="res-trend-block">
+                                <h3><i data-lucide="trending-up"></i> 하위(4차) 카테고리 시계열 트렌드 정밀 비교 (12개월)</h3>
+                                <p style="font-size: 0.85rem; color:#aaa; margin-bottom: 5px;">해당 키워드가 속한 3차 카테고리 내 핵심 경쟁 모델군들의 1년 치 상호 클릭 볼륨 비율입니다. (범례 클릭 시 On/Off 지원)</p>
+                                <p style="font-size: 0.75rem; color:#f1c40f; margin-bottom: 15px;">* 네이버 데이터랩 검색 엔진의 한계(최대 5종 동시 비교) 및 최다 상품 점유 알고리즘에 의거, 하위 N개 분류 중 가장 활성화된 유의미한 Top 5종만 선별되어 비교 분석됩니다.</p>
+                                <div id="drill-trend-chart" style="width: 100%; height: 350px;"></div>
+                            </div>
+                            
+                            <!-- 숏폼 후킹 멘트는 시각 디자인에서 제거 -->
+                            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+                            <div class="skus-section">
+                                <h3><i data-lucide="list-ordered"></i> 종합 Top 10 통합 랭킹 (출처 클릭)</h3>
+                                <div class="sku-grid" id="res-skus">
+                                    <!-- JS Inject -->
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+
+                    <!-- 4. 히든: 향후 RAPTOR GEM 전송용 통합 JSON 데이터 박스 -->
+                    <div class="card glass-card span-3 json-card" style="display: none;">
+                        <div class="card-header flex-between">
+                            <div class="flex-align">
+                                <i data-lucide="file-json"></i>
+                                <h2>RAPTOR GEM 통합 JSON</h2>
+                            </div>
+                            <button class="btn-icon" id="copy-json-btn" title="JSON 복사">
+                                <i data-lucide="copy"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <pre><code id="json-output">{}</code></pre>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

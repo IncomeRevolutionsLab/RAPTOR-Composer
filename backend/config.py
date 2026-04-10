@@ -1,0 +1,24 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings:
+    def __init__(self):
+        self.naver_client_id = os.getenv("NAVER_CLIENT_ID", "")
+        self.naver_client_secret = os.getenv("NAVER_CLIENT_SECRET", "")
+        self.cache_ttl_seconds = int(os.getenv("CACHE_TTL_SECONDS", 3600))
+        self.circuit_breaker_fail_max = int(os.getenv("CIRCUIT_BREAKER_FAIL_MAX", 3))
+        self.circuit_breaker_reset_timeout = int(os.getenv("CIRCUIT_BREAKER_RESET_TIMEOUT", 60))
+        self.scraper_timeout_seconds = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", 15))
+        
+        # 문자열을 boolean으로 파싱
+        mock_env = str(os.getenv("USE_MOCK_DATA", "False")).lower()
+        self.use_mock_data = mock_env in ("true", "1", "yes")
+        
+        self.host = os.getenv("HOST", "0.0.0.0")
+        
+        # 8000번 포트 충돌 방지를 위한 강제 5000 세팅
+        self.port = 5000
+
+settings = Settings()
