@@ -243,10 +243,30 @@ class ScoringEngine:
             start = time.time()
             node = self.router.cat_mgr.get_node_by_path(path)
             
-            # 검색어 결정 (q_keyword가 있으면 우선 사용, 없으면 path의 마지막 단어 사용)
+            # 검색어 결정: q_keyword > 상위 카테고리 컨텍스트 반영 > path 마지막 단어
             search_query = path[-1]
             if isinstance(node, dict) and "q_keyword" in node:
                 search_query = node["q_keyword"]
+            elif len(path) >= 3:
+                # 상위 카테고리 컨텍스트 반영 (1-depth 대분류 제외)
+                # 예: ["패션의류", "여성의류", "바지"] → "여성 바지"
+                # 예: ["패션의류", "남성의류", "바지"] → "남성 바지"
+                parent = path[-2]  # 직계 상위 카테고리
+                leaf = path[-1]    # 현재 리프 노드
+                
+                # 상위 카테고리에서 성별/대상 키워드 추출
+                context_keywords = {
+                    "여성의류": "여성", "남성의류": "남성",
+                    "여성신발": "여성", "남성신발": "남성",
+                    "여성가방": "여성", "남성가방": "남성",
+                    "여성언더웨어/잠옷": "여성", "남성언더웨어/잠옷": "남성",
+                    "유아동의류": "아동", "유아동신발/잡화": "아동",
+                    "여아의류": "여아", "남아의류": "남아",
+                }
+                context = context_keywords.get(parent, "")
+                if context and context not in leaf:
+                    search_query = f"{context} {leaf}"
+                    logger.info(f"[CategoryNode] 상위 컨텍스트 반영 검색어: '{search_query}' (parent='{parent}', leaf='{leaf}')")
 
             coupang_res = {"status": "ERROR", "items": []}
             try:
