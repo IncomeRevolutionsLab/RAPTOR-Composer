@@ -114,10 +114,18 @@ async function loadCategoryNode(payload) {
     simulateLoadingSteps();
 
     try {
+        // [v2.35] 수동 입력 데이터 추출 (있는 경우에만)
+        const manualOlive = document.getElementById('manual_oliveyoung')?.value || "";
+        const manualDaiso = document.getElementById('manual_daiso')?.value || "";
+        
+        const payloadWithManual = { ...payload, 
+                                    manual_olive: manualOlive, 
+                                    manual_daiso: manualDaiso };
+
         const data = await fetchWithRetry(`${API_BASE_URL}/category_node`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payloadWithManual)
         });
         
         setTimeout(() => {
@@ -284,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (TOP_LEVEL_CATEGORIES.includes(domain)) {
             loadCategoryNode({path: [domain]});
         } else {
+            // [v2.35] 특정 키워드 검색 시에도 수동 입력값은 loadCategoryNode 내에서 처리됨
             loadCategoryNode({keyword: domain});
         }
     });

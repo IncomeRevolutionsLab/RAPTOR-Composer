@@ -12,6 +12,7 @@ __pycache__/
 *.zip
 *.tar.gz
 backup_*/
+backend/brain/
 
 # 임시 스크립트 및 디버그 파일
 tmp_script.py

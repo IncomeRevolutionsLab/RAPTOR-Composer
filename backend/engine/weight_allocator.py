@@ -9,8 +9,8 @@ class WeightAllocator:
     def __init__(self):
         # [네이버, 올리브영, 다이소] 가중치 매핑
         self.base_weights = {
-            "BEAUTY": {"naver": 0.20, "oliveyoung": 0.70, "daiso": 0.10},
-            "LOWPRICE": {"naver": 0.30, "oliveyoung": 0.10, "daiso": 0.60},
+            "BEAUTY": {"oliveyoung": 0.45, "naver": 0.35, "daiso": 0.20},
+            "LOWPRICE": {"daiso": 0.40, "naver": 0.30, "oliveyoung": 0.30},
             "SEASONAL": {"naver": 0.65, "oliveyoung": 0.20, "daiso": 0.15},
             "GENERAL": {"naver": 0.40, "oliveyoung": 0.30, "daiso": 0.30}
         }

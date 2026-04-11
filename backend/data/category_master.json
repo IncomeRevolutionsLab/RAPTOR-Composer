@@ -1,0 +1,586 @@
+{
+  "패션의류": {
+    "base": 50,
+    "subcategories": {
+      "여성의류": {
+        "base": 50,
+        "subcategories": {
+          "원피스": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "블라우스/셔츠": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "청바지": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "니트": {
+            "base": 50,
+            "subcategories": {
+              "카디건": {
+                "base": 50
+              },
+              "풀오버": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "남성의류": {
+        "base": 50,
+        "subcategories": {
+          "셔츠/남방": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "청바지": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "니트": {
+            "base": 50,
+            "subcategories": {
+              "카디건": {
+                "base": 50
+              },
+              "풀오버": {
+                "base": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "패션잡화": {
+    "base": 50,
+    "subcategories": {
+      "남성신발": {
+        "base": 50,
+        "subcategories": {
+          "운동화": {
+            "base": 50,
+            "subcategories": {
+              "러닝화": {
+                "base": 50
+              }
+            }
+          },
+          "스니커즈": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "여성신발": {
+        "base": 50,
+        "subcategories": {
+          "운동화": {
+            "base": 50,
+            "subcategories": {
+              "러닝화": {
+                "base": 50
+              },
+              "워킹화": {
+                "base": 50
+              }
+            }
+          },
+          "단화": {
+            "base": 50,
+            "subcategories": {
+              "스니커즈": {
+                "base": 50
+              },
+              "로퍼": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "여성가방": {
+        "base": 50,
+        "subcategories": {
+          "숄더백": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "모자": {
+        "base": 50,
+        "subcategories": {
+          "야구모자": {
+            "base": 50,
+            "subcategories": {
+              "일반캡": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "지갑": {
+        "base": 50,
+        "subcategories": {
+          "남성지갑": {
+            "base": 50,
+            "subcategories": {
+              "반지갑": {
+                "base": 50
+              }
+            }
+          },
+          "여성지갑": {
+            "base": 50,
+            "subcategories": {
+              "반지갑": {
+                "base": 50
+              },
+              "장지갑": {
+                "base": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "화장품/미용": {
+    "base": 50,
+    "subcategories": {
+      "스킨케어": {
+        "base": 50,
+        "subcategories": {
+          "크림": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "클렌징": {
+        "base": 50,
+        "subcategories": {
+          "클렌징폼": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "마스크/팩": {
+        "base": 50,
+        "subcategories": {
+          "마스크시트": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "선케어": {
+        "base": 50,
+        "subcategories": {
+          "선크림": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "베이스메이크업": {
+        "base": 50,
+        "subcategories": {
+          "쿠션": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      }
+    }
+  },
+  "디지털/가전": {
+    "base": 50,
+    "subcategories": {
+      "휴대폰": {
+        "base": 50,
+        "subcategories": {
+          "자급제폰": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "음향가전": {
+        "base": 50,
+        "subcategories": {
+          "블루투스셋": {
+            "base": 50,
+            "subcategories": {
+              "블루투스이어폰/이어셋": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "노트북": {
+        "base": 50,
+        "subcategories": {}
+      },
+      "계절가전": {
+        "base": 50,
+        "subcategories": {
+          "공기정화기": {
+            "base": 50,
+            "subcategories": {
+              "공기청정기": {
+                "base": 50
+              }
+            }
+          },
+          "가습기": {
+            "base": 50,
+            "subcategories": {
+              "초음파식가습기": {
+                "base": 50
+              },
+              "가열식가습기": {
+                "base": 50
+              },
+              "자연식가습기": {
+                "base": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "가구/인테리어": {
+    "base": 50,
+    "subcategories": {
+      "인테리어소품": {
+        "base": 50,
+        "subcategories": {
+          "조명": {
+            "base": 50,
+            "subcategories": {
+              "인테리어조명": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "서재/사무용가구": {
+        "base": 50,
+        "subcategories": {
+          "책상": {
+            "base": 50,
+            "subcategories": {
+              "컴퓨터책상": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "커튼/블라인드": {
+        "base": 50,
+        "subcategories": {
+          "커튼": {
+            "base": 50,
+            "subcategories": {
+              "거실용커튼": {
+                "base": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "출산/육아": {
+    "base": 50,
+    "subcategories": {
+      "기저귀": {
+        "base": 50,
+        "subcategories": {
+          "일회용기저귀": {
+            "base": 50,
+            "subcategories": {
+              "밴드형": {
+                "base": 50
+              },
+              "팬티형": {
+                "base": 50
+              },
+              "일자형": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "물티슈": {
+        "base": 50,
+        "subcategories": {
+          "캡형": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "코인티슈/업소용": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "유모차": {
+        "base": 50,
+        "subcategories": {
+          "초경량/휴대용": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "카시트": {
+        "base": 50,
+        "subcategories": {
+          "영유아카시트": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "주니어카시트": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "신생아카시트": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "분유": {
+        "base": 50,
+        "subcategories": {
+          "국내분유": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "수입분유": {
+            "base": 50,
+            "subcategories": {}
+          },
+          "특수분유": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      }
+    }
+  },
+  "식품": {
+    "base": 50,
+    "subcategories": {
+      "음료": {
+        "base": 50,
+        "subcategories": {
+          "청량/탄산음료": {
+            "base": 50,
+            "subcategories": {
+              "콜라": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "축산물": {
+        "base": 50,
+        "subcategories": {
+          "닭고기": {
+            "base": 50,
+            "subcategories": {
+              "닭가슴살": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "밀키트": {
+        "base": 50,
+        "subcategories": {
+          "찌개/국": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "다이어트식품": {
+        "base": 50,
+        "subcategories": {
+          "단백질보충제": {
+            "base": 50,
+            "subcategories": {
+              "단백질파우더": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "과자/베이커리": {
+        "base": 50,
+        "subcategories": {
+          "초콜릿": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      }
+    }
+  },
+  "스포츠/레저": {
+    "base": 50,
+    "subcategories": {
+      "캠핑": {
+        "base": 50,
+        "subcategories": {
+          "캠핑가구": {
+            "base": 50,
+            "subcategories": {
+              "캠핑의자": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "요가/필라테스": {
+        "base": 50,
+        "subcategories": {
+          "요가매트": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "등산": {
+        "base": 50,
+        "subcategories": {
+          "등산화": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "골프": {
+        "base": 50,
+        "subcategories": {
+          "골프클럽": {
+            "base": 50,
+            "subcategories": {
+              "드라이버": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "수영": {
+        "base": 50,
+        "subcategories": {
+          "여성수영복": {
+            "base": 50,
+            "subcategories": {
+              "반신수영복": {
+                "base": 50
+              },
+              "원피스수영복": {
+                "base": 50
+              }
+            }
+          },
+          "남성수영복": {
+            "base": 50,
+            "subcategories": {
+              "남성사각": {
+                "base": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "생활/건강": {
+    "base": 50,
+    "subcategories": {
+      "생활용품": {
+        "base": 50,
+        "subcategories": {
+          "세제/세정제": {
+            "base": 50,
+            "subcategories": {
+              "세탁세제": {
+                "base": 50
+              }
+            }
+          },
+          "화장지": {
+            "base": 50,
+            "subcategories": {
+              "롤화장지": {
+                "base": 50
+              }
+            }
+          }
+        }
+      },
+      "건강관리용품": {
+        "base": 50,
+        "subcategories": {
+          "먼지차단마스크": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      },
+      "욕실용품": {
+        "base": 50,
+        "subcategories": {
+          "샤워기": {
+            "base": 50,
+            "subcategories": {
+              "필터전용샤워기": {
+                "base": 50
+              },
+              "일반샤워기": {
+                "base": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "여가/생활편의": {
+    "base": 50,
+    "subcategories": {
+      "국내렌터카": {
+        "base": 50,
+        "subcategories": {
+          "단기렌터카": {
+            "base": 50,
+            "subcategories": {}
+          }
+        }
+      }
+    }
+  }
+}

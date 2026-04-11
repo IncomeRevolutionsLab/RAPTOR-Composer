@@ -26,6 +26,20 @@ class ScoringEngine:
         """
         logger.info(f"[ScoringEngine] 파이프라인 시작: {domain}")
         category_analysis = self.router.analyze(domain)
+        
+        # [v2.35] 이미 구현된 CategoryManager를 통해 검색어를 범주와 매칭
+        # 매칭된 트리의 depth1이 '화장품/미용'이면 BEAUTY, '생활/건강'이면 LOWPRICE(저가) 등으로 자동 리라우팅
+        matched_tree = category_analysis.get("matched_hierarchy", {})
+        d1 = matched_tree.get("depth1", "")
+        if d1 == "화장품/미용":
+            category_analysis["detected_type"] = "BEAUTY"
+        elif d1 == "생활/건강":
+            # 1만원 이하 저가 생활용품 감지 (domain에 저가형 키워드 있거나 depth1이 생활/건강인 경우)
+            if any(k in domain for k in ["다이소", "저가", "가성비", "1000", "정리", "수납"]):
+                category_analysis["detected_type"] = "LOWPRICE"
+            else:
+                category_analysis["detected_type"] = "GENERAL"
+        
         cat_type = category_analysis["detected_type"]
         
         # 1. 다이내믹 카테고리 매핑을 위해 Naver Shopping API 먼저 (동기) 호출
@@ -44,14 +58,26 @@ class ScoringEngine:
         is_leaf = matched_tree.get("is_leaf_category", True)
         has_subcat = matched_tree.get("has_subcat", False)
         
-        # [NEW] 단어 검색 시 중간 노드(하위 노드가 있는 경우)이면 N-Depth 트렌드 분석으로 리다이렉트
-        if has_subcat:
+        # [v2.35] 사용자의 정책 핵심 반영:
+        # 1) 입력 단어가 네이버 구조상 명확한 카테고리명(Exact Match)이고
+        # 2) 수동 입력 데이터가 없는 경우에만 페이즈 1(N-Depth 탐색)로 보냄
+        # 3) 그 외의 모든 경우(특정 상품 검색, 수동 입력 등)는 페이즈 2(종합 분석)로 직행
+        
+        is_exact_category = getattr(self.router.cat_mgr, "_last_match_is_exact", False)
+        has_manual_input = bool(manual_olive.strip() or manual_daiso.strip())
+        
+        if has_subcat and is_exact_category and not has_manual_input:
             path = []
             if matched_tree.get("depth1"): path.append(matched_tree["depth1"])
             if matched_tree.get("depth2"): path.append(matched_tree["depth2"])
             if matched_tree.get("depth3"): path.append(matched_tree["depth3"])
-            logger.info(f"[ScoringEngine] Redirecting to N-Depth view for path: {path}")
+            logger.info(f"[ScoringEngine] [Phase 1 Redirect] 정확한 카테고리 매치 확인: {path}")
             return {"action": "redirect_to_ndepth", "path": path}
+        
+        if has_manual_input:
+            logger.info(f"[ScoringEngine] [Phase 2 Forced] 수동 입력 데이터 감지로 즉시 종합 분석 진행")
+        elif not is_exact_category:
+            logger.info(f"[ScoringEngine] [Phase 2 Forced] 구조상 명칭 불일치(특정 제품군 검색)로 즉시 종합 분석 진행")
             
         # 말단이면 원본 사용자 입력어로, 아니면 API에서 확인된 depth3 사용
         search_query = domain if is_leaf else (matched_tree.get("depth3") or domain)
@@ -139,28 +165,50 @@ class ScoringEngine:
                     "source_url": f"https://www.coupang.com/np/search?q={search_query}"
                 })
         else:
-            # 원래 카테고리 특성상 의도되었던 주력 소스 도출
-            intended_primary = max(self.allocator.base_weights.get(cat_type, self.allocator.base_weights["GENERAL"]).items(), key=lambda x: x[1])[0]
-            is_fallback_mode = intended_primary not in healthy_sources
+            # --- [Rank Fusion 로직 시작] ---
+            # 모든 소스에서 후보 상품들을 수집하고 가중치 기반 점수를 부여합니다.
+            candidate_pool = []
             
-            # 현재 남아있는 소스 중 가장 높은 가중치를 가진 소스
-            primary_source = max(weights.items(), key=lambda x: x[1])[0]
+            def add_to_pool(source_name, items, weight):
+                for item in items:
+                    rank = item.get("rank", 10)
+                    # 점수 공식: (해당 소스 가중치) * (1.1 - rank/10)
+                    # 1위는 1.0배, 10위는 0.1배 점수를 가중치에 곱함
+                    score = weight * (1.1 - (rank / 10))
+                    item["fusion_score"] = score
+                    item["source_label"] = source_name.capitalize()
+                    candidate_pool.append(item)
+
+            add_to_pool("naver", naver_shopping_res.get("items", []), weights.get("naver", 0))
+            add_to_pool("oliveyoung", olive_res.get("items", []), weights.get("oliveyoung", 0))
+            add_to_pool("daiso", daiso_res.get("items", []), weights.get("daiso", 0))
+            add_to_pool("coupang", coupang_res.get("items", []), 0.1) # 쿠팡은 보조 데이터로 0.1 고정
+
+            # 상품명 기준 중복 제거 및 점수 합산 (동일 상품이 여러 몰에 있는 경우)
+            merged_items = {}
+            for item in candidate_pool:
+                name = item.get("name") or item.get("title", "")
+                if not name: continue
+                # 간단한 이름 정규화 (공백 제거 등)
+                norm_name = "".join(name.split()).lower()
+                if norm_name in merged_items:
+                    merged_items[norm_name]["fusion_score"] += item["fusion_score"]
+                    # 소스 라벨 누적 (예: Naver, Oliveyoung)
+                    if item["source_label"] not in merged_items[norm_name]["source_label"]:
+                        merged_items[norm_name]["source_label"] += f", {item['source_label']}"
+                else:
+                    merged_items[norm_name] = item
+
+            # 최종 상품 리스트 생성 (소스 라벨 추가)
+            base_items = sorted(merged_items.values(), key=lambda x: x["fusion_score"], reverse=True)
+            for it in base_items:
+                label = it["source_label"]
+                orig_name = it.get("name") or it.get("title", "")
+                it["name"] = f"[{label}] {orig_name}"
+                it["title"] = it["name"] # 호환성
             
-            if is_fallback_mode and fallback_choice == "coupang" and coupang_res.get("status") == "OK":
-                primary_source = "coupang"
-                primary_signal = "Coupang_Fallback_Boosting"
-                base_items = coupang_res.get("items", [])
-                logger.info(f"[ScoringEngine] 의도된 소스({intended_primary}) 차단으로 인해 쿠팡(Coupang) 데이터를 우선 노출합니다.")
-            else:
-                primary_signal = f"{primary_source.capitalize()}_Boosting"
-                
-                base_items = []
-                if primary_source == "oliveyoung": base_items = olive_res.get("items", [])
-                elif primary_source == "daiso": base_items = daiso_res.get("items", [])
-                else: base_items = naver_shopping_res.get("items", [])
-                
-                if not base_items: # 1순위 소스에 데이터가 없으면 차순위 병합
-                    base_items = naver_shopping_res.get("items", []) + olive_res.get("items", []) + daiso_res.get("items", [])
+            primary_signal = f"Fusion_Ranking_Active ({primary_source.capitalize()} Focused)"
+            # --- [Rank Fusion 로직 종료] ---
             
         # 모델 타이틀 정규화
         group_name = f"[{search_query}] 카테고리 심층 통합 분석"

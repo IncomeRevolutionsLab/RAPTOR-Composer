@@ -7,7 +7,7 @@ from backend.engine.scoring_engine import ScoringEngine
 from backend.engine.json_packager import JsonPackager
 
 def test_run():
-    print("=== [SSPS Reviewer QA] V2.0 리얼 크롤링 및 백엔드 테스트 시작 ===")
+    print("=== [SSPS Reviewer QA] V2.35 리얼 크롤링 및 백엔드 테스트 시작 ===")
     
     engine = ScoringEngine()
     packager = JsonPackager()

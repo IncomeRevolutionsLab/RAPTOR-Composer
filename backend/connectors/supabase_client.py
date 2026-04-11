@@ -21,6 +21,11 @@ class SupabaseClient:
         self.client = None
         self._db_available = False
         
+        # [v2.352] 로컬 영속성 스토리지 경로 설정
+        self.local_storage_path = os.path.join(os.path.dirname(__file__), "..", "data", "site_stats.json")
+        os.makedirs(os.path.dirname(self.local_storage_path), exist_ok=True)
+        self._load_from_local_file()
+        
         if self.url and self.key:
             try:
                 from supabase import create_client, Client
@@ -46,6 +51,30 @@ class SupabaseClient:
                 logger.warning(f"Supabase 연결 실패: {e}. 로컬 카운터 모드로 동작합니다.")
         else:
             logger.info("Supabase 자격 증명이 없어 로컬 카운터 모드로 동작합니다.")
+
+    def _load_from_local_file(self):
+        """로컬 파일에서 통계 정보를 로드합니다."""
+        if os.path.exists(self.local_storage_path):
+            try:
+                with open(self.local_storage_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    SupabaseClient._local_analysis_count = data.get("total_analysis", 0)
+                    SupabaseClient._local_top_domain = data.get("top_domain", "식품")
+                    logger.info(f"[Counter] 로컬 파일에서 데이터 로드: {SupabaseClient._local_analysis_count}회")
+            except Exception as e:
+                logger.error(f"[Counter] 로컬 파일 로드 실패: {e}")
+
+    def _save_to_local_file(self):
+        """로컬 파일에 현재 통계 정보를 저장합니다."""
+        try:
+            data = {
+                "total_analysis": SupabaseClient._local_analysis_count,
+                "top_domain": SupabaseClient._local_top_domain
+            }
+            with open(self.local_storage_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"[Counter] 로컬 파일 저장 실패: {e}")
 
     def get_trend_data(self, keyword: str):
         """DB에서 키워드 트렌드 데이터를 조회합니다."""
@@ -107,6 +136,7 @@ class SupabaseClient:
         """분석 성공 시 누적 분석 횟수를 1 증가시킵니다. DB 실패 시 로컬 카운터 사용."""
         # [v2.351] 로컬 카운터는 항상 증가 (DB 성공 여부와 무관)
         SupabaseClient._local_analysis_count += 1
+        self._save_to_local_file() # 로컬 파일에 즉시 영속화
         logger.info(f"[Counter] 분석 카운트 +1 → 현재 로컬 카운터: {SupabaseClient._local_analysis_count}")
         
         if not self.client or not self._db_available:

@@ -165,6 +165,16 @@ NAVER_CATEGORY_TREE = {
                 "에센스/세럼": {"base": 80, "season": [0,0,5,10,10,5,5,10,15,10,0,0]},
                 "크림": {"base": 85, "season": [20,10,0,-10,-20,-20,-10,10,30,40,30,20]}
             }},
+            "클렌징": {"base": 75, "season": [5,5,5,5,5,5,5,5,5,5,5,5], "subcategories": {
+                "클렌징폼": {"base": 80, "season": [0,0,0,0,0,0,0,0,0,0,0,0]},
+                "클렌징오일": {"base": 72, "season": [0,0,0,0,0,0,0,0,0,0,0,0]},
+                "클렌징워터": {"base": 68, "season": [0,0,0,0,0,0,0,0,0,0,0,0]}
+            }},
+            "마스크/팩": {"base": 80, "season": [10,10,5,5,5,10,15,15,10,10,10,10], "subcategories": {
+                "마스크시트": {"base": 85, "season": [0,0,0,0,0,0,0,0,0,0,0,0]},
+                "모델링팩": {"base": 70, "season": [0,0,0,0,0,0,0,0,0,0,0,0]},
+                "워시오프팩": {"base": 65, "season": [0,0,0,0,0,0,0,0,0,0,0,0]}
+            }},
             "선케어": {"base": 62, "season": [-5,  0,  5, 10, 15, 18, 12,  5, -3, -8,-10, -8], "subcategories": {
                 "선크림": {"base": 80, "season": [-10,0,10,20,30,40,30,10,-10,-20,-20,-10]},
                 "선스틱": {"base": 60, "season": [-15,-5,5,25,35,45,35,5,-15,-25,-25,-15]},
@@ -179,7 +189,16 @@ NAVER_CATEGORY_TREE = {
                 "아이섀도우": {"base": 65, "season": [15,20,10,0,-10,-10,0,15,25,20,15,15]},
                 "립스틱/립틴트": {"base": 80, "season": [10,15,20,15,5,5,10,20,25,20,10,10]},
                 "블러셔": {"base": 60, "season": [5,15,25,20,5,0,0,10,15,10,5,5]}
-            }}
+            }},
+            "메이크업소품": {
+                "base": 50, "season": [0,0,0,0,0,0,0,0,0,0,0,0],
+                "q_keyword": "메이컵 툴,메이크업툴,화장소품,브러쉬,퍼프,뷰티툴",
+                "subcategories": {
+                    "메이크업브러쉬": {"base": 60, "season": [0,0,0,0,0,0,0,0,0,0,0,0]},
+                    "화장솜/퍼프": {"base": 55, "season": [0,0,0,0,0,0,0,0,0,0,0,0]},
+                    "아이툴/눈화장": {"base": 50, "season": [0,0,0,0,0,0,0,0,0,0,0,0]}
+                }
+            }
         }
     },
     "디지털/가전": {
@@ -454,32 +473,39 @@ class CategoryManager:
     def get_path_from_keyword(self, keyword: str, items: list = None) -> list:
         """
         [근본 해결책 - Single Pipeline Routing]
-        사용자가 입력한 검색어가 트리의 어떤 노드에 속하는지 명확한 Path(List)로 반환.
-        1. 트리 정밀 탐색 (최우선)
-        2. 트리에 없는 신조어/구체적 상품명일 경우 네이버 쇼핑 items 다수결로 상위 트리 추론 
         3. 최후의 보루 (기본값)
         """
-        kw = keyword.lower().strip()
+        def normalize(s):
+            if not s: return ""
+            # 공백, 하이픈, 슬래시 제거 및 소문자화
+            return "".join(s.lower().split()).replace("-","").replace("/","").replace("_","")
+
+        kw_norm = normalize(keyword)
         best_path = []
+        is_exact_match = False
 
         def search_tree(tree, current_path):
-            nonlocal best_path
+            nonlocal best_path, is_exact_match
             if not isinstance(tree, dict): return
             
             for k, info in tree.items():
                 if isinstance(info, dict):
-                    node_key = k.lower()
-                    aliases = [a.lower() for a in info.get("q_keyword", "").split(",")] if "q_keyword" in info else []
+                    node_key = k
+                    node_norm = normalize(k)
+                    aliases = [normalize(a) for a in info.get("q_keyword", "").split(",")] if "q_keyword" in info else []
                     
-                    # 정확한 일치 또는 별칭 일치 시 (부분 일치는 오작동 위험이 있으므로 정교하게 제어)
-                    if kw == node_key or kw in aliases or (len(kw)>1 and node_key == kw):
+                    # 1. 정규화된 이름이나 별칭이 정확히 일치하는 경우 (Exact Match)
+                    if kw_norm == node_norm or kw_norm in aliases:
                         best_path = current_path + [k]
-                        # 더 깊이 내려가지 않고 일치하는 가장 상위 혹은 완벽 매치를 찾음
+                        is_exact_match = True
+                        # 일치하는 경우에는 하위 탐색을 계속하여 가장 깊은 노드를 찾거나 중단 가능
+                        # 여기서는 일단 일치 수준이 높은 것을 선호
                         
-                    elif len(kw) >= 2 and (kw in node_key or node_key in kw):
-                        # 부분 일치일 경우 후보로 저장해두되 이미 best_path가 있으면 교체 여부 고민 (일단 저장)
-                        if not best_path:
-                            best_path = current_path + [k]
+                    # 2. 부분 일치 (이미 정확한 일치가 발견되지 않은 경우에만 예비용)
+                    elif not is_exact_match and len(kw_norm) >= 2:
+                        if kw_norm in node_norm or node_norm in kw_norm:
+                            if not best_path:
+                                best_path = current_path + [k]
                             
                     if "subcategories" in info:
                         search_tree(info["subcategories"], current_path + [k])
@@ -488,6 +514,9 @@ class CategoryManager:
         
         # 1관문: 트리에서 경로 기반 매치를 찾은 경우
         if best_path:
+            # [v2.35] 정확한 카테고리 일치 여부를 객체 속성에 임시 저장하거나 
+            # 외부에서 알 수 있도록 추가 정보를 리턴함 (get_node_info 등으로 확장 가능)
+            setattr(self, "_last_match_is_exact", is_exact_match)
             return best_path
             
         # 2관문: 트리에 완전히 없는 단어 (예: 두바이 초콜릿) -> 쇼핑 검색 다수결 추론
@@ -505,6 +534,7 @@ class CategoryManager:
                 best_path = best_str.split(">")
                 # 반환된 경로가 우리 10대 트리에 있는 1-depth인지 검증
                 if best_path[0] in NAVER_CATEGORY_TREE:
+                    setattr(self, "_last_match_is_exact", False) # 다수결 추론은 카테고리 직접 검색이 아님
                     return best_path
 
         # 3관문: 예외 및 하위 호환성 폴백
@@ -515,8 +545,11 @@ class CategoryManager:
             "구두": ["패션잡화", "여성신발"],
         }
         for k, p in fallback_rules.items():
-            if k in kw: return p
+            if k in kw_norm: 
+                setattr(self, "_last_match_is_exact", True)
+                return p
             
+        setattr(self, "_last_match_is_exact", False)
         return ["생활/건강", "생활잡화"]
         
     # 하위 호환을 위해 남겨두되 사실상 N-Depth 전용으로 전환되므로 거의 미사용
