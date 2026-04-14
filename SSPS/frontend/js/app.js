@@ -11,12 +11,15 @@ if (!IS_LOCAL) {
 }
 const TOP_LEVEL_CATEGORIES = [
     '패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어',
-    '출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의'
+    '출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의','도서','면세점'
 ];
 
 let weightChartInstance = null;
 let trendChartInstance  = null;
 let p1TrendChartInstance = null;
+
+// [v2.4] RAPTOR GEM 데이터 연동을 위한 전역 상태
+let currentAppData = null;
 
 // Phase1 결과 캐시 (뒤로가기용) 삭제 - N-Depth 탐색으로 전환
 
@@ -134,6 +137,9 @@ async function loadCategoryNode(payload) {
             } else {
                 renderPhase1(data, data.path || [payload.keyword]);
             }
+            // [v2.4] RAPTOR GEM 연동을 위해 최신 분석 데이터 세이브
+            currentAppData = data;
+            
             // [v2.35] 분석 성공 시 하단 실시간 통계 즉시 갱신 (손맛 구현)
             loadSiteStats();
         }, 400);
@@ -248,17 +254,50 @@ function renderPhase2(data, pathArray) {
         data.products.forEach(product => {
             const card = document.createElement('div');
             card.className = 'sku-card';
+            card.style.flexDirection = 'column'; // 세로 스택형으로 변경 (확장 기능 수용)
+            
+            // 엔진별 비용 추정 (15초 기준)
+            const veoCost = 2.25; // Standard 0.15 * 15 (Fast 기준 추정)
+            const klingCost = 1.8; // Standard 0.12 * 15
+            
             card.innerHTML = `
-                <a href="${product.source_url}" target="_blank" style="text-decoration:none; color:inherit; display:flex; flex-direction:column; width:100%;">
-                    <img src="${product.image_url || 'https://via.placeholder.com/300?text=No+Image'}"
-                         alt="${product.title}" class="sku-img"
-                         onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
-                    <div class="sku-info" style="flex:1;">
-                        <div class="sku-rank">Top ${product.rank} <span style="color:#f1c40f;">[Coupang]</span></div>
-                        <div class="sku-title" style="margin-top:8px;">${product.title}</div>
-                        <div class="sku-price" style="margin-top:6px;">₩${product.price.toLocaleString()}</div>
+                <div style="display:flex; flex-direction:row; width:100%;">
+                    <a href="${product.source_url}" target="_blank" style="text-decoration:none; color:inherit; display:flex; flex-direction:row; flex:1;">
+                        <img src="${product.image_url || 'https://via.placeholder.com/300?text=No+Image'}"
+                             alt="${product.title}" class="sku-img"
+                             onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+                        <div class="sku-info" style="flex:1;">
+                            <div class="sku-rank">Top ${product.rank} <span style="color:#f1c40f;">[Coupang]</span></div>
+                            <div class="sku-title" style="margin-top:8px;">${product.title}</div>
+                            <div class="sku-price" style="margin-top:6px;">₩${product.price.toLocaleString()}</div>
+                        </div>
+                    </a>
+                    <div style="width:1px; background:var(--glass-border); margin:15px 0;"></div>
+                    <div style="padding: 20px; display:flex; flex-direction:column; justify-content:center; gap:10px; width:200px;">
+                         <button class="coupang-btn" style="background:#58a6ff;">
+                            <i data-lucide="file-text" style="width:14px;"></i> RAPTOR Basic
+                         </button>
                     </div>
-                </a>
+                </div>
+                
+                <!-- [NEW] RAPTOR Extended (BYOK) Section -->
+                <div style="padding: 0 20px 20px 20px; border-top: 1px dashed var(--glass-border);">
+                    <div style="font-size: 0.75rem; color:var(--text-muted); margin: 12px 0 8px 0; display:flex; align-items:center; gap:5px;">
+                        <i data-lucide="video" style="width:12px;"></i> RAPTOR Extended (Video BYOK) - 엔진별 15초 제작 예측 비용
+                    </div>
+                    <div class="raptor-engine-grid">
+                        <div class="engine-card" onclick="alert('API 설정을 먼저 확인해주세요.')">
+                            <span class="cost-badge">$${veoCost}</span>
+                            <div class="engine-name">Google Veo 3.1</div>
+                            <div class="engine-quality">Fast / High Speed Sync</div>
+                        </div>
+                        <div class="engine-card" onclick="alert('API 설정을 먼저 확인해주세요.')">
+                            <span class="cost-badge">$${klingCost}</span>
+                            <div class="engine-name">Kling AI Pro</div>
+                            <div class="engine-quality">1080p / Artistic Motion</div>
+                        </div>
+                    </div>
+                </div>
             `;
             productGrid.appendChild(card);
         });
@@ -317,6 +356,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if (text) navigator.clipboard.writeText(text).then(() => showToast('JSON이 복사되었습니다.'));
     });
 
+    // [NEW] Settings Modal Controls
+    const settingsBtn = document.getElementById('open-settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+    settingsBtn?.addEventListener('click', () => {
+        // 기존 키 로드
+        const keys = JSON.parse(localStorage.getItem('raptor_api_keys') || '{}');
+        if (keys.google) document.getElementById('key-google').value = keys.google;
+        if (keys.kling) document.getElementById('key-kling').value = keys.kling;
+        if (keys.xai) document.getElementById('key-xai').value = keys.xai;
+        
+        settingsModal.classList.add('active');
+    });
+
+    closeSettingsBtn?.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+    });
+
+    saveSettingsBtn?.addEventListener('click', () => {
+        const keys = {
+            google: document.getElementById('key-google').value,
+            kling: document.getElementById('key-kling').value,
+            xai: document.getElementById('key-xai').value
+        };
+        localStorage.setItem('raptor_api_keys', JSON.stringify(keys));
+        showToast('✅ API 설정이 안전하게 저장되었습니다.');
+        settingsModal.classList.remove('active');
+    });
+
+    // [v2.4] RAPTOR GEM UI 제어 로직 등록
+    initRaptorHandlers();
+
     // 초기 데이터 로드 (차트, 키워드, 마이크로 통계)
     setTimeout(() => {
         initMain3DChart();
@@ -333,12 +406,15 @@ document.addEventListener('DOMContentLoaded', () => {
 function initMain3DChart() {
     const container1 = document.getElementById('main-3d-chart-1');
     const container2 = document.getElementById('main-3d-chart-2');
-    if (!container1 || !container2) return;
+    const container3 = document.getElementById('main-3d-chart-3');
+    if (!container1 || !container2 || !container3) return;
     
     const chart1 = echarts.init(container1);
     const chart2 = echarts.init(container2);
+    const chart3 = echarts.init(container3);
     chart1.showLoading({text: 'Loading...'});
     chart2.showLoading({text: 'Loading...'});
+    chart3.showLoading({text: 'Loading...'});
 
     const filterData = (cats, data, start, end) => {
         const slicedCats = cats.slice(start, end);
@@ -351,20 +427,27 @@ function initMain3DChart() {
         return { cats: slicedCats, data: filteredData };
     };
 
-    // 데이터 파일을 현재 정적 폴더 상대 경로에서 명확히 찾도록 수정
+    // [v2.44] 12개 분야 (4+4+4) 동적 바인딩
     fetch('./data/main_trend_3d.json')
         .then(r => { if (!r.ok) throw new Error('no cache'); return r.json(); })
         .then(json => { 
-            const p1 = filterData(json.categories, json.data, 0, 5);
-            const p2 = filterData(json.categories, json.data, 5, 10);
+            const p1 = filterData(json.categories, json.data, 0, 4);
+            const p2 = filterData(json.categories, json.data, 4, 8);
+            const p3 = filterData(json.categories, json.data, 8, 12);
             render3DChart(chart1, p1.cats, json.months, p1.data);
             render3DChart(chart2, p2.cats, json.months, p2.data);
-            chart1.hideLoading(); chart2.hideLoading();
+            render3DChart(chart3, p3.cats, json.months, p3.data);
+            
+            // [v2.44] 차트가 블랙아웃되는 현상을 방지하기 위해 강제 리사이즈 시도
+            setTimeout(() => { chart1.resize(); chart2.resize(); chart3.resize(); }, 200);
+            
+            chart1.hideLoading(); chart2.hideLoading(); chart3.hideLoading();
         })
         .catch(() => {
-            const cats = ['패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어','출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의'];
+            // [v2.44] 12개 분야 Fallback 리스트 및 데이터 생성 (도서, 면세점 포함)
+            const cats = ['패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어','출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의','도서','면세점'];
             const mnts = ['25-04','25-05','25-06','25-07','25-08','25-09','25-10','25-11','25-12','26-01','26-02','26-03'];
-            const baseScores = [70,45,80,62,55,64,85,65,72,47];
+            const baseScores = [70,45,80,62,55,64,85,65,72,47,40,30];
             const seasonBias = [
                 [0,5,10,15,8,0,8,18,28,-12,-18,-2],
                 [-2,4,8,12,5,-3,10,14,22,-8,-14,0],
@@ -375,18 +458,27 @@ function initMain3DChart() {
                 [5,8,0,15,14,-2,5,15,18,10,-3,5],
                 [0,22,38,30,26,10,-5,-10,-14,-20,-10,0],
                 [0,4,8,10,6,10,12,10,8,4,0,5],
-                [0,8,18,24,20,10,-3,-5,8,-3,-10,8]
+                [0,8,18,24,20,10,-3,-5,8,-3,-10,8],
+                [0,5,10,5,3,8,12,15,25,10,5,12], // 도서 (학기초/연말 효과)
+                [5,10,15,20,25,10,5,15,30,-5,-10,0] // 면세점 (휴가시즌 효과)
             ];
             const fallbackData = [];
-            for (let i = 0; i < cats.length; i++)
-                for (let j = 0; j < mnts.length; j++)
+            for (let i = 0; i < cats.length; i++) {
+                for (let j = 0; j < mnts.length; j++) {
                     fallbackData.push([j, i, Math.min(100, Math.max(10, baseScores[i]+seasonBias[i][j]+Math.floor(Math.random()*8-4)))]);
+                }
+            }
             
-            const p1 = filterData(cats, fallbackData, 0, 5);
-            const p2 = filterData(cats, fallbackData, 5, 10);
+            const p1 = filterData(cats, fallbackData, 0, 4);
+            const p2 = filterData(cats, fallbackData, 4, 8);
+            const p3 = filterData(cats, fallbackData, 8, 12);
             render3DChart(chart1, p1.cats, mnts, p1.data, '(기본 데이터)');
             render3DChart(chart2, p2.cats, mnts, p2.data, '(기본 데이터)');
-            chart1.hideLoading(); chart2.hideLoading();
+            render3DChart(chart3, p3.cats, mnts, p3.data, '(기본 데이터)');
+            // [v2.44] 예비 데이터 로딩 시에도 블랙아웃 방지 리사이즈
+            setTimeout(() => { chart1.resize(); chart2.resize(); chart3.resize(); }, 200);
+            
+            chart1.hideLoading(); chart2.hideLoading(); chart3.hideLoading();
         });
 }
 
@@ -605,5 +697,90 @@ async function loadSiteStats() {
     } catch (e) {
         console.error("Failed to load site stats:", e);
     }
+}
+
+/**
+ * [v2.4] RAPTOR GEM: AI 숏폼 기획안 생성 및 모달 처리
+ */
+function initRaptorHandlers() {
+    const slider = document.getElementById('raptor-duration-slider');
+    const valText = document.getElementById('raptor-duration-val');
+    const planBtn = document.getElementById('raptor-plan-btn');
+    const modal = document.getElementById('raptor-modal');
+    const closeModal = document.getElementById('close-raptor-btn');
+    const resultContent = document.getElementById('raptor-result-content');
+    
+    if (!slider || !planBtn) return;
+
+    // 1. 슬라이더 값 실시간 변경 인식 (대표님 피드백 반영: 15~60s)
+    slider.addEventListener('input', (e) => {
+        valText.textContent = `${e.target.value}s`;
+    });
+
+    // 2. AI 기획안 생성 실행
+    planBtn.addEventListener('click', async () => {
+        if (!currentAppData) {
+            alert("먼저 분석을 수행하여 데이터를 생성해 주세요!");
+            return;
+        }
+
+        const duration = slider.value;
+        
+        // UI 로딩 상태 시작
+        modal.classList.add('active');
+        resultContent.innerHTML = `
+            <div style="text-align: center; padding: 60px 0;">
+                <div class="spinner" style="border-width:4px; width:50px; height:50px; margin: 0 auto 20px;"></div>
+                <h3 style="color:var(--primary); font-size:1.2rem; margin-bottom:10px;">RAPTOR GEM AI Reasoning...</h3>
+                <p style="color:#888;">Gemini 3.1 Pro (High)가 ${duration}초 분량의 최적화된 기획안을 작성하고 있습니다.</p>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/raptor/generate-plan`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ssps_data: currentAppData,
+                    duration: duration
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success' || result.status === 'mock') {
+                // 상단 메타 정보 업데이트
+                document.getElementById('raptor-res-duration').textContent = `${duration}초`;
+                
+                // 마크다운 렌더링 (marked.js 활용)
+                resultContent.innerHTML = marked.parse(result.planning_document);
+                lucide.createIcons();
+            } else {
+                throw new Error(result.error || "AI 엔진 호출 중 오류가 발생했습니다.");
+            }
+        } catch (e) {
+            resultContent.innerHTML = `
+                <div style="padding: 40px; text-align: center; color: #ff4d4f; border: 1px dashed rgba(255,77,79,0.3); border-radius: 12px;">
+                    <i data-lucide="alert-triangle" style="width:48px; height:48px; margin-bottom:15px;"></i>
+                    <p style="font-weight:600;">기획안 생성 실패</p>
+                    <p style="font-size:0.9rem; margin-top:10px;">${e.message}</p>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+    });
+
+    // 3. 모달 닫기
+    closeModal?.addEventListener('click', () => modal.classList.remove('active'));
+    
+    // 4. 복사 및 인쇄 버튼
+    document.getElementById('copy-raptor-btn')?.addEventListener('click', () => {
+        const text = resultContent.innerText;
+        navigator.clipboard.writeText(text).then(() => showToast("📋 기획안이 클립보드에 복사되었습니다."));
+    });
+
+    document.getElementById('print-raptor-btn')?.addEventListener('click', () => {
+        window.print();
+    });
 }
 

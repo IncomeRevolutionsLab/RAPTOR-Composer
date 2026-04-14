@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from backend.engine.scoring_engine import ScoringEngine
 from backend.engine.json_packager import JsonPackager
+from backend.engine.raptor_engine import raptor_engine
 from backend.connectors.supabase_client import SupabaseClient
 from backend.utils.cache_manager import cache
 
@@ -119,6 +120,24 @@ def get_site_stats():
     """실시간 누적 분석 횟수 및 Top 분야 정보 반환"""
     stats = supabase.get_site_stats()
     return jsonify(stats)
+
+@app.route("/api/v1/raptor/generate-plan", methods=["POST"])
+async def raptor_generate_plan():
+    """[v2.4] RAPTOR GEM: AI 숏폼 기획안 생성"""
+    try:
+        data = request.json
+        ssps_data = data.get("ssps_data")
+        duration = int(data.get("duration", 30))
+        
+        if not ssps_data:
+            return jsonify({"error": "SSPS 데이터가 누락되었습니다."}), 400
+            
+        # Gemini 1.5 Pro 엔진 호출
+        plan_result = await raptor_engine.generate_plan(ssps_data, duration)
+        return jsonify(plan_result)
+    except Exception as e:
+        logger.error(f"[Main] Raptor Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/v1/reset_stats_only", methods=["GET"])
 def reset_stats_only():
