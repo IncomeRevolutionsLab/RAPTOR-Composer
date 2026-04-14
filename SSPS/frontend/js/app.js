@@ -95,7 +95,8 @@ function resetToHome() {
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
     for (let i = 0; i < retries; i++) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 7000); // 7초 타임아웃 설정
+        // [v2.46 긴급 수정] Render 무료 서버의 콜드 스타트(Wake-up) 시간(최대 50초)을 고려하여 타임아웃을 60초로 대폭 연장
+        const timeoutId = setTimeout(() => controller.abort(new Error("Request Timeout: 서버 응답이 지연되었습니다.")), 60000); 
         
         try {
             const res = await fetch(url, { ...options, signal: controller.signal });
@@ -109,7 +110,7 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
         } catch (e) {
             clearTimeout(timeoutId);
             if (i === retries - 1) throw e;
-            console.warn(`[API Retry] ${i + 1}회 실패. 재시도 중... (${url})`, e.name === 'AbortError' ? 'Timeout' : e.message);
+            console.warn(`[API Retry] ${i + 1}회 실패. 재시도 중... (${url})`, e.message);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
