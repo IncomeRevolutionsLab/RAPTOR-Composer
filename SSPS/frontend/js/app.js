@@ -94,16 +94,22 @@ function resetToHome() {
 
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
     for (let i = 0; i < retries; i++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7000); // 7초 타임아웃 설정
+        
         try {
-            const res = await fetch(url, options);
+            const res = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timeoutId);
+            
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
                 throw new Error(errData.error || `HTTP error! status: ${res.status}`);
             }
             return await res.json();
         } catch (e) {
+            clearTimeout(timeoutId);
             if (i === retries - 1) throw e;
-            console.warn(`[API Retry] ${i + 1}회 실패. 재시도 중... (${url})`, e.message);
+            console.warn(`[API Retry] ${i + 1}회 실패. 재시도 중... (${url})`, e.name === 'AbortError' ? 'Timeout' : e.message);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
@@ -344,6 +350,10 @@ document.addEventListener('DOMContentLoaded', () => {
             loadCategoryNode({path: [val]});
         });
     });
+
+    // [v2.45] 페이지 로드 즉시 첫 번째 분야(패션의류) 인기 키워드 로드
+    const firstDomain = TOP_LEVEL_CATEGORIES[0] || '패션의류';
+    loadPopularKeywords(firstDomain);
 
     // 수동 업로드 확인
     document.getElementById('verify-manual-btn')?.addEventListener('click', () => {

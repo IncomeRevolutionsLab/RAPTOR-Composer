@@ -132,7 +132,7 @@ async def raptor_generate_plan():
         if not ssps_data:
             return jsonify({"error": "SSPS 데이터가 누락되었습니다."}), 400
             
-        # Gemini 1.5 Pro 엔진 호출
+        # [v2.45] Gemini 3.1 Pro (High) 엔진 호출 (Official Raptor Gem)
         plan_result = await raptor_engine.generate_plan(ssps_data, duration)
         return jsonify(plan_result)
     except Exception as e:
