@@ -164,3 +164,28 @@ class SupabaseClient:
                 logger.info(f"[Counter] DB 레코드 생성 완료: {SupabaseClient._local_analysis_count}")
         except Exception as e:
             logger.error(f"[Counter] DB 업데이트 실패 (로컬 카운터로 폴백): {e}")
+
+    # ── Category Master Operations ──────────────────────────────────
+
+    def get_all_categories(self):
+        """DB에서 전체 카테고리 마스터 데이터를 조회합니다."""
+        if not self.client or not self._db_available:
+            return None
+        try:
+            # 5000개 이상의 데이터일 경우 페이지네이션 필요할 수 있으나 우선 단순 조회
+            response = self.client.table('category_master').select('*').eq('is_active', True).execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Supabase GET categories failed: {e}")
+            return None
+
+    def get_child_categories(self, parent_id: int):
+        """특정 부모의 하위 카테고리들을 조회합니다."""
+        if not self.client or not self._db_available:
+            return None
+        try:
+            response = self.client.table('category_master').select('*').eq('parent_id', parent_id).eq('is_active', True).execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Supabase GET subcategories failed: {e}")
+            return None

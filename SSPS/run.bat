@@ -5,13 +5,13 @@ echo  SSPS (지능형 쇼핑 숏폼 상품 선정 시스템) 실행기
 echo ==============================================
 
 :: 가상환경 설정 (없으면 생성)
-if not exist ".venv" (
+if not exist "..\.venv" (
     echo [INFO] 가상환경을 생성합니다...
-    python -m venv .venv
+    python -m venv ..\.venv
 )
 
 :: 가상환경 활성화
-call .venv\Scripts\activate.bat
+call ..\.venv\Scripts\activate.bat
 
 :: 패키지 의존성 확인
 echo [INFO] 패키지 의존성을 확인 및 설치합니다...

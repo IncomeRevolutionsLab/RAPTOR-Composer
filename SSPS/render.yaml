@@ -2,6 +2,7 @@ services:
   - type: web
     name: ssps-engine-api
     env: python
+    rootDir: SSPS
     buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "python backend/main.py"
     envVars:
@@ -21,6 +22,7 @@ services:
   - type: cron
     name: ssps-daily-sync-bot
     env: python
+    rootDir: SSPS
     buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "python backend/utils/scheduler.py"
     schedule: "0 3 * * *"

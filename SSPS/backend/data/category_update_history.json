@@ -1,0 +1,39 @@
+[
+  {
+    "timestamp": "2026-04-13T19:44:45.011543",
+    "type": "auto_discovery",
+    "added_count": 3,
+    "details": [
+      {
+        "naver_cat_id": 587392127,
+        "name_ko": "신규분야",
+        "depth": 1,
+        "parent_id": null,
+        "full_path": "신규분야",
+        "is_leaf": false,
+        "source_type": "auto_sync",
+        "synced_at": "2026-04-13T19:44:44.821169"
+      },
+      {
+        "naver_cat_id": 3238986504,
+        "name_ko": "테스트카테고리",
+        "depth": 2,
+        "parent_id": 587392127,
+        "full_path": "신규분야 > 테스트카테고리",
+        "is_leaf": false,
+        "source_type": "auto_sync",
+        "synced_at": "2026-04-13T19:44:44.821389"
+      },
+      {
+        "naver_cat_id": 2409044790,
+        "name_ko": "최하위분류",
+        "depth": 3,
+        "parent_id": 3238986504,
+        "full_path": "신규분야 > 테스트카테고리 > 최하위분류",
+        "is_leaf": true,
+        "source_type": "auto_sync",
+        "synced_at": "2026-04-13T19:44:44.821478"
+      }
+    ]
+  }
+]
