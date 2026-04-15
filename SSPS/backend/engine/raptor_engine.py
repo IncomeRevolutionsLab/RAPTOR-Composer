@@ -121,5 +121,3 @@ SSPS(Smart Selection Planning System)가 분석한 다음의 데이터를 바탕
         }
 
 raptor_engine = RaptorEngine()
-
-raptor_engine = RaptorEngine()
