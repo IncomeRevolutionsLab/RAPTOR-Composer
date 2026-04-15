@@ -6,6 +6,8 @@ services:
     buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "python backend/main.py"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.6
       - key: NAVER_CLIENT_ID
         sync: false
       - key: NAVER_CLIENT_SECRET
@@ -27,6 +29,8 @@ services:
     startCommand: "python backend/utils/scheduler.py"
     schedule: "0 3 * * *"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.6
       - key: NAVER_CLIENT_ID
         sync: false
       - key: NAVER_CLIENT_SECRET
