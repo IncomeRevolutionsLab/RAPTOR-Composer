@@ -178,7 +178,7 @@ function renderPhase1(data, pathArray) {
             border:2px solid transparent; transition:all 0.25s; position:relative; overflow:hidden;
         `;
         card.innerHTML = `
-            <div style="font-size:1.4rem; font-weight:800; color:${rankColors[idx]}; margin-bottom:8px;">${rankLabels[idx]}</div>
+            <div style="font-size:1.4rem; font-weight:800; color:${rankColors[idx] || '#7d8590'}; margin-bottom:8px;">${idx + 1}위</div>
             <div style="font-size:1.1rem; font-weight:600; color:#e2e8f0; margin-bottom:10px;">${item.name}</div>
             <div style="font-size:0.8rem; color:#7d8590;">연평균 클릭 지수</div>
             <div style="font-size:1.5rem; font-weight:700; color:var(--primary); margin-top:4px;">${item.avg_score}</div>

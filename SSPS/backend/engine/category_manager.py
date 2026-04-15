@@ -110,18 +110,17 @@ class CategoryManager:
             try:
                 logger.info(f"[CategoryManager] {len(all_subcats)}개 카테고리 앵커링 보정 조회 시작")
                 
-                # 기준점(Anchor) 설정: 첫 번째 카테고리를 기준으로 삼음
+                # 기준점(Anchor) 설정: 첫 번째 카테고리를 글로벌 기준으로 삼음
                 anchor = all_subcats[0]
                 global_ranking = []
                 final_series_data = []
                 final_categories = []
+                global_anchor_ref_val = None # 첫 번째 배치의 Anchor 값
                 
                 # 4개씩 묶어서 처리 (1개는 Anchor 전용)
                 for i in range(0, len(all_subcats), 4):
-                    # 만약 i=0이면 Anchor 자체가 포함됨 ({A, B, C, D, E})
-                    # i>0이면 {A, F, G, H, I} 형식으로 구성
                     current_batch = [anchor] + [c for c in all_subcats[i:i+4] if c["cid"] != anchor["cid"]]
-                    if len(current_batch) == 1: continue # 중복 방지
+                    if len(current_batch) == 1 and i > 0: continue
                     
                     res = naver_connector.fetch_multi_shopping_trend(current_batch)
                     if res.get("status") == "OK":
@@ -134,20 +133,25 @@ class CategoryManager:
                         anchor_series = next((s for s in batch_series if s["name"] == anchor["name"]), None)
                         if not anchor_series: continue
                         
-                        # 기준점 보정: 첫 번째 배치의 Anchor를 100으로 가정했을 때의 상대 비율 계산
-                        # (단순화를 위해 최근 평균 Ratio 합계를 기준으로 함)
-                        anchor_val = sum(anchor_series["data"][-3:]) / 3 if anchor_series["data"] else 1
-                        if anchor_val == 0: anchor_val = 1 # 분모 0 방지
+                        # 현재 배치의 Anchor 평균값 계산
+                        cur_anchor_avg = sum(anchor_series["data"][-3:]) / 3 if anchor_series["data"] else 0
+                        
+                        # 글로벌 기준값 설정 (첫 번째 배치에서 획득)
+                        if global_anchor_ref_val is None:
+                            global_anchor_ref_val = cur_anchor_avg if cur_anchor_avg > 0 else 1.0
+                        
+                        # 배율 산출: Scale_Factor = (첫_배치_기준점 / 현재_배치_기준점)
+                        scale_factor = (global_anchor_ref_val / cur_anchor_avg) if cur_anchor_avg > 0 else 1.0
+                        if i == 0: scale_factor = 1.0 # 첫 배치는 보정 불필요
                         
                         for s in batch_series:
-                            # 이미 처리된 Anchor는 최초 1회만 추가
-                            if i > 0 and s["name"] == anchor["name"]:
-                                continue
-                                
-                            # 보정 계산: Net_Ratio = Ratio * (Global_Anchor_Reference / Current_Anchor_Ratio)
-                            # 실시간 분석에서는 현재 배치를 기준으로 상호 격차만 보여줌 (전역 보정은 Batch에서 수행)
-                            points = s.get("data", [])
-                            score = round(sum(points[-3:]) / min(len(points), 3), 1) if points else 0
+                            if i > 0 and s["name"] == anchor["name"]: continue
+                            
+                            # 데이터 포인트 보정 (Scaling 적용)
+                            scaled_points = [round(v * scale_factor, 2) for v in s.get("data", [])]
+                            s["data"] = scaled_points # 시계열 데이터 업데이트
+                            
+                            score = round(sum(scaled_points[-3:]) / min(len(scaled_points), 3), 1) if scaled_points else 0
                             
                             global_ranking.append({
                                 "name": s["name"],
@@ -155,6 +159,16 @@ class CategoryManager:
                                 "q_keyword": s["name"]
                             })
                             final_series_data.append(s)
+                            
+                # 전체 순위 재정렬 (보정된 점수 기준)
+                global_ranking.sort(key=lambda x: -x["avg_score"])
+                
+                # 전역 최댓값을 100으로 다시 정규화 (선택사항이나 시각적 일관성을 위해 추천)
+                max_score = max([r["avg_score"] for r in global_ranking]) if global_ranking else 100
+                if max_score > 0:
+                    norm_factor = 100 / max_score
+                    for r in global_ranking: r["avg_score"] = round(r["avg_score"] * norm_factor, 1)
+                    for s in final_series_data: s["data"] = [round(v * norm_factor, 2) for v in s["data"]]
                             
                 # 전체 순위 정렬
                 global_ranking.sort(key=lambda x: -x["avg_score"])
