@@ -272,8 +272,8 @@ class ScoringEngine:
         import urllib.parse
         from backend.engine.category_manager import CategoryManager
 
-        # 하위 카테고리가 있는지 확인 후 트렌드 분석
-        trend_data = self.router.cat_mgr.get_depth_trend_analysis(path)
+        # 하위 카테고리가 있는지 확인 후 트렌드 분석 (v2.47: 네이버 커넥터 주입으로 격차 보존)
+        trend_data = self.router.cat_mgr.get_depth_trend_analysis(path, self.naver)
 
         if trend_data:
             # 하위 카테고리가 존재함 -> 트렌드 비교 반환 (Phase 1 유사)

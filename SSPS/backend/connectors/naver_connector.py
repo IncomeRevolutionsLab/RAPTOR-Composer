@@ -147,15 +147,16 @@ class NaverConnector:
         import random
         from datetime import datetime, timedelta
         
-        # 데이터 파일 경로 설정
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        data_path = os.path.join(base_dir, "data", "keyword_pools.json")
+        # [v2.47] 실행 환경과 상관없이 항상 backend/data/keyword_pools.json을 찾도록 수정
+        current_file_path = os.path.abspath(__file__)
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+        data_path = os.path.join(base_dir, "backend", "data", "keyword_pools.json")
         
         try:
             with open(data_path, "r", encoding="utf-8") as f:
                 pools = json.load(f)
         except Exception as e:
-            logger.error(f"[NaverConnector] 데이터 파일 로드 실패: {e}")
+            logger.error(f"[NaverConnector] 데이터 파일 로드 실패 (Path: {data_path}): {e}")
             pools = {}
             
         today = datetime.now()
@@ -240,4 +241,70 @@ class NaverConnector:
         return naver_datalab_cb.call(
             _request_shopping_trend,
             fallback={"source": "naver_shopping_insight", "status": "FAIL", "reason": "Circuit Breaker / API Error"}
+        )
+
+    def fetch_multi_shopping_trend(self, category_list: List[Dict[str, str]]) -> Dict[str, Any]:
+        """
+        [v2.47] 쇼핑인사이트 멀티 카테고리 조회 (격차 보존형)
+        - 한 번의 요청에 최대 5개 카테고리를 담아 네이버가 계산한 상대적 클릭 비율(Ratio)을 그대로 가져옵니다.
+        """
+        def _request_multi_trend():
+            from datetime import datetime
+            from dateutil.relativedelta import relativedelta
+            
+            end_date = datetime.now()
+            start_date = end_date - relativedelta(years=1)
+            
+            # 최대 5개 그룹 구성
+            keyword_groups = []
+            for item in category_list[:5]:
+                keyword_groups.append({
+                    "name": item["name"],
+                    "param": [str(item["cid"])]
+                })
+                
+            body = {
+                "startDate": start_date.strftime("%Y-%m-%d"),
+                "endDate": end_date.strftime("%Y-%m-%d"),
+                "timeUnit": "month",
+                "category": keyword_groups
+            }
+            
+            url = "https://openapi.naver.com/v1/datalab/shopping/categories"
+            
+            response = requests.post(
+                url, 
+                headers=self.get_headers(), 
+                json=body,
+                timeout=settings.scraper_timeout_seconds
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            results = data.get("results", [])
+            
+            final_series = []
+            categories = []
+            
+            for res in results:
+                name = res.get("title")
+                points = res.get("data", [])
+                
+                if not categories and points:
+                    categories = [p.get("period")[-5:] for p in points]
+                    
+                final_series.append({
+                    "name": name,
+                    "data": [p.get("ratio", 0) for p in points]
+                })
+                
+            return {
+                "source": "naver_shopping_insight", 
+                "status": "OK", 
+                "trend_series": {"categories": categories, "series": final_series}
+            }
+
+        return naver_datalab_cb.call(
+            _request_multi_trend,
+            fallback={"source": "naver_shopping_insight", "status": "FAIL", "reason": "Circuit Breaker / Sync Error"}
         )

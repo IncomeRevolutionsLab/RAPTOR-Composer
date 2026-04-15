@@ -52,7 +52,7 @@ class RaptorExtendedManager {
      * API 키를 로컬 스토리지에 저장합니다. (보안을 위해 실제 운영 시 암호화 권장)
      */
     saveKey(provider, key) {
-        const keys = this.getALlKeys();
+        const keys = this.getAllKeys();
         keys[provider] = key;
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(keys));
         console.log(`[Raptor] ${provider} API Key saved.`);
@@ -62,13 +62,13 @@ class RaptorExtendedManager {
      * 특정 프로바이더의 키를 가져옵니다.
      */
     getKey(provider) {
-        return this.getALlKeys()[provider] || null;
+        return this.getAllKeys()[provider] || null;
     }
 
     /**
      * 모든 저장된 키를 가져옵니다.
      */
-    getALlKeys() {
+    getAllKeys() {
         const data = localStorage.getItem(this.STORAGE_KEY);
         return data ? JSON.parse(data) : {};
     }

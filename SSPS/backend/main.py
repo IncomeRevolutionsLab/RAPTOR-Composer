@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from backend.engine.scoring_engine import ScoringEngine
 from backend.engine.json_packager import JsonPackager
 from backend.engine.raptor_engine import raptor_engine
+from backend.engine.raptor_bridge import raptor_bridge
 from backend.connectors.supabase_client import SupabaseClient
 from backend.utils.cache_manager import cache
 
@@ -140,6 +141,26 @@ async def raptor_generate_plan():
         return jsonify(plan_result)
     except Exception as e:
         logger.error(f"[Main] Raptor Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/raptor/generate-video", methods=["POST"])
+async def raptor_generate_video():
+    """[v2.4] RAPTOR Extended: AI 숏폼 영상 생성 (BYOK 방식)"""
+    try:
+        data = request.json
+        engine = data.get("engine")
+        # 프론트엔드 LocalStorage에서 전달된 API Key (서버 저장 안함)
+        api_key = data.get("api_key")
+        payload = data.get("payload", {})
+        
+        if not engine or not api_key:
+            return jsonify({"error": "engine 타입과 api_key가 필요합니다."}), 400
+            
+        # 브릿지를 통해 외부 엔진(Veo/Kling 등) 호출
+        result = await raptor_bridge.generate_video_request(engine, api_key, payload)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"[Main] Raptor Video Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/v1/reset_stats_only", methods=["GET"])

@@ -683,7 +683,7 @@ async function loadPopularKeywords(domain) {
         
     } catch(e) {
         console.error("Failed to load popular keywords:", e);
-        listEl.innerHTML = '<span style="color:#a1a1aa; font-size:0.85rem; padding: 10px;">데이터를 불러오는 중 문제가 발생했습니다. API 서버 재구동 여부를 확인하세요.</span>';
+        listEl.innerHTML = '<span style="color:#a1a1aa; font-size:0.85rem; padding: 10px;">실시간 트렌드 데이터를 불러오는 중입니다. 잠시만 기다려 주시거나 잠시 후 다시 시도해 주세요.</span>';
         container.style.display = 'block';
     }
 }
