@@ -147,16 +147,24 @@ class NaverConnector:
         import random
         from datetime import datetime, timedelta
         
-        # [v2.47] 실행 환경과 상관없이 항상 backend/data/keyword_pools.json을 찾도록 수정
+        # [v2.49] 서버 환경(Render/Local)에 상관없이 인기 키워드 파일을 찾도록 시퀀스 강화
         current_file_path = os.path.abspath(__file__)
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
-        data_path = os.path.join(base_dir, "backend", "data", "keyword_pools.json")
+        # 예상 경로 1: backend/data/keyword_pools.json (Root 기준)
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+        data_path = os.path.join(root_dir, "backend", "data", "keyword_pools.json")
         
+        # 만약 Root 기준에서 못 찾으면 대안 경로 탐색
+        if not os.path.exists(data_path):
+            # 개발/배포 환경에 따라 data 디렉토리 직보 시도
+            alt_path = os.path.join(os.path.dirname(os.path.dirname(current_file_path)), "data", "keyword_pools.json")
+            if os.path.exists(alt_path):
+                data_path = alt_path
+                
         try:
             with open(data_path, "r", encoding="utf-8") as f:
                 pools = json.load(f)
         except Exception as e:
-            logger.error(f"[NaverConnector] 데이터 파일 로드 실패 (Path: {data_path}): {e}")
+            logger.error(f"[NaverConnector] 인기 키워드 로드 실패 (최종 시도 경로: {data_path}): {e}")
             pools = {}
             
         today = datetime.now()

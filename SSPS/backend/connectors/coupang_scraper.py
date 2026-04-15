@@ -67,19 +67,23 @@ class CoupangScraper:
                 if link_elem and link_elem.get('href'):
                     source_url = "https://www.coupang.com" + link_elem.get('href')
                     
+                # 데이터 정합성 검사 (v2.49)
+                if not title or title == "Unknown Product":
+                    continue
+
                 items.append({
                     "name": title,
                     "price": price,
                     "image_url": image_url,
                     "source_url": source_url,
-                    "rank": len(items) + 1
+                    "rank": len(items) + 1,
+                    "source": "Coupang"
                 })
                 
+            # [v2.49] 5개 미만인 경우에도 최소한의 데이터 구조 보장
             if not items:
-                logger.warning("Coupang Scraper: No items found or blocked by captcha.")
-                # If no items found, we treat it as an error to trigger fallback or it just returns empty.
-                # Returning empty list directly
-                return {"source": "coupang", "status": "OK", "items": []}
+                logger.warning("Coupang Scraper: No valid items found.")
+                return {"source": "coupang", "status": "EMPTY", "items": []}
                 
             return {"source": "coupang", "status": "OK", "items": items}
 

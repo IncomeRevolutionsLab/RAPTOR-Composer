@@ -274,15 +274,16 @@ function renderPhase2(data, pathArray) {
                              alt="${product.title}" class="sku-img"
                              onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
                         <div class="sku-info" style="flex:1;">
-                            <div class="sku-rank">Top ${product.rank} <span style="color:#f1c40f;">[Coupang]</span></div>
-                            <div class="sku-title" style="margin-top:8px;">${product.title}</div>
-                            <div class="sku-price" style="margin-top:6px;">₩${product.price.toLocaleString()}</div>
+                            <div class="sku-rank">Top ${product.rank || 'N/A'} <span style="color:#f1c40f;">[Coupang]</span></div>
+                            <div class="sku-title" style="margin-top:8px;">${product.title || product.name || '상품 정보 없음'}</div>
+                            <div class="sku-price" style="margin-top:6px;">₩${(product.price || 0).toLocaleString()}</div>
                         </div>
                     </a>
                     <div style="width:1px; background:var(--glass-border); margin:15px 0;"></div>
-                    <div style="padding: 20px; display:flex; flex-direction:column; justify-content:center; gap:10px; width:200px;">
-                         <button class="coupang-btn" style="background:#58a6ff;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')">
-                            <i data-lucide="file-text" style="width:14px;"></i> RAPTOR Basic
+                    <div style="padding: 20px; display:flex; flex-direction:column; justify-content:center; gap:10px; width:220px;">
+                         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:2px; text-align:center;">복사 없이 즉시 기획 시작 ↓</div>
+                         <button class="coupang-btn" style="background:#58a6ff;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')" title="이 버튼을 클릭하면 URL 복사 없이 상품 정보가 RAPTOR AI로 즉시 연동됩니다.">
+                            <i data-lucide="file-text" style="width:14px;"></i> RAPTOR 기획안 생성
                          </button>
                     </div>
                 </div>

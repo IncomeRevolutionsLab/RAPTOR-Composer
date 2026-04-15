@@ -105,25 +105,32 @@ class CategoryManager:
         if not category_list:
             return {}
 
-        # 1. 네이버 커넥터가 있으면 실시간 멀티 그룹 조회 수행 (격차 보존의 핵심)
+        # 1. 네이버 커넥터가 있으면 실시간 멀티 그룹 조회 수행 (격차 보존의 핵심: v2.49)
         if naver_connector:
             try:
-                logger.info(f"[CategoryManager] {len(category_list)}개 카테고리 멀티 그룹 시계열 조회 시작")
+                logger.info(f"[CategoryManager] {len(category_list)}개 카테고리 멀티 그룹 시계열 조회 시작 (격차 보존 모드)")
                 res = naver_connector.fetch_multi_shopping_trend(category_list)
                 if res.get("status") == "OK":
                     trend_series = res.get("trend_series", {})
                     series_data = trend_series.get("series", [])
                     
-                    # 평균 점수 계산 및 랭킹 산출
+                    # 지수 산출: 네이버가 준 Ratio 데이터 자체를 지수로 사용 (최근 트렌드 가중치)
                     ranking = []
                     for s in series_data:
-                        avg = round(sum(s["data"]) / len(s["data"]), 1) if s["data"] else 0
+                        # 최근 3개월 데이터에 가중치를 두어 실제 '지금 인기 있는' 순서로 정렬
+                        points = s.get("data", [])
+                        if points:
+                            score = round(sum(points[-3:]) / min(len(points), 3), 1)
+                        else:
+                            score = 0
+                            
                         ranking.append({
                             "name": s["name"],
-                            "avg_score": avg,
+                            "avg_score": score, 
                             "q_keyword": s["name"]
                         })
                     
+                    # 네이버 지수 순으로 정렬 (데이터랩 순위와 일치)
                     ranking.sort(key=lambda x: -x["avg_score"])
                     
                     return {
