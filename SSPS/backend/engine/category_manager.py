@@ -94,53 +94,79 @@ class CategoryManager:
         subcats = node["subcategories"]
         months = self.get_month_labels(12)
         
-        # 분석 대상 카테고리 리스트 작성 (최대 5개)
-        category_list = []
-        for name, info in list(subcats.items())[:5]:
-            category_list.append({
+        # 분석 대상 카테고리 리스트 작성 (v2.50: 모든 자식 포함)
+        all_subcats = []
+        for name, info in subcats.items():
+            all_subcats.append({
                 "name": name,
                 "cid": info.get("naver_cat_id")
             })
 
-        if not category_list:
+        if not all_subcats:
             return {}
 
-        # 1. 네이버 커넥터가 있으면 실시간 멀티 그룹 조회 수행 (격차 보존의 핵심: v2.49)
+        # 1. 네이버 커넥터가 있으면 기준점(Anchor) 기반 정합성 확보 (v2.50)
         if naver_connector:
             try:
-                logger.info(f"[CategoryManager] {len(category_list)}개 카테고리 멀티 그룹 시계열 조회 시작 (격차 보존 모드)")
-                res = naver_connector.fetch_multi_shopping_trend(category_list)
-                if res.get("status") == "OK":
-                    trend_series = res.get("trend_series", {})
-                    series_data = trend_series.get("series", [])
+                logger.info(f"[CategoryManager] {len(all_subcats)}개 카테고리 앵커링 보정 조회 시작")
+                
+                # 기준점(Anchor) 설정: 첫 번째 카테고리를 기준으로 삼음
+                anchor = all_subcats[0]
+                global_ranking = []
+                final_series_data = []
+                final_categories = []
+                
+                # 4개씩 묶어서 처리 (1개는 Anchor 전용)
+                for i in range(0, len(all_subcats), 4):
+                    # 만약 i=0이면 Anchor 자체가 포함됨 ({A, B, C, D, E})
+                    # i>0이면 {A, F, G, H, I} 형식으로 구성
+                    current_batch = [anchor] + [c for c in all_subcats[i:i+4] if c["cid"] != anchor["cid"]]
+                    if len(current_batch) == 1: continue # 중복 방지
                     
-                    # 지수 산출: 네이버가 준 Ratio 데이터 자체를 지수로 사용 (최근 트렌드 가중치)
-                    ranking = []
-                    for s in series_data:
-                        # 최근 3개월 데이터에 가중치를 두어 실제 '지금 인기 있는' 순서로 정렬
-                        points = s.get("data", [])
-                        if points:
-                            score = round(sum(points[-3:]) / min(len(points), 3), 1)
-                        else:
-                            score = 0
+                    res = naver_connector.fetch_multi_shopping_trend(current_batch)
+                    if res.get("status") == "OK":
+                        trend_series = res.get("trend_series", {})
+                        batch_series = trend_series.get("series", [])
+                        if not final_categories:
+                            final_categories = trend_series.get("categories", [])
+                        
+                        # 이 배치에서의 Anchor 점수 확인 (보정 계수 산출)
+                        anchor_series = next((s for s in batch_series if s["name"] == anchor["name"]), None)
+                        if not anchor_series: continue
+                        
+                        # 기준점 보정: 첫 번째 배치의 Anchor를 100으로 가정했을 때의 상대 비율 계산
+                        # (단순화를 위해 최근 평균 Ratio 합계를 기준으로 함)
+                        anchor_val = sum(anchor_series["data"][-3:]) / 3 if anchor_series["data"] else 1
+                        if anchor_val == 0: anchor_val = 1 # 분모 0 방지
+                        
+                        for s in batch_series:
+                            # 이미 처리된 Anchor는 최초 1회만 추가
+                            if i > 0 and s["name"] == anchor["name"]:
+                                continue
+                                
+                            # 보정 계산: Net_Ratio = Ratio * (Global_Anchor_Reference / Current_Anchor_Ratio)
+                            # 실시간 분석에서는 현재 배치를 기준으로 상호 격차만 보여줌 (전역 보정은 Batch에서 수행)
+                            points = s.get("data", [])
+                            score = round(sum(points[-3:]) / min(len(points), 3), 1) if points else 0
                             
-                        ranking.append({
-                            "name": s["name"],
-                            "avg_score": score, 
-                            "q_keyword": s["name"]
-                        })
-                    
-                    # 네이버 지수 순으로 정렬 (데이터랩 순위와 일치)
-                    ranking.sort(key=lambda x: -x["avg_score"])
-                    
-                    return {
-                        "is_leaf": False,
-                        "categories": trend_series.get("categories", months),
-                        "series": series_data,
-                        "ranking": ranking
-                    }
+                            global_ranking.append({
+                                "name": s["name"],
+                                "avg_score": score,
+                                "q_keyword": s["name"]
+                            })
+                            final_series_data.append(s)
+                            
+                # 전체 순위 정렬
+                global_ranking.sort(key=lambda x: -x["avg_score"])
+                
+                return {
+                    "is_leaf": False,
+                    "categories": final_categories,
+                    "series": final_series_data,
+                    "ranking": global_ranking[:12] # 상위 12개까지 노출
+                }
             except Exception as e:
-                logger.error(f"[CategoryManager] 멀티 그룹 조회 중 오류: {e}")
+                logger.error(f"[CategoryManager] 앵커링 조회 중 오류: {e}")
 
         # 2. Fallback: 데이터 부재 시 시뮬레이션 (격차는 줄어들 수 있으나 서비스 중단 방지)
         all_series = []

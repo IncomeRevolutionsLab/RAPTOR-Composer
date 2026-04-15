@@ -439,10 +439,12 @@ function initMain3DChart() {
         return { cats: slicedCats, data: filteredData };
     };
 
-    // [v2.44] 12개 분야 (4+4+4) 동적 바인딩
-    fetch('./data/main_trend_3d.json')
-        .then(r => { if (!r.ok) throw new Error('no cache'); return r.json(); })
+    // [v2.50] 12개 분야 (4+4+4) 동적 앵커링 보정 보정 API 호출
+    fetch(`${API_BASE_URL}/domains/trend`)
+        .then(r => r.json())
         .then(json => { 
+            if (json.status !== 'success') throw new Error('API Error');
+            
             const p1 = filterData(json.categories, json.data, 0, 4);
             const p2 = filterData(json.categories, json.data, 4, 8);
             const p3 = filterData(json.categories, json.data, 8, 12);

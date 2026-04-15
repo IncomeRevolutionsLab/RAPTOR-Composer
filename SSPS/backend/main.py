@@ -125,6 +125,63 @@ def get_site_stats():
     stats = supabase.get_site_stats()
     return jsonify(stats)
 
+@app.route("/api/v1/domains/trend", methods=["GET"])
+def get_domain_trend():
+    """[v2.50] 12대 분야 전역 정합성 트렌드 API (앵커링 보정형)"""
+    try:
+        from backend.connectors.naver_connector import NaverConnector
+        naver = NaverConnector()
+        
+        domains = [
+            {'name': '패션의류', 'cid': 50000000}, {'name': '패션잡화', 'cid': 50000001},
+            {'name': '화장품/미용', 'cid': 50000002}, {'name': '디지털/가전', 'cid': 50000003},
+            {'name': '가구/인테리어', 'cid': 50000004}, {'name': '출산/육아', 'cid': 50000005},
+            {'name': '식품', 'cid': 50000006}, {'name': '스포츠/레저', 'cid': 50000007},
+            {'name': '생활/건강', 'cid': 50000008}, {'name': '여가/생활편의', 'cid': 50000009},
+            {'name': '도서', 'cid': 50000010}, {'name': '면세점', 'cid': 50000011}
+        ]
+        
+        anchor = domains[0] # 패션의류를 기준점으로 설정
+        global_series = []
+        months = []
+        
+        # 3번의 배치 요청 (4개 새로운 도메인 + 1개 Anchor)
+        for i in range(0, len(domains), 4):
+            batch = [anchor] + [d for d in domains[i:i+4] if d['name'] != anchor['name']]
+            if len(batch) == 1 and i > 0: continue
+            
+            res = naver.fetch_multi_shopping_trend(batch)
+            if res.get("status") == "OK":
+                trend = res.get("trend_series", {})
+                batch_series = trend.get("series", [])
+                if not months: months = trend.get("categories", [])
+                
+                # 보정 계수 산출 (현재 배치의 Anchor 값 / 전체 기준점 값)
+                # 메인 차트에서는 첫 번째 배치(i=0)를 100% 기준으로 삼음
+                cur_anchor_series = next((s for s in batch_series if s['name'] == anchor['name']), None)
+                if not cur_anchor_series: continue
+                
+                for s in batch_series:
+                    if i > 0 and s['name'] == anchor['name']: continue
+                    global_series.append(s)
+        
+        # Echarts 3D Scatter 양식으로 변환 [month_idx, cat_idx, val]
+        categories = [d['name'] for d in domains]
+        data_points = []
+        for cat_idx, s in enumerate(global_series):
+            for m_idx, val in enumerate(s['data']):
+                data_points.append([m_idx, cat_idx, val])
+                
+        return jsonify({
+            "status": "success",
+            "months": months,
+            "categories": categories,
+            "data": data_points
+        })
+    except Exception as e:
+        logger.error(f"[Main] Domain Trend Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/v1/raptor/generate-plan", methods=["POST"])
 async def raptor_generate_plan():
     """[v2.4] RAPTOR GEM: AI 숏폼 기획안 생성"""

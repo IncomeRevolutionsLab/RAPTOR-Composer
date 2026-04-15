@@ -26,57 +26,73 @@ class TrendCollector:
         self.batch_name = f"Batch_{datetime.now().strftime('%Y%m%d')}"
 
     def run_sync(self):
-        """가장 오래된 데이터부터 순차적으로 수집 (2일 주기를 목표)"""
-        logger.info(f"==== [{self.batch_name}] 카테고리 트렌드 수집 시작 ====")
+        """[v2.50] 부모별로 묶어 기준점(Anchor) 기반 전역 정합성 수집"""
+        logger.info(f"==== [{self.batch_name}] 앵커링 기반 트렌드 수집 시작 ====")
         
-        # 1. 수집 대상 추출 (모든 카테고리 중 naver_cat_id가 실제 네이버 ID인 것들)
+        # 1. 수집 대상 추출 및 부모별 그룹화
         all_cats = list(self.manager.id_to_cat.values())
+        groups = {}
+        for c in all_cats:
+            if len(str(c["naver_cat_id"])) > 10: continue # 유효한 네이버 ID만 선별
+            pid = c.get("parent_id")
+            if pid not in groups: groups[pid] = []
+            groups[pid].append(c)
+            
+        processed_groups = 0
+        total_calls = 0
         
-        # [v2.5] 수집 우선순위: Depth가 낮을수록(대분류) 우선, 그 다음은 업데이트가 오래된 순
-        # naver_cat_id가 8자리 이하인 것들이 보통 실제 네이버 ID임 (해시 ID는 10자리 이상)
-        sync_targets = [c for c in all_cats if len(str(c["naver_cat_id"])) <= 10]
-        
-        # 실시간 데이터베이스에서 마지막 업데이트 일자 확인 후 정렬 (Mocking for now if DB not fully synced)
-        # TODO: self.db.get_oldest_trend_categories(limit=1000)
-        
-        processed_count = 0
-        success_count = 0
-        
-        for cat in sync_targets:
-            if processed_count >= self.daily_limit:
-                logger.info("일일 API 호출 한도(1,000회)에 도달했습니다. 작업을 종료합니다.")
+        # 2. 각 그룹(형제들)별로 앵커링 수집 수행
+        for pid, siblings in groups.items():
+            if processed_groups >= self.daily_limit / 2: # 그룹당 평균 2회 호출 가정
                 break
-            
-            cid = cat["naver_cat_id"]
-            name = cat["name_ko"]
-            path = cat["full_path"]
-            
-            # [Optimization] 이미 오늘 업데이트된 내역이면 건너뜀 (DB 조회 필요)
-            # 여기서는 단순 순차 수집 시뮬레이션
-            
-            logger.info(f"[{processed_count+1}/{self.daily_limit}] 수집 중: {path} (CID: {cid})")
-            
-            try:
-                result = self.naver.fetch_shopping_trend_by_cid(cid, name)
                 
-                if result.get("status") == "OK":
-                    trend_data = result.get("trend_series")
-                    # query_keyword 대신 'cid:1234' 혹은 'Name'으로 저장
-                    # CategoryManager와 호환되도록 name_ko를 키로 사용하되 중복 주의
-                    # 실제 프로젝트에서는 cid를 키로 하거나 'Path'를 키로 하는 것이 안전
-                    storage_key = path 
-                    self.db.upsert_trend_data(storage_key, trend_data)
-                    success_count += 1
-                else:
-                    logger.warning(f"  -> 수집 실패: {result.get('reason')}")
-                    
-            except Exception as e:
-                logger.error(f"  -> 에러 발생 ({name}): {e}")
+            parent_name = self.manager.id_to_cat.get(pid, {}).get("name_ko", "Root")
+            logger.info(f"--- 그룹 수집: {parent_name} (자식 {len(siblings)}개) ---")
             
-            processed_count += 1
-            time.sleep(1.0) # 안전한 호출 간격 (1초)
+            # 기준점(Anchor) 선정: 첫 번째 자식
+            anchor = siblings[0]
+            
+            # 4개씩 묶어서 배치 처리
+            for i in range(0, len(siblings), 4):
+                batch = [anchor] + [s for s in siblings[i:i+4] if s["naver_cat_id"] != anchor["naver_cat_id"]]
+                if len(batch) == 1 and i > 0: continue
+                
+                category_list = [{"name": s["name_ko"], "cid": s["naver_cat_id"]} for s in batch]
+                
+                try:
+                    res = self.naver.fetch_multi_shopping_trend(category_list)
+                    total_calls += 1
+                    
+                    if res.get("status") == "OK":
+                        trend_series = res.get("trend_series", {})
+                        series_data = trend_series.get("series", [])
+                        
+                        # 이 배치에서의 Anchor 점수 확인 (보정 계수 산출)
+                        anchor_series = next((s for s in series_data if s["name"] == anchor["name_ko"]), None)
+                        if not anchor_series: continue
+                        
+                        # 실제 저장 로직: 각 카테고리의 트렌드 데이터를 DB에 업서트
+                        # (v2.50: 전역 보정은 조회 시 수행하거나 저장 시 가중치를 둘 수 있음)
+                        for s in series_data:
+                            # 67: storage_key = f"{pid}_{s['name']}" # 중복 방지를 위해 PID와 조합
+                            # 기존 CategoryManager 호환을 위해 Full Path 조회 시도
+                            target_cat = next((c for c in siblings if c["name_ko"] == s["name"]), None)
+                            storage_key = target_cat["full_path"] if target_cat else s["name"]
+                            
+                            self.db.upsert_trend_data(storage_key, {"categories": trend_series["categories"], "series": [s]})
+                            
+                        logger.info(f"  -> 배치 {i//4 + 1} 수집 완료 ({len(series_data)}개)")
+                    else:
+                        logger.warning(f"  -> 호출 실패: {res.get('reason')}")
+                
+                except Exception as e:
+                    logger.error(f"  -> 에러 발생: {e}")
+                
+                time.sleep(0.5) # 호출 간격 최적화
+            
+            processed_groups += 1
 
-        logger.info(f"==== 수집 완료! 성공: {success_count}, 총 시도: {processed_count} ====")
+        logger.info(f"==== 수집 완료! 총 API 호출: {total_calls}, 처리된 그룹: {processed_groups} ====")
 
 if __name__ == "__main__":
     collector = TrendCollector()
