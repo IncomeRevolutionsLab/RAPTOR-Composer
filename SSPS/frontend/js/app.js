@@ -281,7 +281,7 @@ function renderPhase2(data, pathArray) {
                     </a>
                     <div style="width:1px; background:var(--glass-border); margin:15px 0;"></div>
                     <div style="padding: 20px; display:flex; flex-direction:column; justify-content:center; gap:10px; width:200px;">
-                         <button class="coupang-btn" style="background:#58a6ff;">
+                         <button class="coupang-btn" style="background:#58a6ff;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')">
                             <i data-lucide="file-text" style="width:14px;"></i> RAPTOR Basic
                          </button>
                     </div>
@@ -293,12 +293,12 @@ function renderPhase2(data, pathArray) {
                         <i data-lucide="video" style="width:12px;"></i> RAPTOR Extended (Video BYOK) - 엔진별 15초 제작 예측 비용
                     </div>
                     <div class="raptor-engine-grid">
-                        <div class="engine-card" onclick="alert('API 설정을 먼저 확인해주세요.')">
+                        <div class="engine-card" onclick="window.raptorManager.generateVideo('veo-3-fast', ${JSON.stringify(product).replace(/"/g, '&quot;')})">
                             <span class="cost-badge">$${veoCost}</span>
                             <div class="engine-name">Google Veo 3.1</div>
                             <div class="engine-quality">Fast / High Speed Sync</div>
                         </div>
-                        <div class="engine-card" onclick="alert('API 설정을 먼저 확인해주세요.')">
+                        <div class="engine-card" onclick="window.raptorManager.generateVideo('kling-pro', ${JSON.stringify(product).replace(/"/g, '&quot;')})">
                             <span class="cost-badge">$${klingCost}</span>
                             <div class="engine-name">Kling AI Pro</div>
                             <div class="engine-quality">1080p / Artistic Motion</div>
@@ -793,5 +793,26 @@ function initRaptorHandlers() {
     document.getElementById('print-raptor-btn')?.addEventListener('click', () => {
         window.print();
     });
+    // 5. [v2.48] 특정 상품 기반 기획안 생성 헬퍼
+    window.triggerRaptorBasic = (encodedProduct) => {
+        const product = JSON.parse(decodeURIComponent(encodedProduct));
+        const slider = document.getElementById('raptor-duration-slider');
+        const planBtn = document.getElementById('raptor-plan-btn');
+        
+        // 데이터 강제 주입: 전체 데이터가 아닌 클릭한 상품 데이터를 분석 맥락에 포함
+        const originalData = currentAppData;
+        currentAppData = {
+            ...originalData,
+            domain: product.title || product.name,
+            items: [product], // 단일 상품 기획 모드
+            raw_scores: { ...originalData.raw_scores, price_tier: (product.price < 30000 ? "LOWPRICE" : "GENERAL") }
+        };
+        
+        // 모달 열기 및 자동 실행 트리거
+        planBtn.click();
+        
+        // 실행 후 데이터 원복
+        setTimeout(() => { currentAppData = originalData; }, 500);
+    };
 }
 

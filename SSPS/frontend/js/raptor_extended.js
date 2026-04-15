@@ -94,21 +94,51 @@ class RaptorExtendedManager {
     }
 
     /**
-     * 동영상 생성 요청 (스켈레톤)
+     * 동영상 생성 요청 (v2.48 하이브리드)
      */
-    async generateVideo(engineId, scriptData, images) {
-        const key = this.getKey(this.engines[engineId].provider);
-        if (!key) throw new Error(`${engineId}를 사용하기 위한 API 키가 없습니다.`);
+    async generateVideo(engineId, productData) {
+        const engine = this.engines[engineId];
+        if (!engine) throw new Error("유효하지 않은 엔진입니다.");
 
-        console.log(`[Raptor] Launching ${engineId} video generation...`);
-        // TODO: 실제 백엔드 브릿지 또는 직접 API 호출 로직 구현
-        return {
-            status: 'processing',
-            engine: engineId,
-            estimated_time: '2-5 minutes'
-        };
+        const key = this.getKey(engine.provider);
+        if (!key) {
+            alert(`${engine.name}을(를) 사용하기 위한 API 키가 설정되지 않았습니다. [설정] 메뉴에서 키를 입력해 주세요.`);
+            return;
+        }
+
+        console.log(`[Raptor] Launching ${engineId} video generation for product:`, productData);
+        
+        try {
+            const response = await fetch('/api/v1/raptor/generate-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    engine: engineId,
+                    api_key: key,
+                    payload: {
+                        product_name: productData.title || productData.name,
+                        price: productData.price,
+                        image_url: productData.image_url,
+                        duration: 15
+                    }
+                })
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                alert(`🎬 영상 생성이 시작되었습니다!\n엔진: ${result.engine}\n작업 ID: ${result.task_id}\n\n메시지: ${result.message}`);
+                return result;
+            } else {
+                throw new Error(result.message || "영상 생성 요청 중 오류가 발생했습니다.");
+            }
+        } catch (error) {
+            console.error("[Raptor] API Error:", error);
+            alert(`❌ 오류 발생: ${error.message}`);
+            throw error;
+        }
     }
 }
 
 const raptorManager = new RaptorExtendedManager();
+window.raptorManager = raptorManager;
 export default raptorManager;
