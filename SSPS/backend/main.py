@@ -3,6 +3,9 @@ import sys
 import time
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+import logging
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
