@@ -95,23 +95,25 @@ class RaptorEngine:
 SSPS(Smart Selection Planning System)가 분석한 다음의 데이터를 바탕으로, 구매 전환율이 보장되는 숏폼 기획안을 작성하세요.
 
 [SSPS 분석 리포트 요약]
-- 카테고리: {refined['category']}
-- 시장 가치 전략: {refined['target_value']}
-- 상위 랭킹 상품 리스트:
+- 분석 분야: {refined['category']}
+- 시장 포지셔닝: {refined['target_value']}
+- 주요 경쟁 상품군:
 {products_str}
+- 시즌성/이슈: {refined.get('seasonality', '중립')} (분석 결과 기반)
 
-[요청 사항]
+[기획 핵심 요청 사항]
 1. 목표 영상 길이: 반드시 **{duration}초** 구성 (초 단위의 타임라인 명시).
-2. 핵심 타겟: 이 카테고리의 데이터를 소비하는 가장 날카로운 타겟 페르소나를 1문장으로 정의.
-3. 숏폼 성공 방정식 적용:
-   - [0-3초] 시청 차단(Stop Scrolling)을 유도하는 '미친 후킹' (대사/자막/시각효과).
-   - [본론] 상품의 존재 이유를 데이터 근거와 페인 포인트(Pain Point) 해결로 제시.
-   - [마무리] 댓글 유도 또는 구매 페이지로 연결되는 저항 없는 CTA.
-4. 연출 디테일: 배경음악(BGM) 추천, 자막 배치 전략, 전환(Transition) 효과 포함.
+2. 타겟 페르소나: 이 상품 데이터가 가리키는 가장 날카로운 타겟을 1문장으로 정의.
+3. 숏폼 성공 방정식 적용 (Hook-Body-CTA):
+   - [0-3초] 시청 차단(Stop Scrolling)을 유도하는 강렬한 시각/청각적 후킹.
+   - [본론] 제품의 핵심 USP(Unique Selling Point)를 시장 데이터 기반으로 제시.
+   - [마무리] 댓글 참여 유도 또는 상단 링크 클릭을 부드럽게 제안하는 CTA.
+4. 연출 디테일: 배경음악(BGM) 톤앤매너, 자막 배치 전략, 컷 전환(Transition) 타이밍 포함.
 
 [출력 형식]
 - 반드시 한국어로 작성.
-- 깔끔한 마크다운(Markdown)과 적절한 이모지를 사용하여 대표님께 보고하는 격조 있는 형식을 갖출 것.
+- 대표님께 보고하는 격조 있는 '마케팅 기획서' 형식을 갖출 것.
+- 가독성을 위해 적절한 이모지와 마크다운 문법을 활용하여 시각적으로 WOW 포인트를 줄 것.
 """
 
     def _generate_mock_plan(self, data: Dict[str, Any], duration: int) -> Dict[str, Any]:

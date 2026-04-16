@@ -1,3 +1,5 @@
+import os
+import time
 import requests
 import logging
 from typing import Dict, Any, List
@@ -21,7 +23,7 @@ class NaverConnector:
 
     def get_headers(self) -> dict:
         # 네이버 개발자 센터에 등록된 서비스 URL을 Referer/Origin으로 설정하여 요청 유효성 확보
-        # [v2.46] 실제 프로덕션 프론트엔드 주소로 통일 (https://ssps-engine.vercel.app/)
+        # [v2.55] 공식 운영 주소로 권한 최종 고정 (SSPS 정식 주소)
         registered_url = "https://ssps-engine.vercel.app/"
         return {
             "X-Naver-Client-Id": self.client_id,

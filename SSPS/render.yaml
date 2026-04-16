@@ -26,7 +26,7 @@ services:
     env: python
     rootDir: SSPS
     buildCommand: "pip install -r backend/requirements.txt"
-    startCommand: "python backend/utils/scheduler.py"
+    startCommand: "export PYTHONPATH=$PYTHONPATH:. && python backend/utils/scheduler.py"
     schedule: "0 3 * * *"
     envVars:
       - key: PYTHON_VERSION
