@@ -4,7 +4,7 @@ services:
     env: python
     rootDir: SSPS
     buildCommand: "pip install -r backend/requirements.txt"
-    startCommand: "python backend/main.py"
+    startCommand: "export PYTHONPATH=$PYTHONPATH:. && python backend/main.py"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.6

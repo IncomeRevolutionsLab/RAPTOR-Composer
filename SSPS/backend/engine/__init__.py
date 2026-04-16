@@ -1,1 +1,1 @@
-# 스코어링 엔진 및 데이터 처리 패키지
+# SSPS Engine Package

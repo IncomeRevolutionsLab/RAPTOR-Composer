@@ -1,1 +1,1 @@
-# 커넥터 패키지 초기화
+# SSPS Connectors Package
