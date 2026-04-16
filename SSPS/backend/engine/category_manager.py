@@ -179,35 +179,6 @@ class CategoryManager:
             "series": [{"name": s["name"], "data": s["data"]} for s in all_series],
             "ranking": [{"rank": i+1, **s} for i, s in enumerate(all_series)]
         }
-,
-                    "series": final_series_data,
-                    "ranking": global_ranking[:12] # 상위 12개까지 노출
-                }
-            except Exception as e:
-                logger.error(f"[CategoryManager] 앵커링 조회 중 오류: {e}")
-
-        # 2. Fallback: 데이터 부재 시 시뮬레이션 (격차는 줄어들 수 있으나 서비스 중단 방지)
-        all_series = []
-        for item in category_list:
-            # 임의로 체급 차이를 주기 위해 시뮬레이션에서도 가중치 차등 부여
-            base = random.randint(30, 90) 
-            pts = [max(0, base + random.randint(-10, 10)) for _ in range(12)]
-            avg = round(sum(pts) / 12, 1)
-            all_series.append({
-                "name": item["name"],
-                "data": pts,
-                "avg_score": avg,
-                "q_keyword": item["name"]
-            })
-
-        all_series.sort(key=lambda x: -x["avg_score"])
-        return {
-            "is_leaf": False,
-            "categories": months,
-            "series": [{"name": s["name"], "data": s["data"]} for s in all_series],
-            "ranking": [{"rank": i+1, **s} for i, s in enumerate(all_series)]
-        }
-
     def get_month_labels(self, n=12):
         now = datetime.now()
         if HAS_DATEUTIL:
