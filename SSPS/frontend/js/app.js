@@ -99,12 +99,22 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
         const timeoutId = setTimeout(() => controller.abort(new Error("Request Timeout: 서버 응답이 지연되었습니다.")), 60000); 
         
         try {
-            const res = await fetch(url, { ...options, signal: controller.signal });
+            // [v2.56] 캐시 버스팅 적용 (항상 최신 데이터 강제)
+            const separator = url.includes('?') ? '&' : '?';
+            const cacheBustUrl = `${url}${separator}t=${Date.now()}`;
+            
+            const res = await fetch(cacheBustUrl, { ...options, signal: controller.signal });
             clearTimeout(timeoutId);
             
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || `HTTP error! status: ${res.status}`);
+                // [v2.56] 백엔드에서 보낸 상세 에러(error_detail)가 있으면 콘솔에 별도 출력
+                if (errData.error_detail) {
+                    console.group("%c SSPS Backend Error Traceback ", "background: #ff0000; color: #fff; font-weight: bold;");
+                    console.error(errData.error_detail);
+                    console.groupEnd();
+                }
+                throw new Error(errData.error || errData.message || `HTTP error! status: ${res.status}`);
             }
             return await res.json();
         } catch (e) {
@@ -440,8 +450,21 @@ function initMain3DChart() {
     };
 
     // [v2.50] 12개 분야 (4+4+4) 동적 앵커링 보정 보정 API 호출
-    fetch(`${API_BASE_URL}/domains/trend`)
-        .then(r => r.json())
+    // [v2.56] 캐시 버스팅 및 상세 에러 로깅 적용
+    const trendUrl = `${API_BASE_URL}/domains/trend?t=${Date.now()}`;
+    fetch(trendUrl)
+        .then(async r => {
+            if (!r.ok) {
+                const errData = await r.json().catch(() => ({}));
+                if (errData.error_detail) {
+                    console.group("%c SSPS Backend Trend Error Traceback ", "background: #ff0000; color: #fff; font-weight: bold;");
+                    console.error(errData.error_detail);
+                    console.groupEnd();
+                }
+                throw new Error(errData.message || `HTTP error! status: ${r.status}`);
+            }
+            return r.json();
+        })
         .then(json => { 
             if (json.status !== 'success') throw new Error('API Error');
             

@@ -109,8 +109,15 @@ def popular_keywords():
              
         return jsonify(res)
     except Exception as e:
-        logger.error(f"[Main] Popular Keywords Error: {e}")
-        return jsonify({"domain": domain, "items": ["실시간 데이터 로딩중"], "period": "-"}), 200
+        import traceback
+        error_msg = traceback.format_exc()
+        logger.error(f"[Main] Popular Keywords Error: {error_msg}")
+        return jsonify({
+            "domain": domain, 
+            "items": ["에러 발생"], 
+            "error_detail": error_msg,
+            "period": "-"
+        }), 200
 
 @app.route("/api/v1/stats", methods=["GET"])
 def get_site_stats():
@@ -119,8 +126,15 @@ def get_site_stats():
         stats = supabase.get_site_stats()
         return jsonify(stats)
     except Exception as e:
-        logger.error(f"[Main] Stats API Error: {e}")
-        return jsonify({"total_analysis": 0, "top_domain": "식품", "top_domain_desc": "-"}), 200
+        import traceback
+        error_msg = traceback.format_exc()
+        logger.error(f"[Main] Stats API Error: {error_msg}")
+        return jsonify({
+            "total_analysis": 0, 
+            "top_domain": "식품", 
+            "top_domain_desc": "-",
+            "error_detail": error_msg
+        }), 200
 
 @app.route("/api/v1/domains/trend", methods=["GET"])
 def get_domain_trend():
@@ -206,8 +220,14 @@ def get_domain_trend():
             "data": data_points
         })
     except Exception as e:
-        logger.error(f"[Main] Domain Trend Global Error: {e}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_msg = traceback.format_exc()
+        logger.error(f"[Main] Domain Trend Global Error: {error_msg}")
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "error_detail": error_msg
+        }), 500
 
 @app.route("/api/v1/raptor/generate-plan", methods=["POST"])
 async def raptor_generate_plan():
