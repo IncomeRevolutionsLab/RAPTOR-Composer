@@ -418,9 +418,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 초기 데이터 로드 (차트, 키워드, 마이크로 통계)
     setTimeout(() => {
-        initMain3DChart();
-        loadPopularKeywords("패션의류");
-        loadSiteStats(); // [v2.35] DB 실제 통계 로드
+        try {
+            console.log("SSPS: Booting main engines...");
+            if (typeof echarts !== 'undefined') {
+                initMain3DChart();
+            } else {
+                console.warn("ECharts not loaded yet. Retrying in 1s...");
+                setTimeout(initMain3DChart, 1000);
+            }
+            loadPopularKeywords("패션의류");
+            loadSiteStats(); 
+        } catch (bootErr) {
+            console.error("Critical Boot Error:", bootErr);
+        }
     }, 500);
 });
 
@@ -432,15 +442,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function initMain3DChart() {
     const container1 = document.getElementById('main-3d-chart-1');
     const container2 = document.getElementById('main-3d-chart-2');
-    const container3 = document.getElementById('main-3d-chart-3');
-    if (!container1 || !container2 || !container3) return;
+    // [v3.13] 6+6 2분할 체제로 최적화: 3번째 컨테이너 의존성 제거
+    if (!container1 || !container2) return;
     
     const chart1 = echarts.init(container1);
     const chart2 = echarts.init(container2);
-    const chart3 = echarts.init(container3);
     chart1.showLoading({text: 'Loading...'});
     chart2.showLoading({text: 'Loading...'});
-    chart3.showLoading({text: 'Loading...'});
 
     const filterData = (cats, data, start, end) => {
         const slicedCats = cats.slice(start, end);
