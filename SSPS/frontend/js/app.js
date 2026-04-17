@@ -416,26 +416,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // [v2.4] RAPTOR GEM UI 제어 로직 등록
     initRaptorHandlers();
 
-    // [v3.16] 독립형 독립 부팅 시스템: 차트 에러가 다른 기능(키워드/검색)을 방해하지 않도록 전격 분리
-    // 1. 인기 검색어 로드 (즉시 실행)
+    // [v3.18] 실시간 시스템 텔레메트리 (디버그 모니터 보고용)
+    const updateDebug = (msg) => {
+        const el = document.getElementById('debug-status');
+        if (el) el.innerHTML = `> ${msg}`;
+        console.log(`[DEBUG] ${msg}`);
+    };
+    window.sspsDebug = updateDebug; // 전역 스코프 공유
+
+    updateDebug("System core initialized.");
+
+    // 1. 인기 검색어 로드
     setTimeout(() => {
-        try { loadPopularKeywords("패션의류"); } catch(e) { console.error("Keyword Load Error:", e); }
+        updateDebug("Fetching popular keywords...");
+        try { 
+            loadPopularKeywords("패션의류"); 
+            updateDebug("Keywords requested.");
+        } catch(e) { updateDebug(`!! Keyword Error: ${e.message}`); }
     }, 100);
 
-    // 2. 사이트 통계 로드 (즉시 실행)
+    // 2. 사이트 통계 로드
     setTimeout(() => {
-        try { loadSiteStats(); } catch(e) { console.error("Stats Load Error:", e); }
-    }, 200);
+        updateDebug("Fetching site statistics...");
+        try { 
+            loadSiteStats(); 
+            updateDebug("Stats requested.");
+        } catch(e) { updateDebug(`!! Stats Error: ${e.message}`); }
+    }, 400);
 
-    // 3. 메인 3D 차트 부트 (개별 격리 실행)
+    // 3. 메인 3D 차트 부트
     setTimeout(() => {
+        updateDebug("Initializing 3D Chart Engine...");
         try {
-            console.log("SSPS: Booting 3D Engine...");
+            if (typeof echarts === 'undefined') {
+                updateDebug("!! CRITICAL: ECharts library not found.");
+                return;
+            }
+            updateDebug("ECharts detected. Running init...");
             initMain3DChart();
         } catch (chartErr) {
-            console.error("Chart Booting Failed (Ignoring to keep other features alive):", chartErr);
+            updateDebug(`!! Chart Engine Crash: ${chartErr.message}`);
         }
-    }, 600);
+    }, 800);
 });
 
 // V1 시절 자유 텍스트 결과 렌더링 (단일 파이프라인으로 제거됨)
