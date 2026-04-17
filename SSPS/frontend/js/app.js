@@ -251,20 +251,42 @@ function initMain3DChart() {
 function render3DChart(myChart, categories, months, data) {
     try {
         myChart.setOption({
-            title: { textStyle:{color:'#a1a1aa', fontSize:12}, left:'center' },
-            tooltip: { formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
-            visualMap: { show:true, min:0, max:100, inRange:{color:['#313695','#4575b4','#74add1','#abd9e9','#e0f3f8','#ffffbf','#fee090','#fdae61','#f46d43','#d73027','#a50026']}, textStyle:{color:'#a1a1aa'}, calculable:true, bottom:'10%' },
-            xAxis3D:{type:'category', data:months, name:'월'},
-            yAxis3D:{type:'category', data:categories, name:'분야'},
-            zAxis3D:{type:'value', name:'지수'},
-            grid3D:{ boxWidth:220, boxDepth:120, boxHeight:80, viewControl:{projection:'perspective', alpha:25, beta:20}, environment:'transparent' },
-            series:[{ type:'bar3D', data: data, shading:'lambert', label:{show:false} }]
+            backgroundColor: 'transparent',
+            tooltip: { show: true, formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
+            visualMap: {
+                show: true, min: 0, max: 100,
+                inRange: { color: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', '#ffffbf', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'] },
+                textStyle: { color: '#a1a1aa' }, bottom: '5%'
+            },
+            xAxis3D: { type: 'category', data: months, name: '월', axisLabel: { textStyle: { color: '#888' } } },
+            yAxis3D: { type: 'category', data: categories, name: '분류', axisLabel: { textStyle: { color: '#888' } } },
+            zAxis3D: { type: 'value', name: '지수', axisLabel: { textStyle: { color: '#888' } } },
+            grid3D: {
+                boxWidth: 200, boxDepth: 100, boxHeight: 80,
+                viewControl: { projection: 'perspective', autoRotate: false, alpha: 30, beta: 30 },
+                light: {
+                    main: { intensity: 1.5, shadow: true, alpha: 40, beta: 40 },
+                    ambient: { intensity: 0.5 }
+                },
+                postEffect: { enable: false }
+            },
+            series: [{
+                type: 'bar3D', data: data,
+                shading: 'lambert',
+                label: { show: false },
+                emphasis: { label: { show: true, textStyle: { fontSize: 16, color: '#fff' } } }
+            }]
         });
-    } catch (e) { console.error("3D Fail:", e); }
+        window.sspsDebug("Chart drawing command sent.");
+    } catch (e) {
+        window.sspsDebug(`!! Render Fail: ${e.message}`);
+        console.error("3D Fail:", e);
+    }
     window.addEventListener('resize', () => myChart.resize());
 }
 
 async function loadPopularKeywords(domain) {
+    window.sspsDebug(`Keywords: fetching ${domain}...`);
     const listEl = document.getElementById('popular-kw-list');
     if (!listEl) return;
     try {
