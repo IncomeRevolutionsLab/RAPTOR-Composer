@@ -249,10 +249,10 @@ function initMain3DChart() {
             const filtered = json.data.filter(item => item[1] >= start && item[1] < start + 4).map(item => [item[0], item[1]-start, item[2]]);
             
             if (idx === 0) {
-                // 1번 차트에만 "6단계: 하드코딩 테스트" 적용
+                // 1번 차트에만 "2D 하이브리드 진단" 적용
                 const mockData = [[0, 0, 100], [1, 1, 80], [2, 2, 60], [3, 3, 40]];
-                window.sspsDebug("Chart1: Injecting mock data...");
-                render3DChart(charts[idx], slicedCats, json.months, mockData);
+                window.sspsDebug("Chart1: Testing 2D Fallback...");
+                render3DChart(charts[idx], slicedCats, json.months, mockData, true); // force2D = true
             } else {
                 render3DChart(charts[idx], slicedCats, json.months, filtered);
             }
@@ -263,39 +263,54 @@ function initMain3DChart() {
     }).catch(e => { window.sspsDebug(`!! Error: ${e.message}`); });
 }
 
-function render3DChart(myChart, categories, months, data) {
+function render3DChart(myChart, categories, months, data, force2D = false) {
     try {
-        myChart.setOption({
-            backgroundColor: 'transparent',
-            tooltip: { show: true, formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
-            visualMap: {
-                show: true, min: 0, max: 100,
-                inRange: { color: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', '#ffffbf', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'] },
-                textStyle: { color: '#a1a1aa' }, bottom: '5%'
-            },
-            xAxis3D: { type: 'category', data: months, name: '월', axisLabel: { textStyle: { color: '#888' } } },
-            yAxis3D: { type: 'category', data: categories, name: '분류', axisLabel: { textStyle: { color: '#888' } } },
-            zAxis3D: { type: 'value', name: '지수', axisLabel: { textStyle: { color: '#888' } } },
-            grid3D: {
-                boxWidth: 200, boxDepth: 100, boxHeight: 80,
-                viewControl: { projection: 'perspective', autoRotate: false, alpha: 30, beta: 30 },
-                light: {
-                    main: { intensity: 1.5, shadow: true, alpha: 40, beta: 40 },
-                    ambient: { intensity: 0.5 }
+        // [v3.22] WebGL 가용성 체크
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl && !force2D) {
+            window.sspsDebug("!! WebGL Not Supported. Forcing 2D...");
+            force2D = true;
+        }
+
+        if (force2D) {
+            // 2D 히트맵 모드 (데이터 도달 확인용 최후의 보루)
+            myChart.setOption({
+                tooltip: { position: 'top' },
+                visualMap: { min: 0, max: 100, orient: 'horizontal', left: 'center', bottom: '5%', textStyle: { color: '#888' } },
+                xAxis: { type: 'category', data: months, axisLabel: { color: '#888' } },
+                yAxis: { type: 'category', data: categories, axisLabel: { color: '#888' } },
+                series: [{
+                    type: 'heatmap', data: data.map(item => [item[0], item[1], item[2]]),
+                    label: { show: true },
+                    emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' } }
+                }]
+            }, true);
+            window.sspsDebug("Rendered as 2D Heatmap.");
+        } else {
+            // 정통 3D 모드
+            myChart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: { show: true },
+                visualMap: {
+                    show: true, min: 0, max: 100,
+                    inRange: { color: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', '#ffffbf', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'] },
+                    textStyle: { color: '#a1a1aa' }, bottom: '5%'
                 },
-                postEffect: { enable: false }
-            },
-            series: [{
-                type: 'bar3D', data: data,
-                shading: 'lambert',
-                label: { show: false },
-                emphasis: { label: { show: true, textStyle: { fontSize: 16, color: '#fff' } } }
-            }]
-        });
-        window.sspsDebug("Chart drawing command sent.");
+                xAxis3D: { type: 'category', data: months, name: '월', axisLabel: { textStyle: { color: '#888' } } },
+                yAxis3D: { type: 'category', data: categories, name: '분류', axisLabel: { textStyle: { color: '#888' } } },
+                zAxis3D: { type: 'value', name: '지수', axisLabel: { textStyle: { color: '#888' } } },
+                grid3D: {
+                    boxWidth: 200, boxDepth: 100, boxHeight: 80,
+                    viewControl: { projection: 'perspective', autoRotate: false, alpha: 30, beta: 30 },
+                    light: { main: { intensity: 1.5, shadow: true }, ambient: { intensity: 0.5 } }
+                },
+                series: [{ type: 'bar3D', data: data, shading: 'lambert' }]
+            }, true);
+            window.sspsDebug("Rendered as 3D Bar.");
+        }
     } catch (e) {
         window.sspsDebug(`!! Render Fail: ${e.message}`);
-        console.error("3D Fail:", e);
     }
     window.addEventListener('resize', () => myChart.resize());
 }
