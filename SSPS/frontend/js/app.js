@@ -248,14 +248,10 @@ function initMain3DChart() {
             const slicedCats = json.categories.slice(start, start + 4);
             const filtered = json.data.filter(item => item[1] >= start && item[1] < start + 4).map(item => [item[0], item[1]-start, item[2]]);
             
-            if (idx === 0) {
-                // 1번 차트에만 "2D 하이브리드 진단" 적용
-                const mockData = [[0, 0, 100], [1, 1, 80], [2, 2, 60], [3, 3, 40]];
-                window.sspsDebug("Chart1: Testing 2D Fallback...");
-                render3DChart(charts[idx], slicedCats, json.months, mockData, true); // force2D = true
-            } else {
-                render3DChart(charts[idx], slicedCats, json.months, filtered);
-            }
+            // [v3.23] 지능형 렌더러: 3D 시도 후 실패 시 자동 2D 전환
+            window.sspsDebug(`Rendering Chart ${idx + 1}...`);
+            render3DChart(charts[idx], slicedCats, json.months, filtered);
+            
             charts[idx].hideLoading();
         });
         window.sspsDebug("Check Chart 1 visibility.");
