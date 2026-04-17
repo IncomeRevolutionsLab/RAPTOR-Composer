@@ -233,17 +233,32 @@ function initMain3DChart() {
     if (containers.some(c => !c)) return;
     const charts = containers.map(c => echarts.init(c));
     const trendUrl = `${API_BASE_URL}/domains/trend?t=${Date.now()}`;
-    window.sspsDebug("API Fetch started...");
+    
+    window.sspsDebug("Step 6: Hardcoded Test Phase...");
+    
     fetch(trendUrl).then(r => r.json()).then(json => {
         if (json.status !== 'success') throw new Error('API Fail');
-        window.sspsDebug(`Success: ${json.data.length} rows.`);
+        
+        // [v3.21] 정밀 데이터 관측
+        const monthsCount = json.months ? json.months.length : 0;
+        const catsCount = json.categories ? json.categories.length : 0;
+        window.sspsDebug(`Data: ${json.data.length} rows, Months: ${monthsCount}, Cats: ${catsCount}`);
+
         [0, 4, 8].forEach((start, idx) => {
-            const sliced = json.categories.slice(start, start + 4);
+            const slicedCats = json.categories.slice(start, start + 4);
             const filtered = json.data.filter(item => item[1] >= start && item[1] < start + 4).map(item => [item[0], item[1]-start, item[2]]);
-            render3DChart(charts[idx], sliced, json.months, filtered);
+            
+            if (idx === 0) {
+                // 1번 차트에만 "6단계: 하드코딩 테스트" 적용
+                const mockData = [[0, 0, 100], [1, 1, 80], [2, 2, 60], [3, 3, 40]];
+                window.sspsDebug("Chart1: Injecting mock data...");
+                render3DChart(charts[idx], slicedCats, json.months, mockData);
+            } else {
+                render3DChart(charts[idx], slicedCats, json.months, filtered);
+            }
             charts[idx].hideLoading();
         });
-        window.sspsDebug("Charts rendered.");
+        window.sspsDebug("Check Chart 1 visibility.");
         setTimeout(() => charts.forEach(c => c.resize()), 200);
     }).catch(e => { window.sspsDebug(`!! Error: ${e.message}`); });
 }
