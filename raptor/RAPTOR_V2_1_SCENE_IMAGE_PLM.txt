@@ -1,0 +1,98 @@
+파일명: RAPTOR_V2_1_SCENE_IMAGE_PLM.txt
+
+[RAPTOR V2.1 SCENE IMAGE PLM]
+
+1. Scene 길이 규칙
+- 각 Scene은 기본 1~3초
+- 15초: 4~6 Scene
+- 30초: 6~10 Scene
+
+2. Scene 유형
+- 문제 상황 장면
+- 제품 등장 장면
+- 제품 클로즈업 장면
+- 사용 장면
+- 전후 비교 장면
+- 기능 테스트 장면
+- 반응 장면
+- 문제 해결 장면
+- 강조 장면
+- 마무리 장면
+
+3. 연출 원칙
+- 초반 3초 중요
+- 제품은 초반 등장 가능
+- 실제 사용 장면 포함
+- 비교 장면은 강하게
+- Scene 간 연결감 유지
+
+4. Scene별 이미지 프롬프트 요소
+
+문제 장면
+- frustrated user
+- messy environment
+- cluttered desk
+- stressful moment
+- realistic expression
+- close camera angle
+
+제품 등장 장면
+- product close-up
+- hand holding product
+- clean lighting
+- premium focus on product
+- realistic texture
+
+제품 클로즈업 장면
+- detail close-up
+- material texture
+- button focus
+- structure highlight
+- premium product shot
+
+사용 장면
+- real usage
+- active interaction
+- dynamic pose
+- practical environment
+- natural movement
+
+전후 비교 장면
+- split screen before and after
+- left side messy
+- right side organized
+- strong contrast
+- dramatic comparison
+
+반응 장면
+- surprised face
+- satisfied smile
+- emotional close-up
+
+문제 해결 장면
+- clean result
+- improved workflow
+- organized space
+- comfortable usage
+
+5. 공통 이미지 생성 규칙
+- photo-realistic
+- high-quality
+- 9:16 vertical shot
+- real usage
+- same product consistency
+- identical design
+- Product_Ref 반영
+
+6. 실제 생성 완료 규칙
+- 프롬프트 생성만으로 끝나지 않는다
+- Scene 수만큼 실제 이미지를 생성한다
+- 이미지 수와 Scene 수가 일치해야 한다
+- Scene 목적과 이미지가 맞아야 한다
+- 제품 외형 일관성이 유지되어야 한다
+
+7. 썸네일 대표 이미지 규칙
+- 가장 강한 Hook Scene 또는 대표 효용 Scene을 우선 사용
+- 제품이 잘 보여야 한다
+- 감정 또는 변화가 강하게 보이면 좋다
+- 이미지가 단순하고 즉시 이해 가능해야 한다

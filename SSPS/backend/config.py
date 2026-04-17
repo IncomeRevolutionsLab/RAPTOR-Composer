@@ -20,5 +20,9 @@ class Settings:
         
         # 8000번 포트 충돌 방지를 위한 강제 5000 세팅
         self.port = 5000
+        
+        # [v2.80] 알림 설정
+        self.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        self.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
 
 settings = Settings()

@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from backend.connectors.naver_connector import NaverConnector
 from backend.connectors.supabase_client import SupabaseClient
 from backend.engine.category_manager import CategoryManager
+from backend.utils.notifier import send_telegram_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TrendCollector")
@@ -22,11 +23,50 @@ class TrendCollector:
         self.naver = NaverConnector()
         self.db = SupabaseClient()
         self.manager = CategoryManager()
-        self.daily_limit = 1000
-        self.batch_name = f"Batch_{datetime.now().strftime('%Y%m%d')}"
+        self.daily_limit = 1000 # 네이버 API 일일 제한
+        
+        # [v2.65] 2일 주기 Atomic Swap을 위한 버전 관리
+        self.active_version = self.db.get_active_sync_version()
+        self.pending_version = "v_beta" if self.active_version == "v_alpha" else "v_alpha"
+        self.batch_name = datetime.now().strftime("%Y-%m-%d")
+        logger.info(f" -> 현재 활성 버전: {self.active_version}, 대기 수집 버전: {self.pending_version}")
+
+    def check_health(self) -> bool:
+        """[v2.80] 본격 수집 전 시스템 상태를 1회 테스트합니다. (Dry-Run)"""
+        logger.info(" -> [HealthCheck] 사전 테스트 시작...")
+        test_category = {"name": "테스트_패션의류", "cid": "50000000"} # 패션의류 대분류
+        
+        try:
+            # 1. Naver API 테스트
+            res = self.naver.fetch_multi_shopping_trend([test_category])
+            if res.get("status") != "OK":
+                error_msg = f"❌ [HealthCheck] 네이버 API 호출 실패: {res.get('reason')}"
+                send_telegram_message(error_msg)
+                return False
+                
+            # 2. Supabase DB 테스트
+            test_save = self.db.upsert_raw_trend_data("system/health_check", res.get("trend_series"), sync_version="test")
+            if not test_save:
+                error_msg = "❌ [HealthCheck] Supabase DB 저장 실패 (테이블 확인 필요)"
+                send_telegram_message(error_msg)
+                return False
+                
+            logger.info(" -> [HealthCheck] 모든 시스템 정상!")
+            return True
+        except Exception as e:
+            error_msg = f"❌ [HealthCheck] 예상치 못한 오류 발생: {str(e)[:100]}"
+            send_telegram_message(error_msg)
+            return False
 
     def run_sync(self):
         """[v2.50] 부모별로 묶어 기준점(Anchor) 기반 전역 정합성 수집"""
+        
+        # [Step 0] 사전 헬스체크
+        if not self.check_health():
+            logger.error(" !! 사전 테스트 실패로 수집을 중단합니다. !!")
+            return
+            
+        send_telegram_message(f"🚀 [{self.batch_name}] 데이터 수집 작업을 시작합니다. (대상: {self.pending_version})")
         logger.info(f"==== [{self.batch_name}] 앵커링 기반 트렌드 수집 시작 ====")
         
         # 1. 수집 대상 추출 및 부모별 그룹화
@@ -38,25 +78,44 @@ class TrendCollector:
             if pid not in groups: groups[pid] = []
             groups[pid].append(c)
             
+        # 2. 대기 버전에 이미 수집된 키워드 제외 (2일차 수집 시 중복 방지)
+        existing_keywords = self.db.get_all_keywords_by_version(self.pending_version)
+        logger.info(f" -> 대기 버전({self.pending_version}) 내 이미 수집된 데이터: {len(existing_keywords)}개")
+            
         processed_groups = 0
         total_calls = 0
+        newly_collected_count = 0
         
-        # 2. 각 그룹(형제들)별로 앵커링 수집 수행
+        # 3. 각 그룹(형제들)별로 앵커링 수집 수행
         for pid, siblings in groups.items():
-            if processed_groups >= self.daily_limit / 2: # 그룹당 평균 2회 호출 가정
+            # API 한도 도달 시 중단 (다음 날 나머지 수집 가능)
+            if total_calls >= self.daily_limit:
+                logger.info(f" !! 일일 API 호출 한도({self.daily_limit})에 도달하여 오늘 작업을 중단합니다.")
                 break
+                
+            # 이미 이 그룹의 모든 자식이 수집되었는지 확인 (Full Path 기준)
+            # 모든 자식이 existing_keywords에 있다면 이 그룹은 스킵
+            if all(s.get("full_path") in existing_keywords for s in siblings):
+                continue
                 
             parent_name = self.manager.id_to_cat.get(pid, {}).get("name_ko", "Root")
             logger.info(f"--- 그룹 수집: {parent_name} (자식 {len(siblings)}개) ---")
             
-            # 기준점(Anchor) 선정: 첫 번째 자식
-            anchor = siblings[0]
+            # 4. [v2.70] 동적 자식 앵커(Dynamic Sibling Anchor) 전략
+            # 그룹 내 첫 5개 자식을 먼저 수집하여 가장 '강한' 자식을 앵커로 선정
+            group_anchor = None
+            group_anchor_ref_val = None # 첫 배치에서의 앵커 평균치 (Reference)
             
-            # 4개씩 묶어서 배치 처리
-            for i in range(0, len(siblings), 4):
-                batch = [anchor] + [s for s in siblings[i:i+4] if s["naver_cat_id"] != anchor["naver_cat_id"]]
-                if len(batch) == 1 and i > 0: continue
+            # 4개(또는 첫 배치용 5개)씩 묶어서 배치 처리
+            for i in range(0, len(siblings), 4 if group_anchor else 5):
+                if group_anchor:
+                    # 이후 배치: 브릿지 앵커 + 신규 자식 4개
+                    batch = [group_anchor] + [s for s in siblings[i:i+4] if s["naver_cat_id"] != group_anchor["naver_cat_id"]]
+                else:
+                    # 첫 배치: 순서대로 5개
+                    batch = siblings[i:i+5]
                 
+                if not batch: continue
                 category_list = [{"name": s["name_ko"], "cid": s["naver_cat_id"]} for s in batch]
                 
                 try:
@@ -67,21 +126,45 @@ class TrendCollector:
                         trend_series = res.get("trend_series", {})
                         series_data = trend_series.get("series", [])
                         
-                        # 이 배치에서의 Anchor 점수 확인 (보정 계수 산출)
-                        anchor_series = next((s for s in series_data if s["name"] == anchor["name_ko"]), None)
-                        if not anchor_series: continue
+                        # [Step Raw] v2.75 원본 데이터 무조건 별도 보관 (교체 방식)
+                        for s_raw in series_data:
+                            target_cat_raw = next((c for c in siblings if c["name_ko"] == s_raw["name"]), None)
+                            storage_key_raw = target_cat_raw["full_path"] if target_cat_raw else s_raw["name"]
+                            self.db.upsert_raw_trend_data(storage_key_raw, {"categories": trend_series["categories"], "series": [s_raw]})
                         
-                        # 실제 저장 로직: 각 카테고리의 트렌드 데이터를 DB에 업서트
-                        # (v2.50: 전역 보정은 조회 시 수행하거나 저장 시 가중치를 둘 수 있음)
+                        # [Step A] 첫 배치인 경우: 가장 높은 자식을 앵커로 선정
+                        if not group_anchor:
+                            # 3개월 평균 클릭량이 가장 높은 녀석 탐색
+                            best_series = max(series_data, key=lambda s: sum(s["data"][-3:]) / 3 if s["data"] else 0)
+                            group_anchor = next(s for s in siblings if s["name_ko"] == best_series["name"])
+                            group_anchor_ref_val = sum(best_series["data"][-3:]) / 3
+                            logger.info(f"    -> 그룹 앵커 선정: {group_anchor['name_ko']} (Ref: {group_anchor_ref_val:.1f})")
+                            
+                            # 첫 배치는 보정 없이 그대로 저장
+                            scale_factor = 1.0
+                        else:
+                            # [Step B] 이후 배치인 경우: 브릿지 앵커를 기준으로 보정
+                            cur_anchor_series = next((s for s in series_data if s["name"] == group_anchor["name_ko"]), None)
+                            if not cur_anchor_series:
+                                scale_factor = 1.0
+                            else:
+                                cur_anchor_val = sum(cur_anchor_series["data"][-3:]) / 3
+                                scale_factor = (group_anchor_ref_val / cur_anchor_val) if cur_anchor_val > 0 else 1.0
+                        
+                        # [Step C] 데이터 보정 및 저장
                         for s in series_data:
-                            # 67: storage_key = f"{pid}_{s['name']}" # 중복 방지를 위해 PID와 조합
-                            # 기존 CategoryManager 호환을 위해 Full Path 조회 시도
+                            # 앵커 이미 저장되었고 이후 배치에서 중복되는 경우 스키마상 중복 저장 방지 (선택 사항)
+                            if i > 0 and group_anchor and s["name"] == group_anchor["name_ko"]: continue
+                            
+                            scaled_data = [round(v * scale_factor, 2) for v in s.get("data", [])]
+                            s["data"] = scaled_data
+                            
                             target_cat = next((c for c in siblings if c["name_ko"] == s["name"]), None)
                             storage_key = target_cat["full_path"] if target_cat else s["name"]
+                            self.db.upsert_trend_data(storage_key, {"categories": trend_series["categories"], "series": [s]}, sync_version=self.pending_version)
+                            newly_collected_count += 1
                             
-                            self.db.upsert_trend_data(storage_key, {"categories": trend_series["categories"], "series": [s]})
-                            
-                        logger.info(f"  -> 배치 {i//4 + 1} 수집 완료 ({len(series_data)}개)")
+                        logger.info(f"  -> 배치 {i//4 + 1} 수집 완료 (Scale: {scale_factor:.2f})")
                     else:
                         logger.warning(f"  -> 호출 실패: {res.get('reason')}")
                 
@@ -92,7 +175,22 @@ class TrendCollector:
             
             processed_groups += 1
 
-        logger.info(f"==== 수집 완료! 총 API 호출: {total_calls}, 처리된 그룹: {processed_groups} ====")
+        logger.info(f"==== 수집 완료! 신규 수집: {newly_collected_count}, 총 API 호출: {total_calls} ====")
+        
+        # 4. 전체 수집 완료 확인 및 Atomic Swap
+        total_target = len([c for c in all_cats if len(str(c["naver_cat_id"])) <= 10]) # 유효 카테고리 총합 (실제로는 약 5,807개)
+        current_total = self.db.get_version_keywords_count(self.pending_version)
+        
+        logger.info(f" -> 전체 진행률 확인: {current_total} / {total_target} (목표)")
+        
+        if current_total >= total_target * 0.98: # 98% 이상 수집 시 전체 데이터 정합성이 확보된 것으로 간주
+            logger.info(f"!!!! [Atomic Swap] 데이터 수집이 완료되어 {self.pending_version}으로 활성 버전을 교체합니다. !!!!")
+            self.db.set_active_sync_version(self.pending_version)
+            send_telegram_message(f"✅ [{self.batch_name}] 전체 수집 및 버전 교체(Atomic Swap) 완료! ({current_total}/{total_target})")
+        else:
+            remaining = total_target - current_total
+            logger.info(f" -> 아직 {remaining}개의 데이터가 더 필요합니다. 내일 수집을 계속합니다.")
+            send_telegram_message(f"⌛ [{self.batch_name}] 오늘 분량 수집 완료. (현재 진행률: {current_total}/{total_target})")
 
 if __name__ == "__main__":
     collector = TrendCollector()

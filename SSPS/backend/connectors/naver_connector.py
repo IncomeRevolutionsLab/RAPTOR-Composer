@@ -161,26 +161,33 @@ class NaverConnector:
             alt_path = os.path.join(os.path.dirname(os.path.dirname(current_file_path)), "data", "keyword_pools.json")
             if os.path.exists(alt_path):
                 data_path = alt_path
-                
-        try:
-            with open(data_path, "r", encoding="utf-8") as f:
-                pools = json.load(f)
-        except Exception as e:
-            logger.error(f"[NaverConnector] 인기 키워드 로드 실패 (최종 시도 경로: {data_path}): {e}")
+        
+        db = SupabaseClient()
+        
+        # 1. DB 주간 통계 데이터 시도
+        db_data = db.get_weekly_stable_keywords(domain)
+        if db_data and db_data.get('items'):
+            results = db_data['items']
+            logger.info(f"[PopularKW] DB 통계 데이터 히트: {domain}")
+        else:
+            # 2. 폴백: 정적 키워드 풀 사용
             pools = {}
+            try:
+                with open(os.path.join(os.path.dirname(__file__), "..", "data", "keyword_pools.json"), "r", encoding="utf-8") as f:
+                    pools = json.load(f)
+            except: pass
             
+            default_pool = ["다용도 수납장", "캠핑 의자", "아기물티슈", "단백질 보충제", "방향제"]
+            results = pools.get(domain, default_pool)
+            logger.info(f"[PopularKW] 폴백 데이터 사용: {domain}")
+        
+        # [v2.58] 정렬 및 일관성을 위해 셔플은 하지 않음
+        working_list = results.copy()
+        
         today = datetime.now()
         start_dt = (today - timedelta(days=7)).strftime("%m.%d")
         end_dt = today.strftime("%m.%d")
         period = f"{start_dt} ~ {end_dt}"
-        
-        # 키워드 풀셋 선택
-        default_pool = ["다용도 수납장", "캠핑 의자", "아기물티슈", "단백질 보충제", "방향제"]
-        results = pools.get(domain, default_pool)
-        
-        # 트렌디한 변형 (동적 셔플)
-        working_list = results.copy()
-        random.shuffle(working_list)
         
         items = []
         for i, kw in enumerate(working_list[:10]):
@@ -314,7 +321,55 @@ class NaverConnector:
                 "trend_series": {"categories": categories, "series": final_series}
             }
 
+    def fetch_category_keyword_ranking(self, cid: str) -> Dict[str, Any]:
+        """쇼핑인사이트 API: 특정 카테고리의 인기 검색어 랭킹(1-10위) 조회"""
+        def _request_keywords():
+            import datetime
+            str_cid = str(cid)
+            today = datetime.datetime.now()
+            # 하루 전 데이터를 최신으로 간주
+            target_date = (today - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            body = {
+                "startDate": target_date,
+                "endDate": target_date,
+                "timeUnit": "date",
+                "category": str_cid,
+                "device": "", "gender": "", "ages": []
+            }
+            
+            # 쇼핑인사이트 분야별 인기 검색어 URL
+            url = "https://openapi.naver.com/v1/datalab/shopping/category/keywords"
+            
+            response = requests.post(
+                url, 
+                headers=self.get_headers(), 
+                json=body,
+                timeout=settings.scraper_timeout_seconds
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            results = data.get("results", [])
+            if not results:
+                return {"status": "FAIL", "reason": "No keyword results for CID"}
+            
+            # 1-10위 상품 키워드 추출
+            keywords = []
+            for item in results[0].get("data", []):
+                keywords.append({
+                    "rank": item.get("rank"),
+                    "keyword": item.get("name")
+                })
+                
+            return {
+                "source": "naver_shopping_keyword_ranking", 
+                "status": "OK", 
+                "date": target_date,
+                "keywords": keywords
+            }
+
         return naver_datalab_cb.call(
-            _request_multi_trend,
-            fallback={"source": "naver_shopping_insight", "status": "FAIL", "reason": "Circuit Breaker / Sync Error"}
+            _request_keywords,
+            fallback={"status": "FAIL", "reason": "Circuit Breaker / API Error"}
         )

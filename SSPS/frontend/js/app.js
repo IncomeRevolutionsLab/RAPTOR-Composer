@@ -256,7 +256,16 @@ function renderPhase2(data, pathArray) {
 
     // 브레드크럼
     renderBreadcrumbs('p2-breadcrumb-container', pathArray);
-    document.getElementById('p2-title').textContent = `[${pathArray[pathArray.length-1]}] 쿠팡 Top 10 랭킹`;
+    
+    // [v2.75] 검색 대상 설정에 따른 다이내믹 UI 처리
+    const searchMode = document.querySelector('input[name="fallback_choice"]:checked')?.value || 'coupang';
+    const finalTerm = (pathArray && pathArray.length > 0 ? pathArray[pathArray.length - 1] : (data.search_query || "상품"));
+    
+    if (searchMode === 'naver') {
+        document.getElementById('p2-title').textContent = `[${finalTerm}] 네이버 쇼핑 트렌드`;
+    } else {
+        document.getElementById('p2-title').textContent = `[${finalTerm}] 쿠팡 Top 10 랭킹`;
+    }
 
     // 쿠팡 검색 링크 (상단 버튼)
     const linkEl = document.getElementById('p2-coupang-link');
@@ -266,16 +275,16 @@ function renderPhase2(data, pathArray) {
     const fallbackNotice = document.getElementById('p2-fallback-notice');
     productGrid.innerHTML = '';
 
-    if (data.is_coupang_available && data.products.length > 0) {
+    if (data.is_coupang_available && data.products.length > 0 && searchMode !== 'naver') {
         fallbackNotice.style.display = 'none';
         data.products.forEach(product => {
+            // ... (기본 상품 카드 렌더링 로직 유지)
             const card = document.createElement('div');
             card.className = 'sku-card';
-            card.style.flexDirection = 'column'; // 세로 스택형으로 변경 (확장 기능 수용)
+            card.style.flexDirection = 'column';
             
-            // 엔진별 비용 추정 (15초 기준)
-            const veoCost = 2.25; // Standard 0.15 * 15 (Fast 기준 추정)
-            const klingCost = 1.8; // Standard 0.12 * 15
+            const veoCost = 2.25;
+            const klingCost = 1.8;
             
             card.innerHTML = `
                 <div style="display:flex; flex-direction:row; width:100%;">
@@ -292,39 +301,34 @@ function renderPhase2(data, pathArray) {
                     <div style="width:1px; background:var(--glass-border); margin:15px 0;"></div>
                     <div style="padding: 20px; display:flex; flex-direction:column; justify-content:center; gap:10px; width:220px;">
                          <div style="font-size:0.7rem; color:var(--primary); margin-bottom:2px; text-align:center;">복사 없이 즉시 기획 시작 ↓</div>
-                         <button class="coupang-btn" style="background:#58a6ff;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')" title="이 버튼을 클릭하면 URL 복사 없이 상품 정보가 RAPTOR AI로 즉시 연동됩니다.">
+                         <button class="coupang-btn" style="background:#58a6ff;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')">
                             <i data-lucide="file-text" style="width:14px;"></i> RAPTOR 기획안 생성
                          </button>
-                    </div>
-                </div>
-                
-                <!-- [NEW] RAPTOR Extended (BYOK) Section -->
-                <div style="padding: 0 20px 20px 20px; border-top: 1px dashed var(--glass-border);">
-                    <div style="font-size: 0.75rem; color:var(--text-muted); margin: 12px 0 8px 0; display:flex; align-items:center; gap:5px;">
-                        <i data-lucide="video" style="width:12px;"></i> RAPTOR Extended (Video BYOK) - 엔진별 15초 제작 예측 비용
-                    </div>
-                    <div class="raptor-engine-grid">
-                        <div class="engine-card" onclick="window.raptorManager.generateVideo('veo-3-fast', ${JSON.stringify(product).replace(/"/g, '&quot;')})">
-                            <span class="cost-badge">$${veoCost}</span>
-                            <div class="engine-name">Google Veo 3.1</div>
-                            <div class="engine-quality">Fast / High Speed Sync</div>
-                        </div>
-                        <div class="engine-card" onclick="window.raptorManager.generateVideo('kling-pro', ${JSON.stringify(product).replace(/"/g, '&quot;')})">
-                            <span class="cost-badge">$${klingCost}</span>
-                            <div class="engine-name">Kling AI Pro</div>
-                            <div class="engine-quality">1080p / Artistic Motion</div>
-                        </div>
                     </div>
                 </div>
             `;
             productGrid.appendChild(card);
         });
     } else {
-        // 스크래핑 차단 → 링크 버튼 표시
+        // [v2.75] 검색 대상에 따른 다이내믹 폴백 버튼 노출 (네이버/쿠팡 대응)
         fallbackNotice.style.display = 'block';
-        document.getElementById('p2-fallback-btn').href = data.coupang_search_url;
-        document.getElementById('p2-fallback-label').textContent =
-            `쿠팡에서 [${data.depth2}] 검색하기`;
+        
+        const labelQuery = finalTerm;
+        const fallbackBtn = document.getElementById('p2-fallback-btn');
+        const fallbackLabel = document.getElementById('p2-fallback-label');
+        
+        if (searchMode === 'naver') {
+            fallbackBtn.href = `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(labelQuery)}`;
+            fallbackBtn.style.background = 'linear-gradient(135deg,#03c75a,#029b45)';
+            fallbackLabel.textContent = `네이버 쇼핑에서 [${labelQuery}] 검색하기`;
+            document.querySelector('#p2-fallback-notice p').innerHTML = `네이버 쇼핑의 실시간 검색 결과를 확인하세요.<br>버튼을 클릭하면 네이버 쇼핑으로 이동합니다.`;
+        } else {
+            fallbackBtn.href = data.coupang_search_url || `https://www.coupang.com/np/search?q=${encodeURIComponent(labelQuery)}`;
+            fallbackBtn.style.background = 'linear-gradient(135deg,#e52c2c,#c0392b)';
+            fallbackLabel.textContent = `쿠팡에서 [${labelQuery}] 검색하기`;
+            document.querySelector('#p2-fallback-notice p').innerHTML = `쿠팡의 실시간 최저가 및 랭킹 정보를 확인하세요.<br>버튼을 클릭하면 쿠팡 검색 페이지로 이동합니다.`;
+        }
+    }
     }
 
     lucide.createIcons();
@@ -468,17 +472,15 @@ function initMain3DChart() {
         .then(json => { 
             if (json.status !== 'success') throw new Error('API Error');
             
-            const p1 = filterData(json.categories, json.data, 0, 4);
-            const p2 = filterData(json.categories, json.data, 4, 8);
-            const p3 = filterData(json.categories, json.data, 8, 12);
+            const p1 = filterData(json.categories, json.data, 0, 6);
+            const p2 = filterData(json.categories, json.data, 6, 12);
             render3DChart(chart1, p1.cats, json.months, p1.data);
             render3DChart(chart2, p2.cats, json.months, p2.data);
-            render3DChart(chart3, p3.cats, json.months, p3.data);
             
             // [v2.44] 차트가 블랙아웃되는 현상을 방지하기 위해 강제 리사이즈 시도
-            setTimeout(() => { chart1.resize(); chart2.resize(); chart3.resize(); }, 200);
+            setTimeout(() => { chart1.resize(); chart2.resize(); }, 200);
             
-            chart1.hideLoading(); chart2.hideLoading(); chart3.hideLoading();
+            chart1.hideLoading(); chart2.hideLoading();
         })
         .catch(() => {
             // [v2.44] 12개 분야 Fallback 리스트 및 데이터 생성 (도서, 면세점 포함)
@@ -506,16 +508,15 @@ function initMain3DChart() {
                 }
             }
             
-            const p1 = filterData(cats, fallbackData, 0, 4);
-            const p2 = filterData(cats, fallbackData, 4, 8);
-            const p3 = filterData(cats, fallbackData, 8, 12);
+            const p1 = filterData(cats, fallbackData, 0, 6);
+            const p2 = filterData(cats, fallbackData, 6, 12);
             render3DChart(chart1, p1.cats, mnts, p1.data, '(기본 데이터)');
             render3DChart(chart2, p2.cats, mnts, p2.data, '(기본 데이터)');
-            render3DChart(chart3, p3.cats, mnts, p3.data, '(기본 데이터)');
-            // [v2.44] 예비 데이터 로딩 시에도 블랙아웃 방지 리사이즈
-            setTimeout(() => { chart1.resize(); chart2.resize(); chart3.resize(); }, 200);
             
-            chart1.hideLoading(); chart2.hideLoading(); chart3.hideLoading();
+            // [v2.44] 예비 데이터 로딩 시에도 블랙아웃 방지 리사이즈
+            setTimeout(() => { chart1.resize(); chart2.resize(); }, 200);
+            
+            chart1.hideLoading(); chart2.hideLoading();
         });
 }
 
@@ -768,8 +769,9 @@ function initRaptorHandlers() {
         resultContent.innerHTML = `
             <div style="text-align: center; padding: 60px 0;">
                 <div class="spinner" style="border-width:4px; width:50px; height:50px; margin: 0 auto 20px;"></div>
-                <h3 style="color:var(--primary); font-size:1.2rem; margin-bottom:10px;">RAPTOR GEM AI Reasoning...</h3>
-                <p style="color:#888;">Gemini 3.1 Pro (High)가 ${duration}초 분량의 최적화된 기획안을 작성하고 있습니다.</p>
+                <h3 style="color:var(--primary); font-size:1.2rem; margin-bottom:10px;">RAPTOR Phase 1: 고몰입 기획 중...</h3>
+                <p style="color:#888;">[Retention Rule]: ${duration}초간 끊김 없는 오디오와<br>장면별 1:1 이미지 매칭 기획을 진행하고 있습니다.</p>
+                <p style="font-size:0.75rem; color:#555; margin-top:10px;">(Gemini 3.1 Pro High 템포 최적화 적용)</p>
             </div>
         `;
 
@@ -790,7 +792,27 @@ function initRaptorHandlers() {
                 document.getElementById('raptor-res-duration').textContent = `${duration}초`;
                 
                 // 마크다운 렌더링 (marked.js 활용)
-                resultContent.innerHTML = marked.parse(result.planning_document);
+                const htmlContent = marked.parse(result.planning_document);
+                resultContent.innerHTML = `
+                    <div class="raptor-phase-badge" style="display:inline-block; background:rgba(88,166,255,0.1); color:var(--primary); padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; margin-bottom:20px;">
+                        PHASE 1: STRATEGY & SCRIPT COMPLETED
+                    </div>
+                    ${htmlContent}
+                    
+                    <!-- [v2.75] Phase 2: Video Production Trigger -->
+                    <div style="margin-top:40px; padding:30px; background:rgba(255,255,255,0.03); border:1px solid rgba(88,166,255,0.2); border-radius:12px; text-align:center;">
+                        <h4 style="color:#fff; margin-bottom:10px;"><i data-lucide="video" style="vertical-align:middle; margin-right:8px;"></i> Phase 2: AI 숏폼 영상 제작</h4>
+                        <p style="font-size:0.85rem; color:#888; margin-bottom:20px;">위 기획안과 이미지 프롬프트를 기반으로 실제 영상을 생성합니다.<br>(BYOK 설가 완료 시 사용 가능)</p>
+                        <div style="display:flex; justify-content:center; gap:12px;">
+                            <button class="btn-primary" onclick="window.raptorManager.generateVideo('veo-3-fast', 'current')" style="background: linear-gradient(135deg, #7c3aed, #2563eb);">
+                                Google Veo 3.1 제작
+                            </button>
+                            <button class="btn-primary" onclick="window.raptorManager.generateVideo('kling-pro', 'current')" style="background: linear-gradient(135deg, #059669, #0ea5e9);">
+                                Kling AI Pro 제작
+                            </button>
+                        </div>
+                    </div>
+                `;
                 lucide.createIcons();
             } else {
                 throw new Error(result.error || "AI 엔진 호출 중 오류가 발생했습니다.");

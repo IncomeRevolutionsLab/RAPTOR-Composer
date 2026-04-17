@@ -91,21 +91,103 @@ class SupabaseClient:
             logger.error(f"Supabase GET Error: {e}")
             return None
 
-    def upsert_trend_data(self, keyword: str, trend_data: dict):
-        """네이버 API에서 가져온 최신 트렌드를 DB에 업데이트합니다."""
+    def upsert_trend_data(self, keyword: str, trend_data: dict, sync_version: str = "v1"):
+        """네이버 API에서 가져온 최신 트렌드를 특정 버전 태그와 함께 DB에 업데이트합니다."""
         if not self.client or not self._db_available:
             return False
             
         try:
             payload = {
                 "query_keyword": keyword,
-                "trend_data": trend_data
+                "trend_data": trend_data,
+                "sync_version": sync_version,
+                "updated_at": "now()"
             }
             self.client.table('trend_cache').upsert(payload, returning="minimal").execute()
             return True
         except Exception as e:
             logger.error(f"Supabase UPSERT Error: {e}")
             return False
+
+    def upsert_raw_trend_data(self, keyword: str, raw_data: dict, sync_version: str = "raw"):
+        """가공 전 네이버 원본 데이터를 별도 테이블에 저장합니다. (v2.75 디버깅 및 감사용)"""
+        if not self.client or not self._db_available:
+            return False
+            
+        try:
+            payload = {
+                "query_keyword": keyword,
+                "raw_data": raw_data,
+                "sync_version": sync_version,
+                "updated_at": "now()"
+            }
+            # trend_raw 테이블이 없으면 생성되거나 실패할 수 있으므로, 
+            # 사용자에게 테이블 생성이 필요함을 안내하거나 trend_cache와 동일 구조임을 가정합니다.
+            self.client.table('trend_raw').upsert(payload, returning="minimal").execute()
+            return True
+        except Exception as e:
+            # 테이블이 없는 경우 로깅하고 false 반환
+            logger.warning(f"Supabase RAW UPSERT 실패 (trend_raw 테이블 확인 필요): {e}")
+            return False
+
+    def get_trend_data(self, keyword: str, sync_version: str = None):
+        """DB에서 특정 버전의 키워드 트렌드 데이터를 조회합니다."""
+        if not self.client or not self._db_available:
+            return None
+            
+        try:
+            query = self.client.table('trend_cache').select('trend_data').eq('query_keyword', keyword)
+            if sync_version:
+                query = query.eq('sync_version', sync_version)
+            else:
+                # 버전 미지정 시 최신 활성 버전 자동 조회 (구현 예정)
+                active_v = self.get_active_sync_version()
+                query = query.eq('sync_version', active_v)
+                
+            response = query.execute()
+            if response.data:
+                return response.data[0]['trend_data']
+            return None
+        except Exception as e:
+            logger.error(f"Supabase GET Error: {e}")
+            return None
+
+    def get_active_sync_version(self) -> str:
+        """현재 서비스 중인 활성 데이터 버전을 가져옵니다."""
+        try:
+            res = self.client.table('site_stats').select('active_sync_version').eq('id', 1).execute()
+            if res.data and res.data[0].get('active_sync_version'):
+                return res.data[0]['active_sync_version']
+        except: pass
+        return "default"
+
+    def get_version_keywords_count(self, version: str) -> int:
+        """특정 버전에 수집된 키워드 개수를 반환합니다."""
+        if not self.client or not self._db_available: return 0
+        try:
+            res = self.client.table('trend_cache').select('query_keyword', count='exact').eq('sync_version', version).execute()
+            return res.count if res.count is not None else 0
+        except: return 0
+
+    def get_all_keywords_by_version(self, version: str) -> set:
+        """특정 버전에 이미 수집된 모든 키워드 목록을 반환합니다."""
+        if not self.client or not self._db_available: return set()
+        try:
+            # 대량 조회를 위해 페이지네이션 처리 (필요시)
+            res = self.client.table('trend_cache').select('query_keyword').eq('sync_version', version).execute()
+            if res.data:
+                return {item['query_keyword'] for item in res.data}
+        except: pass
+        return set()
+
+    def set_active_sync_version(self, version: str):
+        """데이터 수집 완료 후 활성 버전을 한꺼번에 교체(Atomic Swap)합니다."""
+        if not self.client or not self._db_available: return
+        try:
+            self.client.table('site_stats').update({"active_sync_version": version}).eq('id', 1).execute()
+            logger.info(f"[Sync] 활성 버전 교체 완료: {version}")
+        except Exception as e:
+            logger.error(f"Failed to swap active version: {e}")
 
     def get_site_stats(self):
         """DB에서 누적 분석 횟수 및 주간 Top 분야 정보를 가져옵니다."""
@@ -165,27 +247,68 @@ class SupabaseClient:
         except Exception as e:
             logger.error(f"[Counter] DB 업데이트 실패 (로컬 카운터로 폴백): {e}")
 
-    # ── Category Master Operations ──────────────────────────────────
+    # ── Popular Keywords Operations ──────────────────────────────────
 
-    def get_all_categories(self):
-        """DB에서 전체 카테고리 마스터 데이터를 조회합니다."""
-        if not self.client or not self._db_available:
-            return None
+    def save_daily_keyword_ranking(self, domain: str, keywords: list):
+        """매일 수집된 도메인별 인기 검색어 1~10위 기록을 저장합니다."""
+        if not self.client or not self._db_available: return
+        from datetime import datetime
         try:
-            # 5000개 이상의 데이터일 경우 페이지네이션 필요할 수 있으나 우선 단순 조회
-            response = self.client.table('category_master').select('*').eq('is_active', True).execute()
-            return response.data
+            payload = {
+                "domain": domain,
+                "ranking_data": keywords, # [{"rank": 1, "keyword": "원피스"}, ...]
+                "created_at": datetime.now().strftime("%Y-%m-%d")
+            }
+            # 동일 날짜 동일 도메인 중복 방지를 위해 upsert 권장
+            self.client.table('keyword_ranking_history').upsert(payload).execute()
         except Exception as e:
-            logger.error(f"Supabase GET categories failed: {e}")
-            return None
+            logger.error(f"Failed to save keyword ranking history: {e}")
 
-    def get_child_categories(self, parent_id: int):
-        """특정 부모의 하위 카테고리들을 조회합니다."""
-        if not self.client or not self._db_available:
-            return None
+    def get_weekly_stable_keywords(self, domain: str):
+        """DB에 계산되어 저장된 주간 안정 인기 검색어(Stable)를 가져옵니다."""
+        if not self.client or not self._db_available: return None
         try:
-            response = self.client.table('category_master').select('*').eq('parent_id', parent_id).eq('is_active', True).execute()
-            return response.data
+            res = self.client.table('popular_keywords_stable').select('items, period').eq('domain', domain).execute()
+            if res.data:
+                return res.data[0]
+        except: pass
+        return None
+
+    def refresh_weekly_stable_keywords(self, domain: str):
+        """최근 7일간의 순위 데이터를 합산하여 순위가 가장 안정적인 Top 10을 산출합니다."""
+        if not self.client or not self._db_available: return
+        from datetime import datetime, timedelta
+        from collections import Counter
+        
+        try:
+            seven_days_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            res = self.client.table('keyword_ranking_history') \
+                .select('ranking_data') \
+                .eq('domain', domain) \
+                .gte('created_at', seven_days_ago) \
+                .execute()
+            
+            if not res.data: return
+            
+            # 가중치 계산 (1위: 10점, 2위: 9점 ... 10위: 1점)
+            scores = Counter()
+            for day in res.data:
+                ranking_list = day.get('ranking_data', [])
+                for item in ranking_list:
+                    kw = item.get('keyword')
+                    rank = item.get('rank', 10)
+                    score = max(1, 11 - rank)
+                    scores[kw] += score
+            
+            # 상위 10개 추출
+            stable_top = []
+            for kw, score in scores.most_common(10):
+                stable_top.append(kw)
+            
+            if stable_top:
+                period = f"{seven_days_ago} ~ {datetime.now().strftime('%Y-%m-%d')}"
+                self.upsert_stable_keywords(domain, stable_top, period)
+                logger.info(f"[Sync] {domain} 주간 통계 갱신 완료 ({len(stable_top)}개 키워드)")
+                
         except Exception as e:
-            logger.error(f"Supabase GET subcategories failed: {e}")
-            return None
+            logger.error(f"Failed to refresh weekly keywords for {domain}: {e}")

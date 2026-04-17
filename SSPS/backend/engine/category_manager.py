@@ -105,40 +105,84 @@ class CategoryManager:
         if not all_subcats:
             return {}
 
-        # 1. 네이버 커넥터가 있으면 기준점(Anchor) 기반 정합성 확보 (v2.52)
+        # [v2.58] DB 캐시 우선 조회 (Atomic Swap 버전 기준)
+        from backend.connectors.supabase_client import SupabaseClient
+        db = SupabaseClient()
+        active_version = db.get_active_sync_version()
+        
+        cached_series = []
+        missing_any = False
+        
+        for cat in all_subcats:
+            res = db.get_trend_data(cat["name"], sync_version=active_version)
+            if res:
+                cached_series.append({
+                    "name": cat["name"],
+                    "data": res["series"][0]["data"],
+                    "avg_score": sum(res["series"][0]["data"][-3:]) / 3
+                })
+            else:
+                missing_any = True
+                break
+        
+        # 모든 자식 노드가 DB에 있다면 즉시 반환 (속도 및 일관성 최상)
+        if not missing_any and cached_series:
+            cached_series.sort(key=lambda x: -x["avg_score"])
+            return {
+                "is_leaf": False,
+                "categories": months,
+                "series": [{"name": s["name"], "data": s["data"]} for s in cached_series],
+                "ranking": [{"rank": i+1, **s} for i, s in enumerate(cached_series)]
+            }
+
+        # 1. 네이버 커넥터가 있고 DB에 데이터가 부족할 때만 실시간 호출 (폴백)
         if naver_connector:
             try:
-                logger.info(f"[CategoryManager] {len(all_subcats)}개 카테고리 앵커링 보정 조회 시작")
-                anchor = all_subcats[0]
+                logger.info(f"[CategoryManager] {len(all_subcats)}개 카테고리 동적 앵커링 보정 조회 시작")
+                
                 global_ranking = []
                 final_series_data = []
                 final_categories = []
-                global_anchor_ref_val = None
                 
-                for i in range(0, len(all_subcats), 4):
-                    time.sleep(0.5) # API 안정성 확보 (v2.52)
-                    current_batch = [anchor] + [c for c in all_subcats[i:i+4] if c["cid"] != anchor["cid"]]
-                    if len(current_batch) == 1 and i > 0: continue
+                group_anchor = None # 동적으로 선정될 브릿지 앵커
+                group_anchor_ref_val = None
+                
+                for i in range(0, len(all_subcats), 4 if group_anchor else 5):
+                    time.sleep(0.5) 
                     
+                    if group_anchor:
+                        current_batch = [group_anchor] + [c for c in all_subcats[i:i+4] if c["cid"] != group_anchor["cid"]]
+                    else:
+                        current_batch = all_subcats[i:i+5]
+                        
+                    if not current_batch: continue
                     res = naver_connector.fetch_multi_shopping_trend(current_batch)
+                    
                     if res.get("status") == "OK":
                         trend_series = res.get("trend_series", {})
                         batch_series = trend_series.get("series", [])
                         if not final_categories: final_categories = trend_series.get("categories", [])
                         
-                        anchor_series = next((s for s in batch_series if s["name"] == anchor["name"]), None)
-                        if not anchor_series: continue
-                        
-                        cur_anchor_avg = sum(anchor_series["data"][-3:]) / 3 if anchor_series["data"] else 0
-                        if global_anchor_ref_val is None:
-                            global_anchor_ref_val = cur_anchor_avg if cur_anchor_avg > 0 else 1.0
-                        
-                        scale_factor = (global_anchor_ref_val / cur_anchor_avg) if cur_anchor_avg > 0 else 1.0
+                        # [Step A] 앵커 선정 또는 기준값 추출
+                        if not group_anchor:
+                            # 첫 배치에서 가장 높은 녀석을 앵커로 선택
+                            best_s_data = max(batch_series, key=lambda s: sum(s["data"][-3:]) / 3 if s["data"] else 0)
+                            group_anchor = next(c for c in all_subcats if c["name"] == best_s_data["name"])
+                            group_anchor_ref_val = sum(best_s_data["data"][-3:]) / 3
+                            scale_factor = 1.0
+                        else:
+                            # 브릿지 앵커를 통해 보정 계수 산출
+                            cur_anchor_series = next((s for s in batch_series if s["name"] == group_anchor["name"]), None)
+                            if not cur_anchor_series:
+                                scale_factor = 1.0
+                            else:
+                                cur_anchor_val = sum(cur_anchor_series["data"][-3:]) / 3
+                                scale_factor = (group_anchor_ref_val / cur_anchor_val) if cur_anchor_val > 0 else 1.0
                         
                         for s in batch_series:
-                            if i > 0 and s["name"] == anchor["name"]: continue
+                            if i > 0 and group_anchor and s["name"] == group_anchor["name"]: continue
                             
-                            # 데이터 포인트 보정 (Scaling 적용)
+                            # 데이터 포인트 보정 (Bridge-Scaling 적용)
                             scaled_points = [round(v * scale_factor, 2) for v in s.get("data", [])]
                             s["data"] = scaled_points 
                             
@@ -164,12 +208,12 @@ class CategoryManager:
             except Exception as e:
                 logger.error(f"[CategoryManager] 앵커링 조회 중 오류: {e}")
 
-        # 2. Fallback: 데이터 부재 시 시뮬레이션 (v2.52: name_error 수정)
+        # 2. Fallback: 데이터 부재 시 (v2.58: 랜덤 제거, 안정된 기본값 유지)
         all_series = []
         for item in all_subcats:
-            base = random.randint(30, 90) 
-            pts = [max(0, base + random.randint(-15, 15)) for _ in range(12)]
-            avg = round(sum(pts[-3:]) / 3, 1)
+            base = 50 # 고정값으로 변경하여 호출 시마다 순위가 변하는 현상 차단
+            pts = [base for _ in range(12)]
+            avg = base
             all_series.append({"name": item["name"], "data": pts, "avg_score": avg, "q_keyword": item["name"]})
 
         all_series.sort(key=lambda x: -x["avg_score"])
