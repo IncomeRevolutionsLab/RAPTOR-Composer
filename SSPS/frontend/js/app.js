@@ -21,8 +21,6 @@ let p1TrendChartInstance = null;
 // [v2.4] RAPTOR GEM 데이터 연동을 위한 전역 상태
 let currentAppData = null;
 
-// Phase1 결과 캐시 (뒤로가기용) 삭제 - N-Depth 탐색으로 전환
-
 // ─────────────────────────────────────────────
 // 패널 표시 제어
 // ─────────────────────────────────────────────
@@ -78,9 +76,6 @@ function renderBreadcrumbs(containerId, pathArray) {
     lucide.createIcons();
 }
 
-// ─────────────────────────────────────────────
-// 초기화 (홈)
-// ─────────────────────────────────────────────
 function resetToHome() {
     showPanels('main-3d-chart-container', 'search-panel-section');
     document.getElementById('domain-input').value = '';
@@ -89,75 +84,44 @@ function resetToHome() {
 }
 
 // ─────────────────────────────────────────────
-// 근본 통합 라우터 (N-Depth 및 자유검색 공용)
+// 근본 통합 라우터 및 유틸리티
 // ─────────────────────────────────────────────
 
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
     for (let i = 0; i < retries; i++) {
         const controller = new AbortController();
-        // [v2.46 긴급 수정] Render 무료 서버의 콜드 스타트(Wake-up) 시간(최대 50초)을 고려하여 타임아웃을 60초로 대폭 연장
-        const timeoutId = setTimeout(() => controller.abort(new Error("Request Timeout: 서버 응답이 지연되었습니다.")), 60000); 
-        
+        const timeoutId = setTimeout(() => controller.abort(new Error("Request Timeout")), 60000); 
         try {
-            // [v2.56] 캐시 버스팅 적용 (항상 최신 데이터 강제)
             const separator = url.includes('?') ? '&' : '?';
             const cacheBustUrl = `${url}${separator}t=${Date.now()}`;
-            
             const res = await fetch(cacheBustUrl, { ...options, signal: controller.signal });
             clearTimeout(timeoutId);
-            
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                // [v2.56] 백엔드에서 보낸 상세 에러(error_detail)가 있으면 콘솔에 별도 출력
-                if (errData.error_detail) {
-                    console.group("%c SSPS Backend Error Traceback ", "background: #ff0000; color: #fff; font-weight: bold;");
-                    console.error(errData.error_detail);
-                    console.groupEnd();
-                }
-                throw new Error(errData.error || errData.message || `HTTP error! status: ${res.status}`);
-            }
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             return await res.json();
         } catch (e) {
             clearTimeout(timeoutId);
             if (i === retries - 1) throw e;
-            console.warn(`[API Retry] ${i + 1}회 실패. 재시도 중... (${url})`, e.message);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
 }
 
-
 async function loadCategoryNode(payload) {
     if (!payload || (!payload.path && !payload.keyword)) return;
-    
     showPanels('loading-state');
     simulateLoadingSteps();
-
     try {
-        // [v2.35] 수동 입력 데이터 추출 (있는 경우에만)
         const manualOlive = document.getElementById('manual_oliveyoung')?.value || "";
         const manualDaiso = document.getElementById('manual_daiso')?.value || "";
-        
-        const payloadWithManual = { ...payload, 
-                                    manual_olive: manualOlive, 
-                                    manual_daiso: manualDaiso };
-
         const data = await fetchWithRetry(`${API_BASE_URL}/category_node`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payloadWithManual)
+            body: JSON.stringify({ ...payload, manual_olive: manualOlive, manual_daiso: manualDaiso })
         });
-        
         setTimeout(() => {
-            if (data.is_leaf) {
-                renderPhase2(data, data.path || [payload.keyword]);
-            } else {
-                renderPhase1(data, data.path || [payload.keyword]);
-            }
-            // [v2.4] RAPTOR GEM 연동을 위해 최신 분석 데이터 세이브
+            if (data.is_leaf) renderPhase2(data, data.path || [payload.keyword]);
+            else renderPhase1(data, data.path || [payload.keyword]);
             currentAppData = data;
-            
-            // [v2.35] 분석 성공 시 하단 실시간 통계 즉시 갱신 (손맛 구현)
             loadSiteStats();
         }, 400);
     } catch (err) {
@@ -170,468 +134,159 @@ async function loadCategoryNode(payload) {
 function renderPhase1(data, pathArray) {
     showPanels('phase1-state');
     renderBreadcrumbs('p1-breadcrumb-container', pathArray);
-
-    // 트렌드 라인 차트
     renderPhase1TrendChart(data.trend_series);
-
-    // TOP3 선택 카드
     const grid = document.getElementById('p1-cards-grid');
     grid.innerHTML = '';
     const rankColors = ['#f1c40f','#a1a1aa','#cd7f32'];
-    const rankLabels = ['🥇 1위','🥈 2위','🥉 3위'];
-
     (data.ranking || []).forEach((item, idx) => {
         const card = document.createElement('div');
         card.className = 'glass-card';
-        card.style.cssText = `
-            padding:20px; border-radius:12px; cursor:pointer; text-align:center;
-            border:2px solid transparent; transition:all 0.25s; position:relative; overflow:hidden;
-        `;
+        card.style.cssText = `padding:20px; border-radius:12px; cursor:pointer; text-align:center; border:2px solid transparent; transition:all 0.25s; position:relative; overflow:hidden;`;
         card.innerHTML = `
             <div style="font-size:1.4rem; font-weight:800; color:${rankColors[idx] || '#7d8590'}; margin-bottom:8px;">${idx + 1}위</div>
             <div style="font-size:1.1rem; font-weight:600; color:#e2e8f0; margin-bottom:10px;">${item.name}</div>
-            <div style="font-size:0.8rem; color:#7d8590;">연평균 클릭 지수</div>
             <div style="font-size:1.5rem; font-weight:700; color:var(--primary); margin-top:4px;">${item.avg_score}</div>
-            <div style="margin-top:14px; background:var(--primary); color:#fff; padding:8px 0; border-radius:8px; font-size:0.9rem; font-weight:600;">
-                선택 → 하위 파고들기
-            </div>
         `;
-        card.addEventListener('mouseenter', () => {
-            card.style.borderColor = 'var(--primary)';
-            card.style.transform = 'translateY(-4px)';
-            card.style.boxShadow = '0 8px 24px rgba(88,166,255,0.25)';
-        });
-        card.addEventListener('mouseleave', () => {
-            card.style.borderColor = 'transparent';
-            card.style.transform = '';
-            card.style.boxShadow = '';
-        });
-        const currentPath = pathArray.filter(e => e !== undefined && e !== "");
-        card.addEventListener('click', () => loadCategoryNode({path: [...currentPath, item.name]}));
+        card.addEventListener('click', () => loadCategoryNode({path: [...pathArray, item.name]}));
         grid.appendChild(card);
     });
-
     lucide.createIcons();
 }
 
 function renderPhase1TrendChart(trendSeries) {
     const container = document.getElementById('p1-trend-chart');
     if (!container) return;
-    if (p1TrendChartInstance) { p1TrendChartInstance.dispose(); }
-
+    if (p1TrendChartInstance) p1TrendChartInstance.dispose();
     p1TrendChartInstance = echarts.init(container);
     const colors = ['#58a6ff','#3fb950','#f1c40f'];
-
-    const option = {
+    p1TrendChartInstance.setOption({
         tooltip: {trigger:'axis'},
-        legend: {
-            data: (trendSeries.series||[]).map(s=>s.name),
-            textStyle:{color:'#a1a1aa'}, bottom:0
-        },
-        grid: {left:'5%', right:'5%', bottom:'15%', top:'5%', containLabel:true},
-        xAxis: {
-            type:'category', boundaryGap:false,
-            data: trendSeries.categories || [],
-            axisLabel:{color:'#888', fontSize:11}
-        },
-        yAxis: {
-            type:'value', min:0, max:100,
-            axisLabel:{color:'#888'},
-            splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}}
-        },
-        series: (trendSeries.series||[]).map((s,i)=>({
-            name: s.name, type:'line', smooth:true,
-            data: s.data, lineStyle:{width:3, color:colors[i]},
-            itemStyle:{color:colors[i]},
-            symbol:'circle', symbolSize:7,
-            areaStyle:{color:colors[i], opacity:0.08}
-        }))
-    };
-    p1TrendChartInstance.setOption(option);
-    window.addEventListener('resize', () => p1TrendChartInstance?.resize());
+        legend: {data: (trendSeries.series||[]).map(s=>s.name), textStyle:{color:'#a1a1aa'}, bottom:0},
+        xAxis: {type:'category', boundaryGap:false, data: trendSeries.categories || [], axisLabel:{color:'#888'}},
+        yAxis: {type:'value', min:0, max:100, axisLabel:{color:'#888'}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}}},
+        series: (trendSeries.series||[]).map((s,i)=>({name:s.name, type:'line', smooth:true, data:s.data, lineStyle:{width:3, color:colors[i]}}))
+    });
 }
 
 function renderPhase2(data, pathArray) {
     showPanels('phase2-state');
-
-    // 브레드크럼
     renderBreadcrumbs('p2-breadcrumb-container', pathArray);
-    
-    // [v2.75] 검색 대상 설정에 따른 다이내믹 UI 처리
-    const searchMode = document.querySelector('input[name="fallback_choice"]:checked')?.value || 'coupang';
     const finalTerm = (pathArray && pathArray.length > 0 ? pathArray[pathArray.length - 1] : (data.search_query || "상품"));
-    
-    if (searchMode === 'naver') {
-        document.getElementById('p2-title').textContent = `[${finalTerm}] 네이버 쇼핑 트렌드`;
-    } else {
-        document.getElementById('p2-title').textContent = `[${finalTerm}] 쿠팡 Top 10 랭킹`;
-    }
-
-    // 쿠팡 검색 링크 (상단 버튼)
-    const linkEl = document.getElementById('p2-coupang-link');
-    linkEl.href = data.coupang_search_url;
-
+    document.getElementById('p2-title').textContent = `[${finalTerm}] 분석 결과`;
     const productGrid = document.getElementById('p2-product-grid');
-    const fallbackNotice = document.getElementById('p2-fallback-notice');
     productGrid.innerHTML = '';
-
-    if (data.is_coupang_available && data.products.length > 0 && searchMode !== 'naver') {
-        fallbackNotice.style.display = 'none';
-        data.products.forEach(product => {
-            // ... (기본 상품 카드 렌더링 로직 유지)
-            const card = document.createElement('div');
-            card.className = 'sku-card';
-            card.style.flexDirection = 'column';
-            
-            const veoCost = 2.25;
-            const klingCost = 1.8;
-            
-            card.innerHTML = `
-                <div style="display:flex; flex-direction:row; width:100%;">
-                    <a href="${product.source_url}" target="_blank" style="text-decoration:none; color:inherit; display:flex; flex-direction:row; flex:1;">
-                        <img src="${product.image_url || 'https://via.placeholder.com/300?text=No+Image'}"
-                             alt="${product.title}" class="sku-img"
-                             onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
-                        <div class="sku-info" style="flex:1;">
-                            <div class="sku-rank">Top ${product.rank || 'N/A'} <span style="color:#f1c40f;">[Coupang]</span></div>
-                            <div class="sku-title" style="margin-top:8px;">${product.title || product.name || '상품 정보 없음'}</div>
-                            <div class="sku-price" style="margin-top:6px;">₩${(product.price || 0).toLocaleString()}</div>
-                        </div>
-                    </a>
-                    <div style="width:1px; background:var(--glass-border); margin:15px 0;"></div>
-                    <div style="padding: 20px; display:flex; flex-direction:column; justify-content:center; gap:10px; width:220px;">
-                         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:2px; text-align:center;">복사 없이 즉시 기획 시작 ↓</div>
-                         <button class="coupang-btn" style="background:#58a6ff;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')">
-                            <i data-lucide="file-text" style="width:14px;"></i> RAPTOR 기획안 생성
-                         </button>
-                    </div>
+    (data.products || []).forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'sku-card';
+        card.innerHTML = `
+            <div style="display:flex; flex-direction:row; width:100%;">
+                <img src="${product.image_url}" class="sku-img" style="width:80px;height:80px;">
+                <div class="sku-info" style="flex:1; padding-left:15px;">
+                    <div class="sku-title">${product.title}</div>
+                    <div class="sku-price">₩${(product.price || 0).toLocaleString()}</div>
+                    <button class="btn-primary" style="margin-top:10px; font-size:0.7rem;" onclick="window.triggerRaptorBasic('${encodeURIComponent(JSON.stringify(product))}')">RAPTOR 기획</button>
                 </div>
-            `;
-            productGrid.appendChild(card);
-        });
-    } else {
-        // [v2.75] 검색 대상에 따른 다이내믹 폴백 버튼 노출 (네이버/쿠팡 대응)
-        fallbackNotice.style.display = 'block';
-        
-        const labelQuery = finalTerm;
-        const fallbackBtn = document.getElementById('p2-fallback-btn');
-        const fallbackLabel = document.getElementById('p2-fallback-label');
-        
-        if (searchMode === 'naver') {
-            fallbackBtn.href = `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(labelQuery)}`;
-            fallbackBtn.style.background = 'linear-gradient(135deg,#03c75a,#029b45)';
-            fallbackLabel.textContent = `네이버 쇼핑에서 [${labelQuery}] 검색하기`;
-            document.querySelector('#p2-fallback-notice p').innerHTML = `네이버 쇼핑의 실시간 검색 결과를 확인하세요.<br>버튼을 클릭하면 네이버 쇼핑으로 이동합니다.`;
-        } else {
-            fallbackBtn.href = data.coupang_search_url || `https://www.coupang.com/np/search?q=${encodeURIComponent(labelQuery)}`;
-            fallbackBtn.style.background = 'linear-gradient(135deg,#e52c2c,#c0392b)';
-            fallbackLabel.textContent = `쿠팡에서 [${labelQuery}] 검색하기`;
-            document.querySelector('#p2-fallback-notice p').innerHTML = `쿠팡의 실시간 최저가 및 랭킹 정보를 확인하세요.<br>버튼을 클릭하면 쿠팡 검색 페이지로 이동합니다.`;
-        }
-    }
-    }
-
+            </div>
+        `;
+        productGrid.appendChild(card);
+    });
     lucide.createIcons();
 }
 
-// startAnalysis 및 renderResults 통폐합 (단일 파이프라인 적용으로 제거됨)
-
 // ─────────────────────────────────────────────
-// DOMContentLoaded
+// 초기화 및 부팅 로직 (v3.19)
 // ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    const form      = document.getElementById('analyze-form');
-    const input     = document.getElementById('domain-input');
-    const submitBtn = document.getElementById('submit-btn');
-
-    // 폼 제출: 무조건 단일 라우터로 통과시킴
-    form.addEventListener('submit', (e) => {
+    const form = document.getElementById('analyze-form');
+    const input = document.getElementById('domain-input');
+    form?.addEventListener('submit', (e) => {
         e.preventDefault();
         const domain = input.value.trim();
-        if (!domain) return;
-        
-        if (TOP_LEVEL_CATEGORIES.includes(domain)) {
-            loadCategoryNode({path: [domain]});
-        } else {
-            // [v2.35] 특정 키워드 검색 시에도 수동 입력값은 loadCategoryNode 내에서 처리됨
-            loadCategoryNode({keyword: domain});
-        }
+        if (domain) loadCategoryNode(TOP_LEVEL_CATEGORIES.includes(domain) ? {path: [domain]} : {keyword: domain});
     });
 
-    // 칩 클릭 → N-Depth 1차 카테고리 진입
     document.querySelectorAll('.chip-btn').forEach(chip => {
-        chip.addEventListener('click', (e) => {
-            const val = e.target.getAttribute('data-val');
-            input.value = val;
-            loadCategoryNode({path: [val]});
-        });
+        chip.addEventListener('click', (e) => loadCategoryNode({path: [e.target.getAttribute('data-val')]}));
     });
 
-    // [v2.45] 페이지 로드 즉시 첫 번째 분야(패션의류) 인기 키워드 로드
-    const firstDomain = TOP_LEVEL_CATEGORIES[0] || '패션의류';
-    loadPopularKeywords(firstDomain);
-
-    // 수동 업로드 확인
-    document.getElementById('verify-manual-btn')?.addEventListener('click', () => {
-        showToast('✅ 올리브영/다이소 수동 데이터가 반영되었습니다.');
-    });
-
-    // JSON 복사
-    document.getElementById('copy-json-btn')?.addEventListener('click', () => {
-        const text = document.getElementById('json-output')?.innerText;
-        if (text) navigator.clipboard.writeText(text).then(() => showToast('JSON이 복사되었습니다.'));
-    });
-
-    // [NEW] Settings Modal Controls
-    const settingsBtn = document.getElementById('open-settings-btn');
-    const closeSettingsBtn = document.getElementById('close-settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
-
-    settingsBtn?.addEventListener('click', () => {
-        // 기존 키 로드
-        const keys = JSON.parse(localStorage.getItem('raptor_api_keys') || '{}');
-        if (keys.google) document.getElementById('key-google').value = keys.google;
-        if (keys.kling) document.getElementById('key-kling').value = keys.kling;
-        if (keys.xai) document.getElementById('key-xai').value = keys.xai;
-        
-        settingsModal.classList.add('active');
-    });
-
-    closeSettingsBtn?.addEventListener('click', () => {
-        settingsModal.classList.remove('active');
-    });
-
-    saveSettingsBtn?.addEventListener('click', () => {
-        const keys = {
-            google: document.getElementById('key-google').value,
-            kling: document.getElementById('key-kling').value,
-            xai: document.getElementById('key-xai').value
-        };
-        localStorage.setItem('raptor_api_keys', JSON.stringify(keys));
-        showToast('✅ API 설정이 안전하게 저장되었습니다.');
-        settingsModal.classList.remove('active');
-    });
-
-    // [v2.4] RAPTOR GEM UI 제어 로직 등록
-    initRaptorHandlers();
-
-    // [v3.18] 실시간 시스템 텔레메트리 (디버그 모니터 보고용)
+    // 실시간 시스템 텔레메트리 (디버그 모니터 보고용)
     const updateDebug = (msg) => {
         const el = document.getElementById('debug-status');
         if (el) el.innerHTML = `> ${msg}`;
         console.log(`[DEBUG] ${msg}`);
     };
-    window.sspsDebug = updateDebug; // 전역 스코프 공유
+    window.sspsDebug = updateDebug;
 
     updateDebug("System core initialized.");
 
-    // 1. 인기 검색어 로드
+    setTimeout(() => { updateDebug("Keywords loading..."); loadPopularKeywords("패션의류"); }, 100);
+    setTimeout(() => { updateDebug("Stats loading..."); loadSiteStats(); }, 400);
     setTimeout(() => {
-        updateDebug("Fetching popular keywords...");
-        try { 
-            loadPopularKeywords("패션의류"); 
-            updateDebug("Keywords requested.");
-        } catch(e) { updateDebug(`!! Keyword Error: ${e.message}`); }
-    }, 100);
-
-    // 2. 사이트 통계 로드
-    setTimeout(() => {
-        updateDebug("Fetching site statistics...");
-        try { 
-            loadSiteStats(); 
-            updateDebug("Stats requested.");
-        } catch(e) { updateDebug(`!! Stats Error: ${e.message}`); }
-    }, 400);
-
-    // 3. 메인 3D 차트 부트
-    setTimeout(() => {
-        updateDebug("Initializing 3D Chart Engine...");
-        try {
-            if (typeof echarts === 'undefined') {
-                updateDebug("!! CRITICAL: ECharts library not found.");
-                return;
-            }
-            updateDebug("ECharts detected. Running init...");
-            initMain3DChart();
-        } catch (chartErr) {
-            updateDebug(`!! Chart Engine Crash: ${chartErr.message}`);
-        }
+        updateDebug("Initializing 3D Chart...");
+        if (typeof echarts === 'undefined') { updateDebug("CRITICAL: ECharts missing!"); return; }
+        initMain3DChart();
     }, 800);
 });
 
-// V1 시절 자유 텍스트 결과 렌더링 (단일 파이프라인으로 제거됨)
-
-// ─────────────────────────────────────────────
-// 3D 메인 차트 (2개 분할 렌더링)
-// ─────────────────────────────────────────────
 function initMain3DChart() {
-    const containers = [
-        document.getElementById('main-3d-chart-1'),
-        document.getElementById('main-3d-chart-2'),
-        document.getElementById('main-3d-chart-3')
-    ];
+    const containers = [1,2,3].map(i => document.getElementById(`main-3d-chart-${i}`));
     if (containers.some(c => !c)) return;
-    
     const charts = containers.map(c => echarts.init(c));
-    charts.forEach(c => c.showLoading({text: 'Loading...'}));
-
-    const filterData = (cats, data, start, end) => {
-        const slicedCats = cats.slice(start, end);
-        const filteredData = [];
-        data.forEach(item => {
-            if (item[1] >= start && item[1] < end) {
-                filteredData.push([item[0], item[1] - start, item[2]]);
-            }
-        });
-        return { cats: slicedCats, data: filteredData };
-    };
-
     const trendUrl = `${API_BASE_URL}/domains/trend?t=${Date.now()}`;
-    fetch(trendUrl)
-        .then(r => r.json())
-        .then(json => { 
-            if (json.status !== 'success') throw new Error('API Error');
-            
-            [0, 4, 8].forEach((start, idx) => {
-                const p = filterData(json.categories, json.data, start, start + 4);
-                render3DChart(charts[idx], p.cats, json.months, p.data);
-                charts[idx].hideLoading();
-            });
-            setTimeout(() => charts.forEach(c => c.resize()), 200);
-        })
-        .catch(err => {
-            console.error("Trend API Load Error:", err);
-            charts.forEach(c => c.hideLoading());
+    window.sspsDebug("API Fetch started...");
+    fetch(trendUrl).then(r => r.json()).then(json => {
+        if (json.status !== 'success') throw new Error('API Fail');
+        window.sspsDebug(`Success: ${json.data.length} rows.`);
+        [0, 4, 8].forEach((start, idx) => {
+            const sliced = json.categories.slice(start, start + 4);
+            const filtered = json.data.filter(item => item[1] >= start && item[1] < start + 4).map(item => [item[0], item[1]-start, item[2]]);
+            render3DChart(charts[idx], sliced, json.months, filtered);
+            charts[idx].hideLoading();
         });
-}
-        .catch(() => {
-            // [v2.44] 12개 분야 Fallback 리스트 및 데이터 생성 (도서, 면세점 포함)
-            const cats = ['패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어','출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의','도서','면세점'];
-            const mnts = ['25-04','25-05','25-06','25-07','25-08','25-09','25-10','25-11','25-12','26-01','26-02','26-03'];
-            const baseScores = [70,45,80,62,55,64,85,65,72,47,40,30];
-            const seasonBias = [
-                [0,5,10,15,8,0,8,18,28,-12,-18,-2],
-                [-2,4,8,12,5,-3,10,14,22,-8,-14,0],
-                [5,12,18,10,14,8,10,20,8,-5,0,28],
-                [-5,-2,0,3,7,12,22,17,35,-5,-8,-7],
-                [0,4,10,7,4,12,16,22,12,-10,-5,10],
-                [0,5,8,5,7,8,12,10,5,10,-3,5],
-                [5,8,0,15,14,-2,5,15,18,10,-3,5],
-                [0,22,38,30,26,10,-5,-10,-14,-20,-10,0],
-                [0,4,8,10,6,10,12,10,8,4,0,5],
-                [0,8,18,24,20,10,-3,-5,8,-3,-10,8],
-                [0,5,10,5,3,8,12,15,25,10,5,12], // 도서 (학기초/연말 효과)
-                [5,10,15,20,25,10,5,15,30,-5,-10,0] // 면세점 (휴가시즌 효과)
-            ];
-            const fallbackData = [];
-            for (let i = 0; i < cats.length; i++) {
-                for (let j = 0; j < mnts.length; j++) {
-                    fallbackData.push([j, i, Math.min(100, Math.max(10, baseScores[i]+seasonBias[i][j]+Math.floor(Math.random()*8-4)))]);
-                }
-            }
-            
-            const p1 = filterData(cats, fallbackData, 0, 6);
-            const p2 = filterData(cats, fallbackData, 6, 12);
-            render3DChart(chart1, p1.cats, mnts, p1.data, '(기본 데이터)');
-            render3DChart(chart2, p2.cats, mnts, p2.data, '(기본 데이터)');
-            
-            // [v2.44] 예비 데이터 로딩 시에도 블랙아웃 방지 리사이즈
-            setTimeout(() => { chart1.resize(); chart2.resize(); }, 200);
-            
-            chart1.hideLoading(); chart2.hideLoading();
-        });
+        window.sspsDebug("Charts rendered.");
+        setTimeout(() => charts.forEach(c => c.resize()), 200);
+    }).catch(e => { window.sspsDebug(`!! Error: ${e.message}`); });
 }
 
-function render3DChart(myChart, categories, months, data, suffix='') {
+function render3DChart(myChart, categories, months, data) {
     try {
-        // [v3.14] AI 지능형 하이브리드 렌더러: 3D 엔진 우선 시도
-        const option = {
-            title: {
-                text: `SSPS 지능형 실시간 숏폼 트렌드 분석 (3D) ${suffix}`,
-                textStyle:{color:'#a1a1aa', fontSize:13, fontWeight:'normal'}, left:'center', top:0
-            },
+        myChart.setOption({
+            title: { textStyle:{color:'#a1a1aa', fontSize:12}, left:'center' },
             tooltip: { formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
-            visualMap: {
-                show:true, min:0, max:100,
-                inRange:{color:['#313695','#4575b4','#74add1','#abd9e9','#e0f3f8','#ffffbf','#fee090','#fdae61','#f46d43','#d73027','#a50026']},
-                textStyle:{color:'#a1a1aa'}, calculable:true, bottom:'10%'
-            },
-            xAxis3D:{type:'category', data:months, name:'월', nameTextStyle:{color:'#888'}},
-            yAxis3D:{type:'category', data:categories, name:'분야', nameTextStyle:{color:'#888'}},
+            visualMap: { show:true, min:0, max:100, inRange:{color:['#313695','#4575b4','#74add1','#abd9e9','#e0f3f8','#ffffbf','#fee090','#fdae61','#f46d43','#d73027','#a50026']}, textStyle:{color:'#a1a1aa'}, calculable:true, bottom:'10%' },
+            xAxis3D:{type:'category', data:months, name:'월'},
+            yAxis3D:{type:'category', data:categories, name:'분야'},
             zAxis3D:{type:'value', name:'지수'},
-            grid3D:{
-                boxWidth:220, boxDepth:120, boxHeight:80,
-                viewControl:{projection:'perspective', alpha:25, beta:20},
-                environment:'transparent'
-            },
-            series:[{
-                type:'bar3D', data: data,
-                shading:'lambert', label:{show:false}
-            }]
-        };
-        myChart.setOption(option);
-    } catch (glError) {
-        console.warn("SSPS 3D Render Failed, Switching to 2D Heatmap Mode:", glError);
-        // [v3.14 Fallback] 3D 불가능한 환경에서 데이터를 100% 보여주는 2D 히트맵으로 전환
-        const option2D = {
-            title: { text: `SSPS 트렌드 분석 (2D 고성능 맵) ${suffix}`, textStyle:{color:'#a1a1aa', fontSize:12}, left:'center' },
-            tooltip: { position: 'top' },
-            grid: { height: '70%', top: '15%' },
-            xAxis: { type: 'category', data: months, splitArea: { show: true } },
-            yAxis: { type: 'category', data: categories, splitArea: { show: true } },
-            visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', left: 'center', bottom: '0%' },
-            series: [{
-                name: '트렌드 지수', type: 'heatmap',
-                data: data.map(item => [item[0], item[1], item[2]]),
-                label: { show: true },
-                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' } }
-            }]
-        };
-        myChart.setOption(option2D, true);
-    }
+            grid3D:{ boxWidth:220, boxDepth:120, boxHeight:80, viewControl:{projection:'perspective', alpha:25, beta:20}, environment:'transparent' },
+            series:[{ type:'bar3D', data: data, shading:'lambert', label:{show:false} }]
+        });
+    } catch (e) { console.error("3D Fail:", e); }
     window.addEventListener('resize', () => myChart.resize());
 }
 
-// ─────────────────────────────────────────────
-// 유틸리티
-// ─────────────────────────────────────────────
-function renderChart(weights) {
-    const ctx = document.getElementById('weightChart')?.getContext('2d');
-    if (!ctx) return;
-    if (weightChartInstance) weightChartInstance.destroy();
-    Chart.defaults.color = '#7d8590';
-    Chart.defaults.font.family = "'Outfit', sans-serif";
-    weightChartInstance = new Chart(ctx, {
-        type:'doughnut',
-        data:{
-            labels:['Naver','OliveYoung','Daiso'],
-            datasets:[{
-                data:[weights.naver*100, weights.oliveyoung*100, weights.daiso*100],
-                backgroundColor:['#03c75a','#f27b9b','#f1c40f'],
-                borderWidth:0, hoverOffset:4
-            }]
-        },
-        options:{responsive:true, maintainAspectRatio:false, cutout:'70%',
-                 plugins:{legend:{position:'right', labels:{boxWidth:12, usePointStyle:true}}}}
-    });
+async function loadPopularKeywords(domain) {
+    const listEl = document.getElementById('popular-kw-list');
+    if (!listEl) return;
+    try {
+        const data = await fetchWithRetry(`${API_BASE_URL}/popular_keywords?domain=${encodeURIComponent(domain)}`);
+        listEl.innerHTML = '';
+        data.items.forEach(item => {
+            const chip = document.createElement('a');
+            chip.style.cssText = `display:inline-block; padding:6px 14px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px; text-decoration:none; color:#e2e8f0; margin:4px; font-size:0.8rem;`;
+            chip.innerHTML = `${item.rank}. ${item.keyword}`;
+            listEl.appendChild(chip);
+        });
+    } catch(e) { console.error(e); }
 }
 
-function renderTrendChart(trendSeries) {
-    const container = document.getElementById('drill-trend-chart');
-    if (!container) return;
-    if (trendChartInstance) trendChartInstance.dispose();
-    trendChartInstance = echarts.init(container);
-    const option = {
-        tooltip:{trigger:'axis'},
-        legend:{data:trendSeries.series.map(s=>s.name), textStyle:{color:'#a1a1aa'}},
-        grid:{left:'3%', right:'4%', bottom:'3%', containLabel:true},
-        xAxis:{type:'category', boundaryGap:false, data:trendSeries.categories, axisLabel:{color:'#888'}},
-        yAxis:{type:'value', axisLabel:{color:'#888'}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}}},
-        series:trendSeries.series.map(s=>({name:s.name, type:'line', smooth:true, data:s.data, lineStyle:{width:3}, symbol:'circle', symbolSize:8}))
-    };
-    trendChartInstance.setOption(option);
-    window.addEventListener('resize', () => trendChartInstance?.resize());
+async function loadSiteStats() {
+    try {
+        const stats = await fetch(`${API_BASE_URL}/stats`).then(res => res.json());
+        if (stats) {
+            document.getElementById('stat-total-analysis').textContent = (stats.total_analysis || 0).toLocaleString();
+            document.getElementById('stat-top-domain').textContent = stats.top_domain || '식품';
+        }
+    } catch (e) { console.error(e); }
 }
 
 function simulateLoadingSteps() {
@@ -640,254 +295,11 @@ function simulateLoadingSteps() {
     if (steps[0]) steps[0].className = 'active';
     [600,1200,2000].forEach((t,i) => {
         setTimeout(() => {
-            if (steps[i]) { steps[i].className = 'done'; steps[i].innerHTML = steps[i].innerHTML.replace('중','완료'); }
+            if (steps[i]) { steps[i].className = 'done'; steps[i].textContent += ' 완료'; }
             if (steps[i+1]) steps[i+1].className = 'active';
         }, t);
     });
 }
 
-function syntaxHighlight(json) {
-    json = json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return json.replace(/(\"(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*\"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
-        let cls = 'number';
-        if (/^"/.test(match)) cls = /:$/.test(match) ? 'key' : 'string';
-        else if (/true|false/.test(match)) cls = 'boolean';
-        else if (/null/.test(match)) cls = 'null';
-        return `<span class="${cls}">${match}</span>`;
-    });
-}
-
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerHTML = `<i data-lucide="check-circle"></i> ${message}`;
-    document.body.appendChild(toast);
-    lucide.createIcons();
-    setTimeout(() => toast.classList.add('show'), 100);
-    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
-}
-
-// ─────────────────────────────────────────────
-// 인기 검색어 로드 및 탭 렌더링
-// ─────────────────────────────────────────────
-function renderPopularTabs(activeDomain) {
-    const tabsContainer = document.getElementById('popular-kw-tabs');
-    if (!tabsContainer || TOP_LEVEL_CATEGORIES.length === 0) return;
-    
-    tabsContainer.innerHTML = '';
-    
-    TOP_LEVEL_CATEGORIES.forEach(domain => {
-        const btn = document.createElement('button');
-        btn.textContent = domain;
-        const isActive = domain === activeDomain;
-        
-        btn.style.cssText = `
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            border: 1px solid ${isActive ? 'var(--primary)' : 'rgba(255,255,255,0.1)'};
-            background: ${isActive ? 'rgba(88,166,255,0.15)' : 'rgba(255,255,255,0.02)'};
-            color: ${isActive ? '#fff' : '#a1a1aa'};
-            font-weight: ${isActive ? '600' : '400'};
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        `;
-        
-        btn.onmouseenter = () => { if(!isActive) btn.style.background = 'rgba(255,255,255,0.08)'; };
-        btn.onmouseleave = () => { if(!isActive) btn.style.background = 'rgba(255,255,255,0.02)'; };
-        
-        btn.addEventListener('click', () => {
-            // 다른 분야 클릭 시 독립적으로 업데이트
-            if (!isActive) loadPopularKeywords(domain);
-        });
-        
-        tabsContainer.appendChild(btn);
-    });
-}
-
-async function loadPopularKeywords(domain) {
-    const container = document.getElementById('popular-keywords-section');
-    const listEl = document.getElementById('popular-kw-list');
-    const periodEl = document.getElementById('popular-kw-period');
-    
-    if (!container || !listEl) return;
-    
-    // 탭 상태 업데이트
-    renderPopularTabs(domain);
-    
-    try {
-        const data = await fetchWithRetry(`${API_BASE_URL}/popular_keywords?domain=${encodeURIComponent(domain)}`, {}, 3, 1000);
-        
-        
-        periodEl.textContent = `조회기간: ${data.period || '-'}`;
-        listEl.innerHTML = '';
-        
-        data.items.forEach(item => {
-            const chip = document.createElement('a');
-            chip.href = `https://www.coupang.com/np/search?q=${encodeURIComponent(item.keyword)}`;
-            chip.target = "_blank";
-            chip.style.cssText = `
-                display:flex; align-items:center; gap:8px; 
-                padding:8px 16px; background:rgba(255,255,255,0.05); 
-                border:1px solid rgba(255,255,255,0.1); border-radius:20px; 
-                text-decoration:none; color:#e2e8f0; white-space:nowrap;
-                transition: background 0.2s, border-color 0.2s;
-            `;
-            chip.onmouseenter = () => chip.style.background = 'rgba(88,166,255,0.15)';
-            chip.onmouseleave = () => chip.style.background = 'rgba(255,255,255,0.05)';
-            
-            let statusIcon = '<i data-lucide="minus" style="width:14px; color:#aaa;"></i>';
-            if (item.trend_status === 'UP') statusIcon = '<i data-lucide="trending-up" style="width:14px; color:#f1c40f;"></i>';
-            else if (item.trend_status === 'NEW') statusIcon = '<span style="color:#03c75a; font-size:0.75rem; font-weight:bold;">NEW</span>';
-            
-            const badgeRank = `<span style="display:inline-block; width:18px; height:18px; line-height:18px; text-align:center; background:#4a4a5a; border-radius:50%; font-size:0.7rem;">${item.rank}</span>`;
-            
-            chip.innerHTML = `${badgeRank} <span style="font-weight:500;">${item.keyword}</span> ${statusIcon}`;
-            listEl.appendChild(chip);
-        });
-        
-        container.style.display = 'block';
-        lucide.createIcons();
-        
-    } catch(e) {
-        console.error("Failed to load popular keywords:", e);
-        listEl.innerHTML = '<span style="color:#a1a1aa; font-size:0.85rem; padding: 10px;">실시간 트렌드 데이터를 불러오는 중입니다. 잠시만 기다려 주시거나 잠시 후 다시 시도해 주세요.</span>';
-        container.style.display = 'block';
-    }
-}
-
-/**
- * [v2.35] 백엔드에서 실시간 통계(누적 분석 횟수, 주간 Top 분야) 정보를 가져와 화면에 출력합니다.
- */
-async function loadSiteStats() {
-    const analysisEl = document.getElementById('stat-total-analysis');
-    const domainEl = document.getElementById('stat-top-domain');
-    
-    if (!analysisEl || !domainEl) return;
-    
-    try {
-        const stats = await fetch(`${API_BASE_URL}/stats`).then(res => res.json());
-        
-        if (stats) {
-            // 카운트 애니메이션 효과 (선택사항이나 여기서는 즉시 반영)
-            analysisEl.textContent = Number(stats.total_analysis || 0).toLocaleString();
-            domainEl.textContent = stats.top_domain || '식품';
-        }
-    } catch (e) {
-        console.error("Failed to load site stats:", e);
-    }
-}
-
-/**
- * [v2.4] RAPTOR GEM: AI 숏폼 기획안 생성 및 모달 처리
- */
-function initRaptorHandlers() {
-    const slider = document.getElementById('raptor-duration-slider');
-    const valText = document.getElementById('raptor-duration-val');
-    const planBtn = document.getElementById('raptor-plan-btn');
-    const modal = document.getElementById('raptor-modal');
-    const closeModal = document.getElementById('close-raptor-btn');
-    const resultContent = document.getElementById('raptor-result-content');
-    
-    if (!slider || !planBtn) return;
-
-    // 1. 슬라이더 값 실시간 변경 인식 (대표님 피드백 반영: 15~60s)
-    slider.addEventListener('input', (e) => {
-        valText.textContent = `${e.target.value}s`;
-    });
-
-    // 2. AI 기획안 생성 실행
-    planBtn.addEventListener('click', async () => {
-        if (!currentAppData) {
-            alert("먼저 분석을 수행하여 데이터를 생성해 주세요!");
-            return;
-        }
-
-        const duration = slider.value;
-        
-        // UI 로딩 상태 시작
-        modal.classList.add('active');
-        resultContent.innerHTML = `
-            <div style="text-align: center; padding: 60px 0;">
-                <div class="spinner" style="border-width:4px; width:50px; height:50px; margin: 0 auto 20px;"></div>
-                <h3 style="color:var(--primary); font-size:1.2rem; margin-bottom:10px;">RAPTOR Phase 1: 고몰입 기획 중...</h3>
-                <p style="color:#888;">[Retention Rule]: ${duration}초간 끊김 없는 오디오와<br>장면별 1:1 이미지 매칭 기획을 진행하고 있습니다.</p>
-                <p style="font-size:0.75rem; color:#555; margin-top:10px;">(Gemini 3.1 Pro High 템포 최적화 적용)</p>
-            </div>
-        `;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/raptor/generate-plan`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ssps_data: currentAppData,
-                    duration: duration
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.status === 'success' || result.status === 'mock') {
-                // 상단 메타 정보 업데이트
-                document.getElementById('raptor-res-duration').textContent = `${duration}초`;
-                
-                // 마크다운 렌더링 (marked.js 활용)
-                const htmlContent = marked.parse(result.planning_document);
-                resultContent.innerHTML = `
-                    <div class="raptor-phase-badge" style="display:inline-block; background:rgba(88,166,255,0.1); color:var(--primary); padding:4px 12px; border-radius:4px; font-size:0.75rem; font-weight:700; margin-bottom:20px;">
-                        PHASE 1: STRATEGY & SCRIPT COMPLETED
-                    </div>
-                    ${htmlContent}
-                    
-                    <!-- [v2.75] Phase 2: Video Production Trigger -->
-                    <div style="margin-top:40px; padding:30px; background:rgba(255,255,255,0.03); border:1px solid rgba(88,166,255,0.2); border-radius:12px; text-align:center;">
-                        <h4 style="color:#fff; margin-bottom:10px;"><i data-lucide="video" style="vertical-align:middle; margin-right:8px;"></i> Phase 2: AI 숏폼 영상 제작</h4>
-                        <p style="font-size:0.85rem; color:#888; margin-bottom:20px;">위 기획안과 이미지 프롬프트를 기반으로 실제 영상을 생성합니다.<br>(BYOK 설가 완료 시 사용 가능)</p>
-                        <div style="display:flex; justify-content:center; gap:12px;">
-                            <button class="btn-primary" onclick="window.raptorManager.generateVideo('veo-3-fast', 'current')" style="background: linear-gradient(135deg, #7c3aed, #2563eb);">
-                                Google Veo 3.1 제작
-                            </button>
-                            <button class="btn-primary" onclick="window.raptorManager.generateVideo('kling-pro', 'current')" style="background: linear-gradient(135deg, #059669, #0ea5e9);">
-                                Kling AI Pro 제작
-                            </button>
-                        </div>
-                    </div>
-                `;
-                lucide.createIcons();
-            } else {
-                throw new Error(result.error || "AI 엔진 호출 중 오류가 발생했습니다.");
-            }
-        } catch (e) {
-            resultContent.innerHTML = `
-                <div style="padding: 40px; text-align: center; color: #ff4d4f; border: 1px dashed rgba(255,77,79,0.3); border-radius: 12px;">
-                    <i data-lucide="alert-triangle" style="width:48px; height:48px; margin-bottom:15px;"></i>
-                    <p style="font-weight:600;">기획안 생성 실패</p>
-                    <p style="font-size:0.9rem; margin-top:10px;">${e.message}</p>
-                </div>
-            `;
-            lucide.createIcons();
-        }
-    });
-
-    // 3. 모달 닫기
-    closeModal?.addEventListener('click', () => modal.classList.remove('active'));
-    
-    // 4. 복사 및 인쇄 버튼
-    document.getElementById('copy-raptor-btn')?.addEventListener('click', () => {
-        const text = resultContent.innerText;
-        navigator.clipboard.writeText(text).then(() => showToast("📋 기획안이 클립보드에 복사되었습니다."));
-    });
-
-    document.getElementById('print-raptor-btn')?.addEventListener('click', () => {
-        window.print();
-    });
-    // 5. [v2.48] 특정 상품 기반 기획안 생성 헬퍼
-    // 5. [v3.0] RAPTOR GEM 독립 워크스테이션으로 데이터 전송 및 화면 전환
-    window.triggerRaptorBasic = (encodedProduct) => {
-        // 모달 대신 전용 기획 페이지(raptor.html)로 이동
-        window.location.href = `raptor.html?product=${encodedProduct}`;
-    };
-}
-
+window.triggerRaptorBasic = (encodedProduct) => { window.location.href = `raptor.html?product=${encodedProduct}`; };
+function showToast(m) { alert(m); } // Simple toast for now
