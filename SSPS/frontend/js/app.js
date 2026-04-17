@@ -416,22 +416,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // [v2.4] RAPTOR GEM UI 제어 로직 등록
     initRaptorHandlers();
 
-    // 초기 데이터 로드 (차트, 키워드, 마이크로 통계)
+    // [v3.16] 독립형 독립 부팅 시스템: 차트 에러가 다른 기능(키워드/검색)을 방해하지 않도록 전격 분리
+    // 1. 인기 검색어 로드 (즉시 실행)
+    setTimeout(() => {
+        try { loadPopularKeywords("패션의류"); } catch(e) { console.error("Keyword Load Error:", e); }
+    }, 100);
+
+    // 2. 사이트 통계 로드 (즉시 실행)
+    setTimeout(() => {
+        try { loadSiteStats(); } catch(e) { console.error("Stats Load Error:", e); }
+    }, 200);
+
+    // 3. 메인 3D 차트 부트 (개별 격리 실행)
     setTimeout(() => {
         try {
-            console.log("SSPS: Booting main engines...");
-            if (typeof echarts !== 'undefined') {
-                initMain3DChart();
-            } else {
-                console.warn("ECharts not loaded yet. Retrying in 1s...");
-                setTimeout(initMain3DChart, 1000);
-            }
-            loadPopularKeywords("패션의류");
-            loadSiteStats(); 
-        } catch (bootErr) {
-            console.error("Critical Boot Error:", bootErr);
+            console.log("SSPS: Booting 3D Engine...");
+            initMain3DChart();
+        } catch (chartErr) {
+            console.error("Chart Booting Failed (Ignoring to keep other features alive):", chartErr);
         }
-    }, 500);
+    }, 600);
 });
 
 // V1 시절 자유 텍스트 결과 렌더링 (단일 파이프라인으로 제거됨)
@@ -440,15 +444,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // 3D 메인 차트 (2개 분할 렌더링)
 // ─────────────────────────────────────────────
 function initMain3DChart() {
-    const container1 = document.getElementById('main-3d-chart-1');
-    const container2 = document.getElementById('main-3d-chart-2');
-    // [v3.13] 6+6 2분할 체제로 최적화: 3번째 컨테이너 의존성 제거
-    if (!container1 || !container2) return;
+    const containers = [
+        document.getElementById('main-3d-chart-1'),
+        document.getElementById('main-3d-chart-2'),
+        document.getElementById('main-3d-chart-3')
+    ];
+    if (containers.some(c => !c)) return;
     
-    const chart1 = echarts.init(container1);
-    const chart2 = echarts.init(container2);
-    chart1.showLoading({text: 'Loading...'});
-    chart2.showLoading({text: 'Loading...'});
+    const charts = containers.map(c => echarts.init(c));
+    charts.forEach(c => c.showLoading({text: 'Loading...'}));
 
     const filterData = (cats, data, start, end) => {
         const slicedCats = cats.slice(start, end);
@@ -461,35 +465,24 @@ function initMain3DChart() {
         return { cats: slicedCats, data: filteredData };
     };
 
-    // [v2.50] 12개 분야 (4+4+4) 동적 앵커링 보정 보정 API 호출
-    // [v2.56] 캐시 버스팅 및 상세 에러 로깅 적용
     const trendUrl = `${API_BASE_URL}/domains/trend?t=${Date.now()}`;
     fetch(trendUrl)
-        .then(async r => {
-            if (!r.ok) {
-                const errData = await r.json().catch(() => ({}));
-                if (errData.error_detail) {
-                    console.group("%c SSPS Backend Trend Error Traceback ", "background: #ff0000; color: #fff; font-weight: bold;");
-                    console.error(errData.error_detail);
-                    console.groupEnd();
-                }
-                throw new Error(errData.message || `HTTP error! status: ${r.status}`);
-            }
-            return r.json();
-        })
+        .then(r => r.json())
         .then(json => { 
             if (json.status !== 'success') throw new Error('API Error');
             
-            const p1 = filterData(json.categories, json.data, 0, 6);
-            const p2 = filterData(json.categories, json.data, 6, 12);
-            render3DChart(chart1, p1.cats, json.months, p1.data);
-            render3DChart(chart2, p2.cats, json.months, p2.data);
-            
-            // [v2.44] 차트가 블랙아웃되는 현상을 방지하기 위해 강제 리사이즈 시도
-            setTimeout(() => { chart1.resize(); chart2.resize(); }, 200);
-            
-            chart1.hideLoading(); chart2.hideLoading();
+            [0, 4, 8].forEach((start, idx) => {
+                const p = filterData(json.categories, json.data, start, start + 4);
+                render3DChart(charts[idx], p.cats, json.months, p.data);
+                charts[idx].hideLoading();
+            });
+            setTimeout(() => charts.forEach(c => c.resize()), 200);
         })
+        .catch(err => {
+            console.error("Trend API Load Error:", err);
+            charts.forEach(c => c.hideLoading());
+        });
+}
         .catch(() => {
             // [v2.44] 12개 분야 Fallback 리스트 및 데이터 생성 (도서, 면세점 포함)
             const cats = ['패션의류','패션잡화','화장품/미용','디지털/가전','가구/인테리어','출산/육아','식품','스포츠/레저','생활/건강','여가/생활편의','도서','면세점'];
@@ -529,33 +522,52 @@ function initMain3DChart() {
 }
 
 function render3DChart(myChart, categories, months, data, suffix='') {
-    const option = {
-        title: {
-            text: `SSPS 지능형 쇼핑 숏폼 상품 선정 시스템 — 네이버 12대 분야 1년 클릭 트렌드 비교 (3D) ${suffix}`,
-            textStyle:{color:'#a1a1aa', fontSize:13, fontWeight:'normal'}, left:'center', top:0
-        },
-        tooltip: { formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
-        visualMap: {
-            show:true, min:0, max:100,
-            inRange:{color:['#313695','#4575b4','#74add1','#abd9e9','#e0f3f8','#ffffbf','#fee090','#fdae61','#f46d43','#d73027','#a50026']},
-            textStyle:{color:'#a1a1aa'}, calculable:true, bottom:'10%'
-        },
-        xAxis3D:{type:'category', data:months, name:'월', nameTextStyle:{color:'#888'}, axisLabel:{textStyle:{color:'#888'}}},
-        yAxis3D:{type:'category', data:categories, name:'분야', nameTextStyle:{color:'#888'}, axisLabel:{textStyle:{color:'#888'}}},
-        zAxis3D:{type:'value', name:'트렌드 지수', nameTextStyle:{color:'#888'}, axisLabel:{textStyle:{color:'#888'}}},
-        grid3D:{
-            boxWidth:220, boxDepth:120, boxHeight:80,
-            viewControl:{projection:'perspective', autoRotate:false, rotateSensitivity:1, distance:300, alpha:25, beta:20},
-            light:{main:{intensity:1.2}, ambient:{intensity:0.3}}, environment:'transparent'
-        },
-        series:[{
-            type:'scatter3D', data,
-            symbolSize: val => Math.max(5, val[2]/10),
-            itemStyle:{opacity:0.85},
-            emphasis:{label:{show:true, formatter: p=>`${categories[p.value[1]]}\n${months[p.value[0]]}: ${p.value[2]}`, textStyle:{color:'#fff', fontSize:12}}}
-        }]
-    };
-    myChart.setOption(option);
+    try {
+        // [v3.14] AI 지능형 하이브리드 렌더러: 3D 엔진 우선 시도
+        const option = {
+            title: {
+                text: `SSPS 지능형 실시간 숏폼 트렌드 분석 (3D) ${suffix}`,
+                textStyle:{color:'#a1a1aa', fontSize:13, fontWeight:'normal'}, left:'center', top:0
+            },
+            tooltip: { formatter: p => `[${categories[p.value[1]]}]<br>${months[p.value[0]]}: <b>${p.value[2]}</b>` },
+            visualMap: {
+                show:true, min:0, max:100,
+                inRange:{color:['#313695','#4575b4','#74add1','#abd9e9','#e0f3f8','#ffffbf','#fee090','#fdae61','#f46d43','#d73027','#a50026']},
+                textStyle:{color:'#a1a1aa'}, calculable:true, bottom:'10%'
+            },
+            xAxis3D:{type:'category', data:months, name:'월', nameTextStyle:{color:'#888'}},
+            yAxis3D:{type:'category', data:categories, name:'분야', nameTextStyle:{color:'#888'}},
+            zAxis3D:{type:'value', name:'지수'},
+            grid3D:{
+                boxWidth:220, boxDepth:120, boxHeight:80,
+                viewControl:{projection:'perspective', alpha:25, beta:20},
+                environment:'transparent'
+            },
+            series:[{
+                type:'bar3D', data: data,
+                shading:'lambert', label:{show:false}
+            }]
+        };
+        myChart.setOption(option);
+    } catch (glError) {
+        console.warn("SSPS 3D Render Failed, Switching to 2D Heatmap Mode:", glError);
+        // [v3.14 Fallback] 3D 불가능한 환경에서 데이터를 100% 보여주는 2D 히트맵으로 전환
+        const option2D = {
+            title: { text: `SSPS 트렌드 분석 (2D 고성능 맵) ${suffix}`, textStyle:{color:'#a1a1aa', fontSize:12}, left:'center' },
+            tooltip: { position: 'top' },
+            grid: { height: '70%', top: '15%' },
+            xAxis: { type: 'category', data: months, splitArea: { show: true } },
+            yAxis: { type: 'category', data: categories, splitArea: { show: true } },
+            visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', left: 'center', bottom: '0%' },
+            series: [{
+                name: '트렌드 지수', type: 'heatmap',
+                data: data.map(item => [item[0], item[1], item[2]]),
+                label: { show: true },
+                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' } }
+            }]
+        };
+        myChart.setOption(option2D, true);
+    }
     window.addEventListener('resize', () => myChart.resize());
 }
 
