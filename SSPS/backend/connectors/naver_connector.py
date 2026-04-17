@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import requests
 import logging
@@ -49,10 +50,11 @@ class NaverConnector:
             except Exception as e:
                 logger.warning(f"Supabase DB 룩업 실패, 네이버 API로 Fallback: {e}")
         def _request_datalab():
-            from datetime import datetime
+            from datetime import datetime, timedelta
             from dateutil.relativedelta import relativedelta
             
-            end_date = datetime.now()
+            # [v2.85] 데이터 집계 지연 고려
+            end_date = datetime.now() - timedelta(days=2)
             start_date = end_date - relativedelta(years=1)
             
             # 최대 5개까지만 전송
@@ -63,7 +65,7 @@ class NaverConnector:
             body = {
                 "startDate": start_date.strftime("%Y-%m-%d"),
                 "endDate": end_date.strftime("%Y-%m-%d"),
-                "timeUnit": "month",
+                "timeUnit": "date",
                 "keywordGroups": groups
             }
             response = requests.post(
@@ -210,18 +212,18 @@ class NaverConnector:
     def fetch_shopping_trend_by_cid(self, cid: str, name: str) -> Dict[str, Any]:
         """쇼핑인사이트 API: 카테고리 ID(cid) 기반 클릭 트렌드 조회"""
         def _request_shopping_trend():
-            from datetime import datetime
+            from datetime import datetime, timedelta
             from dateutil.relativedelta import relativedelta
             
-            # API 호출 시 CID는 문자열이어야 함
+            # [v2.85] API 호출 시 CID는 문자열이어야 함
             str_cid = str(cid)
-            end_date = datetime.now()
+            end_date = datetime.now() - timedelta(days=2)
             start_date = end_date - relativedelta(years=1)
             
             body = {
                 "startDate": start_date.strftime("%Y-%m-%d"),
                 "endDate": end_date.strftime("%Y-%m-%d"),
-                "timeUnit": "month",
+                "timeUnit": "date",
                 "category": [{"name": name, "param": [str_cid]}]
             }
             
@@ -266,15 +268,15 @@ class NaverConnector:
         - 한 번의 요청에 최대 5개 카테고리를 담아 네이버가 계산한 상대적 클릭 비율(Ratio)을 그대로 가져옵니다.
         """
         def _request_multi_trend():
-            from datetime import datetime
+            from datetime import datetime, timedelta
             from dateutil.relativedelta import relativedelta
             
-            end_date = datetime.now()
+            # [v2.87] 네이버 규정 준수: 한 번의 요청에 최대 3개까지만 전송 가능
+            end_date = datetime.now() - timedelta(days=2)
             start_date = end_date - relativedelta(years=1)
             
-            # 최대 5개 그룹 구성
             keyword_groups = []
-            for item in category_list[:5]:
+            for item in category_list[:3]:
                 keyword_groups.append({
                     "name": item["name"],
                     "param": [str(item["cid"])]
@@ -283,7 +285,7 @@ class NaverConnector:
             body = {
                 "startDate": start_date.strftime("%Y-%m-%d"),
                 "endDate": end_date.strftime("%Y-%m-%d"),
-                "timeUnit": "month",
+                "timeUnit": "date",
                 "category": keyword_groups
             }
             
@@ -295,6 +297,11 @@ class NaverConnector:
                 json=body,
                 timeout=settings.scraper_timeout_seconds
             )
+            
+            if response.status_code != 200:
+                logger.error(f"Naver API 400 Detail: {response.text}")
+                logger.error(f"Payload sent: {json.dumps(body, ensure_ascii=False)}")
+                
             response.raise_for_status()
             
             data = response.json()
@@ -320,6 +327,11 @@ class NaverConnector:
                 "status": "OK", 
                 "trend_series": {"categories": categories, "series": final_series}
             }
+
+        return naver_datalab_cb.call(
+            _request_multi_trend,
+            fallback={"source": "naver_shopping_insight", "status": "FAIL", "reason": "Circuit Breaker / API Error"}
+        )
 
     def fetch_category_keyword_ranking(self, cid: str) -> Dict[str, Any]:
         """쇼핑인사이트 API: 특정 카테고리의 인기 검색어 랭킹(1-10위) 조회"""

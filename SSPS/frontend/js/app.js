@@ -842,25 +842,10 @@ function initRaptorHandlers() {
         window.print();
     });
     // 5. [v2.48] 특정 상품 기반 기획안 생성 헬퍼
+    // 5. [v3.0] RAPTOR GEM 독립 워크스테이션으로 데이터 전송 및 화면 전환
     window.triggerRaptorBasic = (encodedProduct) => {
-        const product = JSON.parse(decodeURIComponent(encodedProduct));
-        const slider = document.getElementById('raptor-duration-slider');
-        const planBtn = document.getElementById('raptor-plan-btn');
-        
-        // 데이터 강제 주입: 전체 데이터가 아닌 클릭한 상품 데이터를 분석 맥락에 포함
-        const originalData = currentAppData;
-        currentAppData = {
-            ...originalData,
-            domain: product.title || product.name,
-            items: [product], // 단일 상품 기획 모드
-            raw_scores: { ...originalData.raw_scores, price_tier: (product.price < 30000 ? "LOWPRICE" : "GENERAL") }
-        };
-        
-        // 모달 열기 및 자동 실행 트리거
-        planBtn.click();
-        
-        // 실행 후 데이터 원복
-        setTimeout(() => { currentAppData = originalData; }, 500);
+        // 모달 대신 전용 기획 페이지(raptor.html)로 이동
+        window.location.href = `raptor.html?product=${encodedProduct}`;
     };
 }
 

@@ -127,13 +127,24 @@ def popular_keywords():
 
 @app.route("/api/v1/stats", methods=["GET"])
 def get_stats():
-    """[v2.55 복구] 실시간 분석 통계(누적 분석 수 등) 반환"""
+    """[v3.1] 실시간 통계: 현재 활성 버전(v_beta 등)의 실제 수집 건수를 반환"""
     try:
-        stats = supabase.get_site_stats()
-        return jsonify(stats)
+        active_version = supabase.get_active_sync_version()
+        # 실제 수집된 데이터 개수 계산
+        real_count = supabase.get_version_keywords_count(active_version)
+        
+        # 만약 카운트가 너무 적다면(동기화 초기), 최소한의 차트 활성화를 위해 최소치 보정
+        display_count = max(real_count, 1) 
+        
+        return jsonify({
+            "total_analysis": display_count,
+            "top_domain": "패션의류",
+            "top_domain_desc": f"(현재 {active_version} 동기화 진행 중: {real_count}건 완료)",
+            "active_version": active_version
+        })
     except Exception as e:
         logger.error(f"[Main] Stats API Error: {e}")
-        return jsonify({"total_analysis": 100, "top_domain": "식품"}), 200
+        return jsonify({"total_analysis": 1, "top_domain": "연결 확인 중..."}), 200
 
 @app.route("/api/v1/domains/trend", methods=["GET"])
 def get_domain_trend():

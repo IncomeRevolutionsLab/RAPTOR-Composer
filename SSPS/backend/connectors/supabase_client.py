@@ -1,10 +1,7 @@
 import os
 import json
 import logging
-from dotenv import load_dotenv
-
-# .env 파일 자동 로드 (클라우드 환경에서는 환경변수로 대체됨)
-load_dotenv()
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +13,8 @@ class SupabaseClient:
     _local_top_domain = "식품"
     
     def __init__(self):
-        self.url = os.environ.get("SUPABASE_URL", "")
-        self.key = os.environ.get("SUPABASE_KEY", "")
+        self.url = settings.supabase_url
+        self.key = settings.supabase_key
         self.client = None
         self._db_available = False
         

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAPTOR GEM | AI 명품 숏폼 전략 시스템</title>
+    <link rel="stylesheet" href="css/style.css?v=2.8">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --raptor-gold: #f1c40f;
+            --raptor-blue: #2563eb;
+            --raptor-dark: #09090b;
+        }
+        body {
+            background: var(--raptor-dark);
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .raptor-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .sidebar {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 20px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+        .main-stage {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .raptor-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .raptor-logo span { color: var(--raptor-blue); }
+        .raptor-logo i { color: var(--raptor-gold); }
+
+        .param-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+        }
+        .param-label { font-size: 0.75rem; color: #7d8590; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .pulse-btn {
+            background: linear-gradient(135deg, var(--raptor-blue), #7c3aed);
+            color: #fff;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+            transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .pulse-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(37, 99, 235, 0.4); }
+
+        .output-paper {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            color: #1a1a1a;
+            padding: 60px;
+            border-radius: 4px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            min-height: 1000px;
+            font-family: 'Pretendard', sans-serif;
+            position: relative;
+        }
+        .watermark { position: absolute; top: 20px; right: 20px; font-size: 0.7rem; color: #ccc; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+    <div class="raptor-layout">
+        <!-- Sidebar: Control Center -->
+        <aside class="sidebar glass-panel">
+            <div class="raptor-logo">
+                <i data-lucide="sparkles"></i>
+                RAPTOR <span>GEM</span>
+            </div>
+            <p style="font-size: 0.8rem; color: #a1a1aa; margin-top: -10px;">AI 지능형 숏폼 기계 - Version 3.1 Pro</p>
+
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.05); margin: 10px 0;">
+
+            <div class="param-card">
+                <div class="param-label"><i data-lucide="database"></i> Source Data (from SSPS)</div>
+                <div id="source-status" style="font-size: 0.85rem; color: #fff;">연결 대기 중...</div>
+                <button onclick="location.href='index.html'" style="margin-top:10px; font-size:0.7rem; background:rgba(255,255,255,0.05); color:#888; border:1px solid rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; cursor:pointer;">데이터 가져오기 (SSPS)</button>
+            </div>
+
+            <div class="param-card">
+                <div class="param-label">Target Video Duration</div>
+                <input type="range" id="duration-slider" min="15" max="60" step="1" value="30" style="width: 100%; accent-color: var(--raptor-blue);">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #fff; margin-top: 5px;">
+                    <span>15s</span>
+                    <span id="duration-val" style="color: var(--raptor-gold); font-weight: 700;">30s</span>
+                    <span>60s</span>
+                </div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-label">AI Planning Engine</div>
+                <select id="ai-engine" style="width: 100%; background: #18181b; color: #fff; border: 1px solid #27272a; padding: 10px; border-radius: 8px;">
+                    <option value="gemini-pro-3.1">Gemini 3.1 Pro (Heavy Logic)</option>
+                    <option value="grok-4.1">xAI Grok 4.1 (Fast Strategy)</option>
+                </select>
+            </div>
+
+            <div class="param-card">
+                <div class="param-label">Video Synthesis (Optional)</div>
+                <select id="video-engine" style="width: 100%; background: #18181b; color: #fff; border: 1px solid #27272a; padding: 10px; border-radius: 8px;">
+                    <option value="none">기획서만 생성 (Default)</option>
+                    <option value="veo-3">Google Veo 3.1 (Cinema)</option>
+                    <option value="kling">Kling AI Pro (Artistic)</option>
+                </select>
+            </div>
+
+            <div style="flex-grow: 1;"></div>
+
+            <button class="pulse-btn" id="generate-btn">
+                <i data-lucide="zap"></i>
+                명품 기획안 생성 시작
+            </button>
+            
+            <button class="btn-outline" style="background:none; border:1px solid rgba(255,255,255,0.1); color:#7d8590; padding:10px; border-radius:10px; cursor:pointer;" onclick="location.href='index.html'">
+                <i data-lucide="arrow-left" style="width:14px; vertical-align:middle;"></i> SSPS 시장 분석으로 이동
+            </button>
+        </aside>
+
+        <!-- Main Stage: Video Production Studio -->
+        <main class="main-stage">
+            <div id="welcome-message" style="text-align: center; margin-top: 12vh;">
+                <div style="background: rgba(37, 99, 235, 0.1); width: 100px; height: 100px; border-radius: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px;">
+                    <i data-lucide="video" style="width: 50px; height: 50px; color: var(--raptor-blue);"></i>
+                </div>
+                <h2 style="font-size: 2.2rem; margin-bottom: 15px;">RAPTOR <span style="color:var(--raptor-gold)">PRODUCTION</span> STUDIO</h2>
+                <p style="color: #a1a1aa; max-width: 500px; margin: 0 auto; line-height: 1.6;">최첨단 AI가 상품 정보를 바탕으로 숏폼 비디오를 자동 생성합니다.<br>먼저 [기획안 생성] 버튼을 눌러 설계도(대본)를 만드십시오.</p>
+            </div>
+
+            <!-- Video Production Interface (Visible after planning) -->
+            <div id="production-interface" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 420px; gap: 30px;">
+                    <!-- Left Column: Video Mockup & Timeline -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="video-preview-wrapper" style="
+                            width: 340px; aspect-ratio: 9/16; background: #000; border-radius: 20px; 
+                            margin: 0 auto; position: relative; border: 4px solid #18181b; overflow: hidden;
+                            box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+                        ">
+                            <div id="rendering-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
+                                <div class="spinner" style="width: 40px; height: 40px; border-width: 3px; margin-bottom: 15px;"></div>
+                                <p style="font-size: 0.8rem; color: #fff;">Waiting for Synthesis...</p>
+                            </div>
+                            <img id="preview-thumbnail" src="" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.5;">
+                        </div>
+
+                        <!-- Scene Timeline -->
+                        <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 20px;">
+                            <h4 style="font-size: 0.8rem; color: var(--raptor-gold); letter-spacing: 0.1em; margin-bottom: 15px;">SCENE TIMELINE</h4>
+                            <div id="timeline-scroll" style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px;">
+                                <!-- AI Inject Scenes -->
+                                <div class="scene-placeholder" style="min-width: 100px; height: 140px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #444;">Scene 1</div>
+                                <div class="scene-placeholder" style="min-width: 100px; height: 140px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #444;">Scene 2</div>
+                                <div class="scene-placeholder" style="min-width: 100px; height: 140px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #444;">Scene 3</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Planning & Scripting Results -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="glass-card" style="padding: 25px; border-radius: 16px; background: rgba(255,255,255,0.03);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                                <h3 style="font-size: 1rem; color: #fff;"><i data-lucide="file-text" style="width:18px; color:var(--raptor-blue);"></i> AI PRODUCTION SCRIPT</h3>
+                                <div style="display: flex; gap: 5px;">
+                                    <button class="btn-icon" id="copy-script-btn" style="background: none; border: none; color: #7d8590; cursor: pointer;"><i data-lucide="copy" style="width:16px;"></i></button>
+                                </div>
+                            </div>
+                            <div id="raptor-content" class="markdown-body" style="font-size: 0.9rem; color: #d1d5db; line-height: 1.6; max-height: 400px; overflow-y: auto;">
+                                <!-- AI Script will be injected here -->
+                            </div>
+                        </div>
+
+                        <!-- STEP 2 Action Button -->
+                        <button id="synthesis-btn" class="pulse-btn" style="height: 70px; font-size: 1.2rem; background: linear-gradient(135deg, #e91e63, #9c27b0); box-shadow: 0 10px 40px rgba(233, 30, 99, 0.3);">
+                            <i data-lucide="clapperboard" style="width: 24px; height: 24px;"></i>
+                            PHASE 2: 비디오 합성 시작
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loader" style="display: none; text-align: center; margin-top: 20vh;">
+                <div class="loader-ring" style="width: 60px; height: 60px; margin: 0 auto 20px;"></div>
+                <h3 id="loader-status" style="color: var(--raptor-blue);">AI가 입체적인 전략을 구성 중입니다...</h3>
+                <p id="loader-desc" style="color: #888;">데이터를 분석하여 최적의 숏폼 맥락을 설계하고 있습니다.</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/raptor_main.js?v=2.8"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

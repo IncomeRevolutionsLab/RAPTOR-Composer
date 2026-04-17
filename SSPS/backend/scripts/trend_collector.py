@@ -5,8 +5,11 @@ import logging
 import json
 from datetime import datetime, timedelta
 
-# 백엔드 모듈 경로 추가
+# 백엔드 모듈 및 사용자 패키지 경로 추가
+import site
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+if hasattr(site, 'getusersitepackages'):
+    sys.path.append(site.getusersitepackages())
 
 from backend.connectors.naver_connector import NaverConnector
 from backend.connectors.supabase_client import SupabaseClient
@@ -33,28 +36,34 @@ class TrendCollector:
 
     def check_health(self) -> bool:
         """[v2.80] 본격 수집 전 시스템 상태를 1회 테스트합니다. (Dry-Run)"""
-        logger.info(" -> [HealthCheck] 사전 테스트 시작...")
-        test_category = {"name": "테스트_패션의류", "cid": "50000000"} # 패션의류 대분류
+        logger.info(" -> [HealthCheck] 사전 시스템 가동 테스트 시작...")
+        
+        # [v2.81] 현재 데이터셋에서 검증된 패션의류 ID 사용
+        test_category = {"name": "패션의류", "cid": "1960718588"}
         
         try:
             # 1. Naver API 테스트
             res = self.naver.fetch_multi_shopping_trend([test_category])
             if res.get("status") != "OK":
-                error_msg = f"❌ [HealthCheck] 네이버 API 호출 실패: {res.get('reason')}"
+                reason = res.get('reason', '알 수 없는 이유')
+                error_msg = f"❌ [HealthCheck] 네이버 API 호출 실패: {reason}"
+                logger.error(error_msg)
                 send_telegram_message(error_msg)
                 return False
                 
             # 2. Supabase DB 테스트
             test_save = self.db.upsert_raw_trend_data("system/health_check", res.get("trend_series"), sync_version="test")
             if not test_save:
-                error_msg = "❌ [HealthCheck] Supabase DB 저장 실패 (테이블 확인 필요)"
+                error_msg = "❌ [HealthCheck] Supabase DB 저장 실패 (자격 증명 또는 테이블 확인 필요)"
+                logger.error(error_msg)
                 send_telegram_message(error_msg)
                 return False
                 
-            logger.info(" -> [HealthCheck] 모든 시스템 정상!")
+            logger.info(" -> [HealthCheck] 모든 시스템(Naver & Supabase) 정상 작동 확인되었습니다.")
             return True
         except Exception as e:
-            error_msg = f"❌ [HealthCheck] 예상치 못한 오류 발생: {str(e)[:100]}"
+            error_msg = f"❌ [HealthCheck] 시스템 연동 중 치명적 오류: {str(e)[:100]}"
+            logger.error(error_msg)
             send_telegram_message(error_msg)
             return False
 
@@ -102,21 +111,28 @@ class TrendCollector:
             logger.info(f"--- 그룹 수집: {parent_name} (자식 {len(siblings)}개) ---")
             
             # 4. [v2.70] 동적 자식 앵커(Dynamic Sibling Anchor) 전략
-            # 그룹 내 첫 5개 자식을 먼저 수집하여 가장 '강한' 자식을 앵커로 선정
+            # [v3.1] 지능형 그룹화: 카테고리 명칭을 분석하여 성격이 유사한 것끼리 우선 묶음
+            siblings = sorted(siblings, key=lambda x: x.get('name_ko', ''))
+            
             group_anchor = None
             group_anchor_ref_val = None # 첫 배치에서의 앵커 평균치 (Reference)
             
-            # 4개(또는 첫 배치용 5개)씩 묶어서 배치 처리
-            for i in range(0, len(siblings), 4 if group_anchor else 5):
+            # [v2.87] 네이버 규정(최대 3개) 준수형 배치 전략
+            for i in range(0, len(siblings), 3):
                 if group_anchor:
-                    # 이후 배치: 브릿지 앵커 + 신규 자식 4개
-                    batch = [group_anchor] + [s for s in siblings[i:i+4] if s["naver_cat_id"] != group_anchor["naver_cat_id"]]
+                    # 이후 배치: 브릿지 앵커 + 신규 자식 2개 (총 3개)
+                    batch = [group_anchor] + [s for s in siblings[i:i+2] if s["naver_cat_id"] != group_anchor["naver_cat_id"]]
                 else:
-                    # 첫 배치: 순서대로 5개
-                    batch = siblings[i:i+5]
+                    # 첫 배치: 순서대로 3개
+                    batch = siblings[i:i+3]
                 
                 if not batch: continue
-                category_list = [{"name": s["name_ko"], "cid": s["naver_cat_id"]} for s in batch]
+                
+                # [v2.86] 데이터 정밀화: 특수문자 제거 및 ID 유효성 확보
+                category_list = []
+                for s in batch:
+                    clean_name = s["name_ko"].replace("/", " ").replace("&", " ").strip()
+                    category_list.append({"name": clean_name, "cid": str(s["naver_cat_id"])})
                 
                 try:
                     res = self.naver.fetch_multi_shopping_trend(category_list)
