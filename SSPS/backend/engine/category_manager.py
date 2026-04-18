@@ -125,9 +125,9 @@ class CategoryManager:
                 missing_any = True
                 break
         
-        # 모든 자식 노드가 DB에 있다면 즉시 반환 (속도 및 일관성 최상)
         if not missing_any and cached_series:
-            cached_series.sort(key=lambda x: -x["avg_score"])
+            # [v3.24] 안정적 정렬 적용: 점수가 같으면 이름순으로 고정
+            cached_series.sort(key=lambda x: (-x["avg_score"], x["name"]))
             return {
                 "is_leaf": False,
                 "categories": months,
@@ -190,7 +190,8 @@ class CategoryManager:
                             global_ranking.append({"name": s["name"], "avg_score": score, "q_keyword": s["name"]})
                             final_series_data.append(s)
                             
-                global_ranking.sort(key=lambda x: -x["avg_score"])
+                # [v3.24] 전역 랭킹 안정적 정렬 적용
+                global_ranking.sort(key=lambda x: (-x["avg_score"], x["name"]))
                 
                 # 전역 최댓값 100 정규화
                 max_score = max([r["avg_score"] for r in global_ranking]) if global_ranking else 100
@@ -216,7 +217,8 @@ class CategoryManager:
             avg = base
             all_series.append({"name": item["name"], "data": pts, "avg_score": avg, "q_keyword": item["name"]})
 
-        all_series.sort(key=lambda x: -x["avg_score"])
+        # [v3.24] 폴백 모드에서도 이름순으로 순위 고정
+        all_series.sort(key=lambda x: (-x["avg_score"], x["name"]))
         return {
             "is_leaf": False,
             "categories": months,

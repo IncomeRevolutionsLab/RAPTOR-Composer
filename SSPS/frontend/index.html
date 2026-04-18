@@ -22,11 +22,7 @@
     </script>
 </head>
 <body>
-    <!-- [v3.18] 실시간 시스템 디버그 모니터 -->
-    <div id="debug-monitor" style="position: fixed; top: 10px; left: 10px; z-index: 9999; background: rgba(0,0,0,0.85); color: #00ff00; padding: 10px 15px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.75rem; border: 1px solid #00ff00; pointer-events: none; max-width: 300px;">
-        <div>📡 SSPS System Monitoring...</div>
-        <div id="debug-status" style="margin-top: 5px;">Standby</div>
-    </div>
+
 
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -47,7 +43,7 @@
                             box-shadow: 0 2px 10px rgba(88,166,255,0.3);
                             animation: versionPulse 3s ease-in-out infinite;
                             white-space: nowrap;
-                        ">v3.23</span>
+                        ">v3.25</span>
                     </div>
                     <p class="subtitle">지능형 쇼핑 숏폼 상품 선정 시스템</p>
                 </div>
@@ -116,7 +112,7 @@
             </div>
 
             <!-- 최근 1주 인기 검색어 섹션 -->
-            <div id="popular-keywords-section" style="margin-bottom: 30px; display: none;">
+            <div id="popular-keywords-section" style="margin-bottom: 30px; display: block;">
                 <div class="card glass-card">
                     <div class="card-header flex-between" style="padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px;">
                         <div class="flex-align">
@@ -442,13 +438,7 @@
 
                 </div>
             </div>
-            <!-- YouTube Tutorial 영상 임베드 섹션 (복구됨) -->
-            <div id="tutorial-section" style="margin-top: 50px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 40px;">
-                <h3 style="font-size: 1.2rem; margin-bottom: 25px; color: #a1a1aa;">SSPS 사용 가이드 및 꿀팁</h3>
-                <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 800px; margin: 0 auto; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);">
-                    <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-                </div>
-            </div>
+
         </main>
 
         <!-- [NEW] Settings Modal (BYOK) -->

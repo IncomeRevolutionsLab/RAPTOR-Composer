@@ -193,13 +193,13 @@ class NaverConnector:
         
         items = []
         for i, kw in enumerate(working_list[:10]):
-            # 1주일간의 변화를 시뮬레이션하기 위한 등락폭 생성 (땜빵이 아닌 알고리즘화)
-            trend_val = random.randint(-2, 15) 
+            # [v3.24] 고정값 사용: 실데이터 동기화 전까지 무분별한 요동 방지
+            trend_val = 0 
             items.append({
                 "rank": i + 1,
                 "keyword": kw,
-                "trend_status": "UP" if trend_val > 0 else ("DOWN" if trend_val < 0 else "NEW"),
-                "trend_val": abs(trend_val)
+                "trend_status": "NEW",
+                "trend_val": 0
             })
             
         return {

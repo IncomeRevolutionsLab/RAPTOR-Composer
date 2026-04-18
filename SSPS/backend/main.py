@@ -214,28 +214,6 @@ def get_domain_trend():
             "categories": categories,
             "data": data_points
         })
-'] == d['name']), None)
-            if s_item:
-                sorted_series.append(s_item)
-            else:
-                # 특정 분야 데이터가 누락된 경우 즉석에서 안전한 기본값 생성 (Blackout 방지)
-                logger.warning(f"[Main] Data missing for domain: {d['name']}. generating safety default.")
-                sorted_series.append({
-                    "name": d['name'],
-                    "data": [random.randint(20, 50) for _ in range(len(months))]
-                })
-
-        for cat_idx, s in enumerate(sorted_series):
-            for m_idx, val in enumerate(s.get('data', [])):
-                data_points.append([m_idx, cat_idx, val])
-                
-        logger.info(f"[Main] Domain Trend API success. Points: {len(data_points)}")
-        return jsonify({
-            "status": "success",
-            "months": months,
-            "categories": categories,
-            "data": data_points
-        })
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()

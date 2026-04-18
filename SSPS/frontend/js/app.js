@@ -21,6 +21,9 @@ let p1TrendChartInstance = null;
 // [v2.4] RAPTOR GEM 데이터 연동을 위한 전역 상태
 let currentAppData = null;
 
+// [v3.27] 초기 전역 텔레메트리 정의 (ReferenceError 방지)
+window.sspsDebug = window.sspsDebug || ((msg) => console.log(`[BOOT] ${msg}`));
+
 // ─────────────────────────────────────────────
 // 패널 표시 제어
 // ─────────────────────────────────────────────
@@ -36,6 +39,12 @@ function showPanels(...ids) {
         const el = document.getElementById(id);
         if (el) el.classList.remove('hidden');
     });
+    
+    // [v3.25] 분석 진행 중에도 인기 섹션과 3D 컨테이너는 슬그머니 사라지지 않도록 유지 조건 추가
+    if (ids.includes('loading-state')) {
+        document.getElementById('main-3d-chart-container')?.classList.remove('hidden');
+        document.getElementById('popular-keywords-section')?.classList.remove('hidden');
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -209,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chip.addEventListener('click', (e) => loadCategoryNode({path: [e.target.getAttribute('data-val')]}));
     });
 
-    // 실시간 시스템 텔레메트리 (디버그 모니터 보고용)
+    // [v3.26] 텔레메트리 로직 안정화 (모니터 요소 부재 시에도 동작)
     const updateDebug = (msg) => {
         const el = document.getElementById('debug-status');
         if (el) el.innerHTML = `> ${msg}`;
@@ -217,7 +226,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.sspsDebug = updateDebug;
 
-    updateDebug("System core initialized.");
+    updateDebug("System v3.25 core initialized.");
+
+    // [v3.25] 인기 검색어 탭 렌더링 추가
+    renderPopularTabs();
 
     setTimeout(() => { updateDebug("Keywords loading..."); loadPopularKeywords("패션의류"); }, 100);
     setTimeout(() => { updateDebug("Stats loading..."); loadSiteStats(); }, 400);
@@ -284,26 +296,36 @@ function render3DChart(myChart, categories, months, data, force2D = false) {
             }, true);
             window.sspsDebug("Rendered as 2D Heatmap.");
         } else {
-            // 정통 3D 모드
+            // 정통 3D 모드 (v3.26: 조명 및 재질 최적화)
             myChart.setOption({
                 backgroundColor: 'transparent',
                 tooltip: { show: true },
                 visualMap: {
                     show: true, min: 0, max: 100,
                     inRange: { color: ['#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8', '#ffffbf', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'] },
-                    textStyle: { color: '#a1a1aa' }, bottom: '5%'
+                    textStyle: { color: '#a1a1aa' }, bottom: '2%'
                 },
-                xAxis3D: { type: 'category', data: months, name: '월', axisLabel: { textStyle: { color: '#888' } } },
-                yAxis3D: { type: 'category', data: categories, name: '분류', axisLabel: { textStyle: { color: '#888' } } },
-                zAxis3D: { type: 'value', name: '지수', axisLabel: { textStyle: { color: '#888' } } },
+                xAxis3D: { type: 'category', data: months, name: '월', axisLabel: { textStyle: { color: '#aaa' } } },
+                yAxis3D: { type: 'category', data: categories, name: '분류', axisLabel: { textStyle: { color: '#aaa' } } },
+                zAxis3D: { type: 'value', name: '지수', axisLabel: { textStyle: { color: '#aaa' } } },
                 grid3D: {
-                    boxWidth: 200, boxDepth: 100, boxHeight: 80,
-                    viewControl: { projection: 'perspective', autoRotate: false, alpha: 30, beta: 30 },
-                    light: { main: { intensity: 1.5, shadow: true }, ambient: { intensity: 0.5 } }
+                    boxWidth: 200, boxDepth: 80, boxHeight: 80,
+                    viewControl: { projection: 'perspective', autoRotate: true, autoRotateSpeed: 5, alpha: 25, beta: 35 },
+                    light: { 
+                        main: { intensity: 2.0, shadow: true, alpha: 45, beta: 45 }, 
+                        ambient: { intensity: 0.8 } 
+                    },
+                    postEffect: { enable: true, bloom: { enable: true, bloomIntensity: 0.1 } }
                 },
-                series: [{ type: 'bar3D', data: data, shading: 'lambert' }]
+                series: [{ 
+                    type: 'bar3D', 
+                    data: data, 
+                    shading: 'color', // 'lambert' 대신 'color'로 변경하여 가시성 확보
+                    label: { show: false },
+                    itemStyle: { opacity: 0.9, borderWeight: 1, borderColor: 'rgba(255,255,255,0.1)' }
+                }]
             }, true);
-            window.sspsDebug("Rendered as 3D Bar.");
+            window.sspsDebug("Rendered as high-visibility 3D Bar.");
         }
     } catch (e) {
         window.sspsDebug(`!! Render Fail: ${e.message}`);
@@ -319,11 +341,28 @@ async function loadPopularKeywords(domain) {
         const data = await fetchWithRetry(`${API_BASE_URL}/popular_keywords?domain=${encodeURIComponent(domain)}`);
         listEl.innerHTML = '';
         data.items.forEach(item => {
-            const chip = document.createElement('a');
-            chip.style.cssText = `display:inline-block; padding:6px 14px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px; text-decoration:none; color:#e2e8f0; margin:4px; font-size:0.8rem;`;
-            chip.innerHTML = `${item.rank}. ${item.keyword}`;
-            listEl.appendChild(chip);
+            const chipWrapper = document.createElement('div');
+            chipWrapper.style.cssText = `display:inline-flex; align-items:center; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:30px; margin:4px; overflow:hidden; transition:all 0.2s;`;
+            
+            const keywordLink = document.createElement('a');
+            keywordLink.style.cssText = `padding:8px 15px; text-decoration:none; color:#e2e8f0; font-size:0.85rem; font-weight:500; border-right:1px solid rgba(255,255,255,0.1);`;
+            keywordLink.innerHTML = `<span style="color:var(--primary); font-weight:700; margin-right:6px;">${item.rank}</span> ${item.keyword}`;
+            keywordLink.href = `https://www.coupang.com/np/search?q=${encodeURIComponent(item.keyword)}`;
+            keywordLink.target = "_blank";
+            
+            const analyzeBtn = document.createElement('button');
+            analyzeBtn.style.cssText = `padding:8px 12px; background:rgba(88,166,255,0.1); border:none; color:var(--primary); font-size:0.75rem; font-weight:700; cursor:pointer;`;
+            analyzeBtn.innerHTML = `<i data-lucide="zap" style="width:12px; vertical-align:middle; margin-right:2px;"></i> 분석`;
+            analyzeBtn.onclick = () => {
+                document.getElementById('domain-input').value = item.keyword;
+                document.getElementById('submit-btn').click();
+            };
+            
+            chipWrapper.appendChild(keywordLink);
+            chipWrapper.appendChild(analyzeBtn);
+            listEl.appendChild(chipWrapper);
         });
+        lucide.createIcons();
     } catch(e) { console.error(e); }
 }
 
@@ -347,6 +386,27 @@ function simulateLoadingSteps() {
             if (steps[i+1]) steps[i+1].className = 'active';
         }, t);
     });
+}
+
+function renderPopularTabs() {
+    const tabContainer = document.getElementById('popular-kw-tabs');
+    if (!tabContainer) return;
+    tabContainer.innerHTML = '';
+    TOP_LEVEL_CATEGORIES.forEach(domain => {
+        const btn = document.createElement('button');
+        btn.textContent = domain;
+        btn.style.cssText = `padding:6px 14px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:15px; color:#a1a1aa; font-size:0.75rem; cursor:pointer; white-space:nowrap; transition:all 0.2s;`;
+        btn.onclick = () => {
+            const btns = tabContainer.querySelectorAll('button');
+            btns.forEach(b => { b.style.background = 'rgba(255,255,255,0.05)'; b.style.color = '#a1a1aa'; });
+            btn.style.background = 'var(--primary)';
+            btn.style.color = '#fff';
+            loadPopularKeywords(domain);
+        };
+        tabContainer.appendChild(btn);
+    });
+    // 첫번째 탭 활성화
+    if (tabContainer.firstChild) tabContainer.firstChild.click();
 }
 
 window.triggerRaptorBasic = (encodedProduct) => { window.location.href = `raptor.html?product=${encodedProduct}`; };
