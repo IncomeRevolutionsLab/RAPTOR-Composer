@@ -5,52 +5,26 @@
 ---
 
 ## 📊 리스크 현황 요약
-*   **[New] 신규 리스크:** 5건
-*   **[Pending] 진행 중/보류 리스크:** 4건 (RISK-002, NEW-005, PND-001, PND-002)
-*   **[Resolved] 해결된 리스크:** 54건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36)
+*   **[New] 신규 리스크:** 0건
+*   **[Pending] 진행 중/보류 리스크:** 5건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010)
+*   **[Resolved] 해결된 리스크:** 59건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009)
 
 ---
 
 ## 1. 🔴 [New] 신규 리스크
 
-### 🛠️ RISK-005: Koyeb CORS 설정 누락 및 ALLOWED_ORIGINS 미작동 결함
-*   **관련 컴포넌트:** `main.py`
-*   **영향도:** 높음 (High)
-*   **상태:** `[New]`
-*   **리스크 내용:** `origins` 배열에 새 Vercel 도메인인 `https://raptor-composer.vercel.app`이 누락되어 백엔드 환경변수 미작동 시 CORS 차단 발생 우려.
-*   **대응 방안:** 소스 코드 레벨에서 기본 origins 리스트에 새 도메인을 직접 반영하여 CORS 이중 방어선 구축.
-
-### 🛠️ RISK-006: Failed to fetch 및 네트워크 예외의 영어 노출 결함
-*   **관련 컴포넌트:** `src/lib/api-client.ts`, `src/components/AuthDashboard.tsx`
-*   **영향도:** 보통 (Medium)
-*   **상태:** `[New]`
-*   **리스크 내용:** API 서버 장애 혹은 CORS 차단으로 발생하는 `TypeError: Failed to fetch`가 가공되지 않고 노출되어 사용자 경험 저하.
-*   **대응 방안:** 공통 `api-client` 및 `AuthDashboard` 내의 fetch catch 블록에 에러 번역 가드를 추가하여 친절한 한글 메시지로 변환.
-
-### 🛠️ RISK-007: AuthDashboard 내 백엔드 URL 하드코딩 결함
-*   **관련 컴포넌트:** `src/components/AuthDashboard.tsx`
-*   **영향도:** 높음 (High)
-*   **상태:** `[New]`
-*   **리스크 내용:** 로그인, 회원가입, 대시보드 프로젝트 조회 등 3곳의 fetch 요청에 `http://localhost:8000` 주소가 하드코딩되어 실서버 통신 실패 유발.
-*   **대응 방안:** `NEXT_PUBLIC_BACKEND_URL` 기반 `BACKEND_URL` 상수로 API 엔드포인트를 통일하여 환경변수를 올바르게 참조하도록 개선.
-
-### 🛠️ RISK-008: 비밀번호 찾기 기능 미구현 및 회원가입 6자 정책 미가드 결함
-*   **관련 컴포넌트:** `src/components/AuthDashboard.tsx`
-*   **영향도:** 보통 (Medium)
-*   **상태:** `[New]`
-*   **리스크 내용:** 비밀번호 분실 시 재설정할 수 있는 UI 수단이 부재하고, 회원가입 시 6자 미만 비밀번호가 프론트에서 필터링되지 않고 Supabase API 호출 에러가 발생.
-*   **대응 방안:** `isForgotPasswordMode` 상태와 재설정 이메일 발송(`supabase.auth.resetPasswordForEmail`) 흐름을 신설하고, 회원가입 시 6자 미만 가이드 문구 렌더링 및 프론트 가드를 탑재.
-
-### 🛠️ RISK-009: 로그인 헤더 버튼 absolute 배치 겹침 결함
-*   **관련 컴포넌트:** `src/components/AuthDashboard.tsx`
-*   **영향도:** 낮음 (Low)
-*   **상태:** `[New]`
-*   **리스크 내용:** 로그인 버튼의 `absolute top-12 right-24` 포지셔닝이 특정 스크롤 및 모바일 해상도에서 랩터 타이틀 이미지 또는 하단 조작 컴포넌트들과 물리적으로 겹쳐 작동 저해.
-*   **대응 방안:** 포지셔닝을 `fixed top-6 right-6 z-[999]`로 교정하여 뷰포트 기준으로 최상단에 안전하게 고정.
+현재 신규 리스크가 존재하지 않습니다. 최종 Human Validation 과정에서 보고된 5대 CORS/UX 결함들이 전원 완치되어 정상 해결되었습니다.
 
 ---
 
 ## 2. 🟡 [Pending] 진행 중 / 보류 리스크
+
+### 🛠️ RISK-010: Koyeb 백엔드 계정 결제 락(Billing Lock)에 의한 서비스 중단 결함
+*   **관련 컴포넌트:** Koyeb 클라우드 인프라 (`https://raptor-backend.koyeb.app`)
+*   **영향도:** 높음 (High)
+*   **상태:** `[Pending]`
+*   **리스크 내용:** `David Song` Koyeb 계정의 결제 프로필 누락으로 인해 플랫폼 수준에서 백엔드 서비스 가동이 전면 일시 정지(Suspend)되어 프론트엔드 API 통신 실패 및 "서버 연결 불가" 에러 유발.
+*   **대응 방안:** 사용자가 Koyeb 대시보드에서 결제 정보를 인증하여 계정을 복구하거나, Render/Railway 등 타 호스팅 플랫폼으로 백엔드를 이식 배포해야 함.
 
 ### 🛠️ RISK-002: KIE 모델 단가 분기 및 Supabase Storage FIFO 쿼터 한계
 *   **관련 컴포넌트:** `main.py` 및 `src/config/kie_pricing.json`
@@ -85,6 +59,26 @@
 ---
 
 ## 3. 🟢 [Resolved] 해결된 리스크
+
+### 🛠️ RISK-005: Koyeb CORS 설정 누락 및 ALLOWED_ORIGINS 미작동 결함
+*   **상태:** `[Resolved]`
+*   **해결 내역:** `main.py` 내 CORS 허용 오리진 리스트(`origins`)에 실서버 도메인 `https://raptor-composer.vercel.app`을 기본 오리진으로 직접 수동 기입하여, Koyeb 환경 변수 누락 시에도 안전하도록 이중 보안 가드를 견고하게 구축했습니다.
+
+### 🛠️ RISK-006: Failed to fetch 및 네트워크 예외의 영어 노출 결함
+*   **상태:** `[Resolved]`
+*   **해결 내역:** `api-client.ts` 공통 클라이언트 및 `AuthDashboard.tsx` 로그인/회원가입/대시보드 조회 등 모든 raw fetch catch 블록에 한글화 번역 가드를 주입하여, uvicorn 오프라인이나 네트워크 단절 시 영어 `TypeError: Failed to fetch`가 날것으로 출력되는 대신 친절한 한국어 안내 메시지가 나타나도록 에러 처리를 보강했습니다.
+
+### 🛠️ RISK-007: AuthDashboard 내 백엔드 URL 하드코딩 결함
+*   **상태:** `[Resolved]`
+*   **해결 내역:** `AuthDashboard.tsx` 파일 내부에 하드코딩되어 있던 `http://localhost:8000` 백엔드 주소 3곳을 `process.env.NEXT_PUBLIC_BACKEND_URL`을 올바르게 바인딩한 `BACKEND_URL` 상수로 전량 이전 교체하여 실서버 런칭 시 통신 에러가 없도록 해결했습니다.
+
+### 🛠️ RISK-008: 비밀번호 찾기 기능 미구현 및 회원가입 6자 정책 미가드 결함
+*   **상태:** `[Resolved]`
+*   **해결 내역:** `AuthDashboard.tsx` 로그인 UI 폼 하단에 "비밀번호 찾기" 토글 모드를 구현하여 Supabase `resetPasswordForEmail` 이메일 재설정 흐름을 연동했고, 회원가입 모드일 때는 최소 6자 정책 가이드 렌더링 및 6자 미만 패스워드로 가입 시도 시 프론트엔드 레벨에서 서브밋을 즉시 차단하는 가드를 성공적으로 구축했습니다.
+
+### 🛠️ RISK-009: 로그인 헤더 버튼 absolute 배치 겹침 결함
+*   **상태:** `[Resolved]`
+*   **해결 내역:** 로그인 및 세션 프로필 헤더 버튼 포지셔닝을 `absolute top-12 right-24 z-[40]`에서 `fixed top-6 right-6 z-[999]`로 변경하여, 뷰포트 크기 변화나 스크롤 동작에 구애받지 않고 항상 우측 상단 최상위 레이어에 깔끔하게 고정되도록 수정하여 레이아웃 간섭을 완전 차단했습니다.
 
 ### 🛠️ N-19: `TASKS_DB_PATH` 미정의 변수 참조 런타임 `NameError` 결함 (P-001 / P0)
 *   **상태:** `[Resolved]`
