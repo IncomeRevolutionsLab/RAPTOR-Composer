@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://raptor-backend.koyeb.app/api/:path*"
+    },
+    {
+      "source": "/outputs/:path*",
+      "destination": "https://raptor-backend.koyeb.app/outputs/:path*"
+    }
+  ]
+}

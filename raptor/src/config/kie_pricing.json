@@ -1,0 +1,20 @@
+{
+  "credit_rate": 0.01,
+  "text": {
+    "claude-sonnet-4-6": 0.015,
+    "claude-opus-4-7": 0.075,
+    "claude-haiku-4-5": 0.003
+  },
+  "image": {
+    "gpt-image-2": 0.03,
+    "nano-banana-2": 0.04,
+    "grok": 0.05
+  },
+  "video": {
+    "veo_lite": 0.15,
+    "grok": 0.10
+  },
+  "tts": {
+    "openai_tts_per_char": 0.000015
+  }
+}
