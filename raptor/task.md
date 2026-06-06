@@ -78,3 +78,20 @@
   - `[x]` `node e2e_recheck.js` E2E 자동 테스트 수행 및 결과 확인
   - `[x]` `claude -p` 사후 리뷰 수행 및 `20260606_RAPTOR_Review_Report_v2.13.3_Post.md` 작성
   - `[x]` `Risk_Tracker.md` 내 리스크 상태 동기화 및 완료 보고
+
+## RAPTOR v2.14.1 백엔드 인프라 Render.com 이관 작업 목록 (task.md)
+- `[x]` **0단계: 준비 및 사전 리뷰**
+  - `[x]` `implementation_plan.md` (v2.14.1) 초안 작성 및 동기화 (Render 이관 반영)
+  - `[x]` Claude CLI B모드 사전 리뷰 수행 및 `20260606_RAPTOR_Review_Report_v2.14.1_Pre.md` 작성 완료
+- `[/]` **1단계: Render.com 백엔드 인프라 이관 및 런칭 가이드라인 제공 (진행 중)**
+  - `[x]` 기획자용 Build/Start Command 및 환경변수 7종 가이드 제공 완료
+  - `[/]` 기획자로부터 신규 Render 백엔드 주소 수신 대기 (진행 중)
+- `[ ]` **2단계: Vercel 환경변수 및 프록시 설정 갱신**
+  - `[ ]` `vercel.json` 내 프록시 destination 주소를 신규 Render 백엔드 주소로 수정
+  - `[ ]` Vercel 대시보드 `NEXT_PUBLIC_BACKEND_URL`을 신규 Render 백엔드 주소로 업데이트
+- `[ ]` **3단계: 프론트엔드 배포 및 READY 상태 확인**
+  - `[ ]` `npx vercel --prod --yes`로 프론트엔드 빌드 및 실서버 재배포
+- `[ ]` **4단계: E2E 최종 연동 및 사후 리뷰**
+  - `[ ]` 실서버 URL에서 회원가입/로그인 등 E2E 정상 연동 검증
+  - `[ ]` `claude -p` 사후 리뷰 수행 및 `20260606_RAPTOR_Review_Report_v2.14.1_Post.md` 작성
+  - `[ ]` `Risk_Tracker.md` 내 리스크 상태 동기화 및 완료 보고

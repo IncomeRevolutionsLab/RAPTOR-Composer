@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://raptor-backend.koyeb.app/api/:path*"
+      "destination": "https://raptor-composer.onrender.com/api/:path*"
     },
     {
       "source": "/outputs/:path*",
-      "destination": "https://raptor-backend.koyeb.app/outputs/:path*"
+      "destination": "https://raptor-composer.onrender.com/outputs/:path*"
     }
   ]
 }
