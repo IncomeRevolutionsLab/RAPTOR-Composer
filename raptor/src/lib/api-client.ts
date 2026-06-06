@@ -82,6 +82,10 @@ export const api = {
       if (err.name === 'AbortError') {
         throw new Error('요청 시간이 초과되었습니다. 서버 연결을 확인해 주세요.');
       }
+      const errMsg = (err.message || '').toLowerCase();
+      if (err instanceof TypeError || errMsg.includes('failed to fetch') || errMsg.includes('networkerror') || errMsg.includes('network error')) {
+        throw new Error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      }
       throw err;
     }
   },

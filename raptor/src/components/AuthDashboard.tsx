@@ -18,6 +18,8 @@ const getAbsoluteVideoUrl = (url: string) => {
   return `${cleanBase}${cleanUrl}`;
 };
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
 export default function AuthDashboard() {
   const { user, setUser, lastRenderTimestamp, hasHydrated, isKeyConfigured, setIsKeyConfigured, setCsrfToken, resetWorkflow } = useWorkflowStore();
   
@@ -29,6 +31,7 @@ export default function AuthDashboard() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
@@ -72,7 +75,7 @@ export default function AuthDashboard() {
       }
       setRowsLoading(true);
       try {
-        const res = await fetch(`http://localhost:8000/api/dashboard/projects?user_id=${user.id}`);
+        const res = await fetch(`${BACKEND_URL}/api/dashboard/projects?user_id=${user.id}`);
         if (res.ok) {
           const data = await res.json();
           setRows(data.rows || []);
@@ -93,6 +96,17 @@ export default function AuthDashboard() {
     setAuthLoading(true);
 
     try {
+      if (isForgotPasswordMode) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}`
+        });
+        if (error) {
+          throw error;
+        }
+        setAuthSuccess("비밀번호 재설정 이메일이 발송되었습니다. 이메일을 확인해 주세요.");
+        return;
+      }
+
       if (process.env.NODE_ENV === 'production') {
         const lowerEmail = email.toLowerCase();
         const isMock = lowerEmail.endsWith('@example.com') || 
@@ -104,8 +118,12 @@ export default function AuthDashboard() {
         }
       }
 
+      if (!isLoginMode && password.length < 6) {
+        throw new Error("비밀번호는 최소 6자 이상이어야 합니다.");
+      }
+
       if (isLoginMode) {
-        const res = await fetch('http://localhost:8000/api/auth/signin', {
+        const res = await fetch(`${BACKEND_URL}/api/auth/signin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -147,7 +165,7 @@ export default function AuthDashboard() {
           setTimeout(() => setIsModalOpen(true), 500);
         }
       } else {
-        const res = await fetch('http://localhost:8000/api/auth/signup', {
+        const res = await fetch(`${BACKEND_URL}/api/auth/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -183,7 +201,9 @@ export default function AuthDashboard() {
       console.warn("Auth failed", err);
       let displayError = err.message || "로그인에 실패했습니다.";
       const errLower = displayError.toLowerCase();
-      if (errLower.includes("already") || errLower.includes("registered")) {
+      if (errLower.includes("failed to fetch") || errLower.includes("networkerror") || errLower.includes("network error") || err instanceof TypeError) {
+        displayError = "서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+      } else if (errLower.includes("already") || errLower.includes("registered")) {
         displayError = "이미 사용 중인 이메일입니다.";
       } else if (errLower.includes("invalid login credentials") || errLower.includes("invalid credential") || errLower.includes("credentials")) {
         displayError = "이메일 또는 비밀번호가 올바르지 않습니다.";
@@ -192,7 +212,9 @@ export default function AuthDashboard() {
       setPassword('');
     } finally {
       setAuthLoading(false);
-      setPassword('');
+      if (!isForgotPasswordMode) {
+        setPassword('');
+      }
     }
   };
 
@@ -207,6 +229,7 @@ export default function AuthDashboard() {
     setRows([]);
     setIsModalOpen(false);
     setIsLoginMode(true); // 로그아웃 시 다음 모달 열릴 때 로그인 모드로 전환 보장
+    setIsForgotPasswordMode(false); // 비밀번호 찾기 모드 리셋
     store.resetWorkflow(); // 기획 데이터 초기화
     setEmail('');
     setPassword('');
@@ -260,7 +283,7 @@ export default function AuthDashboard() {
   return (
     <>
       {/* 1. Header Profile Button */}
-      <div className="absolute top-12 right-24 z-[40]">
+      <div className="fixed top-6 right-6 z-[999]">
         {user ? (
           <button 
             onClick={() => { setIsModalOpen(true); setActiveTab('project'); }}
@@ -313,8 +336,12 @@ export default function AuthDashboard() {
                   <div className="flex items-center gap-3 mb-6">
                     <Lock className="w-6 h-6 text-purple-400" />
                     <div>
-                      <h4 className="text-base font-black text-white">베타 테스터 로그인</h4>
-                      <p className="text-[10px] text-gray-500">대시보드와 클라우드 렌더링 내역 저장을 제공합니다.</p>
+                      <h4 className="text-base font-black text-white">
+                        {isForgotPasswordMode ? '비밀번호 재설정' : '베타 테스터 로그인'}
+                      </h4>
+                      <p className="text-[10px] text-gray-500">
+                        {isForgotPasswordMode ? '가입하신 이메일로 재설정 링크를 보내드립니다.' : '대시보드와 클라우드 렌더링 내역 저장을 제공합니다.'}
+                      </p>
                     </div>
                   </div>
 
@@ -322,6 +349,13 @@ export default function AuthDashboard() {
                     <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 shrink-0" />
                       <div>{authError}</div>
+                    </div>
+                  )}
+
+                  {authSuccess && (
+                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 shrink-0" />
+                      <div>{authSuccess}</div>
                     </div>
                   )}
 
@@ -337,35 +371,67 @@ export default function AuthDashboard() {
                         className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:ring-2 focus:ring-purple-500/50 outline-none"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">비밀번호</label>
-                      <input 
-                        type="password" 
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••" 
-                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:ring-2 focus:ring-purple-500/50 outline-none"
-                      />
-                    </div>
+                    {!isForgotPasswordMode && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">비밀번호</label>
+                        <input 
+                          type="password" 
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••" 
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:ring-2 focus:ring-purple-500/50 outline-none"
+                        />
+                        {!isLoginMode && (
+                          <p className="text-[10px] text-purple-400 mt-1">* 비밀번호는 최소 6자 이상이어야 합니다.</p>
+                        )}
+                      </div>
+                    )}
 
                     <button 
                       type="submit" 
                       disabled={authLoading}
                       className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-blue-500 hover:opacity-90 rounded-xl font-black text-xs text-white uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl"
                     >
-                      {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isLoginMode ? '로그인' : '회원가입'}
+                      {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isForgotPasswordMode ? '재설정 이메일 전송' : isLoginMode ? '로그인' : '회원가입'}
                     </button>
                   </form>
 
-                  <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
-                    <span>{isLoginMode ? "계정이 없으신가요?" : "이미 계정이 있으신가요?"}</span>
-                    <button 
-                      onClick={() => { setIsLoginMode(!isLoginMode); setPassword(''); }}
-                      className="text-purple-400 hover:text-purple-300 font-bold underline"
-                    >
-                      {isLoginMode ? "가입하기" : "로그인하기"}
-                    </button>
+                  <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-3 text-xs text-gray-400">
+                    {isForgotPasswordMode ? (
+                      <div className="flex items-center justify-between">
+                        <span>로그인 화면으로 돌아가시겠습니까?</span>
+                        <button 
+                          onClick={() => { setIsForgotPasswordMode(false); setAuthError(null); setAuthSuccess(null); }}
+                          className="text-purple-400 hover:text-purple-300 font-bold underline"
+                        >
+                          로그인하기
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span>{isLoginMode ? "계정이 없으신가요?" : "이미 계정이 있으신가요?"}</span>
+                          <button 
+                            onClick={() => { setIsLoginMode(!isLoginMode); setPassword(''); setAuthError(null); setAuthSuccess(null); }}
+                            className="text-purple-400 hover:text-purple-300 font-bold underline"
+                          >
+                            {isLoginMode ? "가입하기" : "로그인하기"}
+                          </button>
+                        </div>
+                        {isLoginMode && (
+                          <div className="flex items-center justify-between">
+                            <span>비밀번호를 분실하셨나요?</span>
+                            <button 
+                              onClick={() => { setIsForgotPasswordMode(true); setPassword(''); setAuthError(null); setAuthSuccess(null); }}
+                              className="text-purple-400 hover:text-purple-300 font-bold underline"
+                            >
+                              비밀번호 찾기
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

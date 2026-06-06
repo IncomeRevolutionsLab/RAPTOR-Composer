@@ -115,7 +115,7 @@ if not os.path.exists("outputs"):
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+origins = ["http://localhost:3000", "http://127.0.0.1:3000", "https://raptor-composer.vercel.app"]
 if allowed_origins_env:
     origins.extend([o.strip() for o in allowed_origins_env.split(",") if o.strip()])
 origins = list(set(origins))
