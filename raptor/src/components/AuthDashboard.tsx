@@ -12,7 +12,7 @@ const getAbsoluteVideoUrl = (url: string) => {
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
   const cleanBase = baseUrl.replace(/\/$/, "");
   const cleanUrl = url.startsWith("/") ? url : `/${url}`;
   return `${cleanBase}${cleanUrl}`;

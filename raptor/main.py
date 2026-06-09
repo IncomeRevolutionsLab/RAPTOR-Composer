@@ -692,7 +692,7 @@ async def get_csrf_token():
         value=csrf_token,
         httponly=False,
         secure=IS_PROD,
-        samesite="lax",
+        samesite="none",
         max_age=2592000
     )
     return res
@@ -707,7 +707,7 @@ async def set_key(request: KeyConfigRequest):
         value=csrf_token,
         httponly=False,
         secure=IS_PROD,
-        samesite="lax",
+        samesite="none",
         max_age=2592000
     )
     return res
@@ -716,7 +716,7 @@ async def set_key(request: KeyConfigRequest):
 async def clear_key():
     from fastapi.responses import JSONResponse
     res = JSONResponse(content={"message": "API Key cleared successfully"})
-    res.delete_cookie(key="raptor_csrf", secure=IS_PROD, samesite="lax")
+    res.delete_cookie(key="raptor_csrf", secure=IS_PROD, samesite="none")
     return res
 
 @app.get("/api/auth/check-key")
@@ -730,7 +730,7 @@ async def check_key(x_byok_kie: Optional[str] = Header(None)):
         value=csrf_token,
         httponly=False,
         secure=IS_PROD,
-        samesite="lax",
+        samesite="none",
         max_age=2592000
     )
     return res

@@ -1343,7 +1343,7 @@ export default function RaptorWorkflow() {
                     ) : (scene.user_video_id || (scene.video_url && scene.image_source === 'manual')) ? (
                       <div className="w-full h-full relative group animate-in fade-in duration-500">
                         <video 
-                          src={scene.video_url || `http://localhost:8000/outputs/${scene.user_video_id}.mp4`} 
+                          src={scene.video_url || `${BACKEND_URL}/outputs/${scene.user_video_id}.mp4`} 
                           muted 
                           loop 
                           autoPlay 
@@ -1421,14 +1421,14 @@ export default function RaptorWorkflow() {
                                   formData.append('file', file);
                                   setLoading(true, "비디오 업로드 및 정밀 분석 중...");
                                   try {
-                                    const res = await fetch('http://localhost:8000/api/user-videos', {
+                                    const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
                                       method: 'POST',
                                       body: formData
                                     });
                                     if (res.ok) {
                                       const data = await res.json();
                                       updateSceneScript(i, 'user_video_id', data.id);
-                                      updateSceneScript(i, 'video_url', `http://localhost:8000/outputs/${data.id}.mp4`);
+                                      updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${data.id}.mp4`);
                                       updateSceneScript(i, 'image_source', 'manual');
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
@@ -1488,14 +1488,14 @@ export default function RaptorWorkflow() {
                                 formData.append('file', file);
                                 setLoading(true, "비디오 업로드 및 정밀 분석 중...");
                                 try {
-                                  const res = await fetch('http://localhost:8000/api/user-videos', {
+                                  const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
                                     method: 'POST',
                                     body: formData
                                   });
                                   if (res.ok) {
                                     const data = await res.json();
                                     updateSceneScript(i, 'user_video_id', data.id);
-                                    updateSceneScript(i, 'video_url', `http://localhost:8000/outputs/${data.id}.mp4`);
+                                    updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${data.id}.mp4`);
                                     updateSceneScript(i, 'image_source', 'manual');
                                     updateSceneScript(i, 'image_url', null);
                                     updateSceneScript(i, 'status', 'ready');
