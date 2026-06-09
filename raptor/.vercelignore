@@ -1,0 +1,25 @@
+# Vercel 배포 제외 목록
+node_modules/
+.next/
+*.zip
+__pycache__/
+*.pyc
+*.log
+outputs/
+*.tsbuildinfo
+.vercel
+.git
+backup_*.zip
+backups/
+scratch/
+tests/
+review_request*.txt
+20260*.md
+RAPTOR_Post_Review*.md
+walkthrough.md
+prompt.txt
+temp_*.js
+e2e_recheck.js
+user_projects_beta.json
+user_tasks_beta.json
+user_videos_beta.json
