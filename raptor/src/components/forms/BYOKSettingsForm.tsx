@@ -6,7 +6,7 @@ import { useWorkflowStore } from '@/store/useWorkflowStore';
 import { api } from '@/lib/api-client';
 
 export default function BYOKSettingsForm() {
-  const { isKeyConfigured, setIsKeyConfigured, setCsrfToken, hasHydrated } = useWorkflowStore();
+  const { isKeyConfigured, setIsKeyConfigured, setCsrfToken, setKieKey: setStoreKieKey, hasHydrated } = useWorkflowStore();
   
   // local state for editing
   const [kieKey, setKieKey] = useState("");
@@ -48,10 +48,11 @@ export default function BYOKSettingsForm() {
   const handleSave = async () => {
     try {
       if (!isStored.kieKey && (!kieKey || kieKey.trim() === "")) {
-        // Clear key
+        // Clear key: 쿠키 + Zustand store 동시 초기화
         await api.post('/auth/clear-key', {});
         setIsKeyConfigured(false);
         setCsrfToken(null);
+        setStoreKieKey('');  // [P0] store kieKey 초기화 → api-client X-BYOK-KIE 헤더 제거
         setIsStored({ kieKey: false });
         setKieKey("");
         setSaved(true);
@@ -65,11 +66,12 @@ export default function BYOKSettingsForm() {
         return;
       }
 
-      // Save key to HttpOnly Cookie
+      // Save key: 쿠키 저장 + Zustand store 동기화 (X-BYOK-KIE 헤더 전송 보장)
       const res = await api.post('/auth/set-key', { kie_key: kieKey });
       if (res.csrf_token) {
         setCsrfToken(res.csrf_token);
       }
+      setStoreKieKey(kieKey.trim());  // [P0] store kieKey 저장 → api-client가 X-BYOK-KIE 헤더 전송
       setIsKeyConfigured(true);
       setIsStored({
         kieKey: true
@@ -173,7 +175,7 @@ export default function BYOKSettingsForm() {
           <div className="px-6 py-6 overflow-y-auto grow space-y-5 custom-scrollbar">
             <div className="space-y-4">
               <div className="col-span-2">
-                {renderKeyInput("🔑 KIE API Key", kieKey, "kieKey", "kie-...", setKieKey, "purple")}
+                {renderKeyInput("🔑 KIE API Key", kieKey, "kieKey", "API Key 입력...", setKieKey, "purple")}
               </div>
             </div>
             

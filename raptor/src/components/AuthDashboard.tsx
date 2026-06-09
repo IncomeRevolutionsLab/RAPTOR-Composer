@@ -584,7 +584,7 @@ export default function AuthDashboard() {
                               type={visibility ? "text" : "password"} 
                               value={kieKey}
                               onChange={(e) => setKieKey(e.target.value)}
-                              placeholder={isKeyConfigured ? "kie-***... (이미 설정됨)" : "kie-..."}
+                              placeholder={isKeyConfigured ? "***... (이미 설정됨)" : "API Key 입력..."}
                               className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:ring-2 focus:ring-purple-500/50 outline-none"
                             />
                             <button 
