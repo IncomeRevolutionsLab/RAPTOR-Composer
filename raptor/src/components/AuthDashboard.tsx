@@ -203,6 +203,9 @@ export default function AuthDashboard() {
       const errLower = displayError.toLowerCase();
       if (errLower.includes("failed to fetch") || errLower.includes("networkerror") || errLower.includes("network error") || err instanceof TypeError) {
         displayError = "서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+      } else if (errLower.includes("email not confirmed") || errLower.includes("email_not_confirmed")) {
+        // [P1] 이메일 미인증 상태 전용 에러 메시지 — 일반 credentials 오류와 분리
+        displayError = "이메일 인증이 완료되지 않았습니다. 메일함의 인증 링크를 확인해 주세요.";
       } else if (errLower.includes("already") || errLower.includes("registered")) {
         displayError = "이미 사용 중인 이메일입니다.";
       } else if (errLower.includes("invalid login credentials") || errLower.includes("invalid credential") || errLower.includes("credentials")) {
@@ -308,7 +311,7 @@ export default function AuthDashboard() {
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8">
           <div 
             className="absolute inset-0 bg-black/85 backdrop-blur-md" 
-            onClick={() => { setIsModalOpen(false); setPreviewVideoUrl(null); }}
+            onClick={() => { setIsModalOpen(false); setPreviewVideoUrl(null); setAuthSuccess(null); setAuthError(null); }}
           />
           
           <div className="relative w-full max-w-6xl bg-neutral-900 border border-white/10 rounded-3xl h-[85vh] overflow-hidden flex flex-col p-8 shadow-[0_0_80px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300">
@@ -320,7 +323,7 @@ export default function AuthDashboard() {
                 <span>RAPTOR 통합 대시보드</span>
               </h3>
               <button 
-                onClick={() => { setIsModalOpen(false); setPreviewVideoUrl(null); }}
+                onClick={() => { setIsModalOpen(false); setPreviewVideoUrl(null); setAuthSuccess(null); setAuthError(null); }}
                 className="text-xs font-bold text-gray-500 hover:text-white transition-colors"
               >
                 ✕ CLOSE
@@ -346,14 +349,14 @@ export default function AuthDashboard() {
                   </div>
 
                   {authError && (
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-start gap-2 w-full max-w-md" style={{zIndex: 10, wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-start gap-2 w-full max-w-md z-10 break-words">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <div className="break-words min-w-0 flex-1">{authError}</div>
                     </div>
                   )}
 
                   {authSuccess && (
-                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs flex items-start gap-2 w-full max-w-md" style={{zIndex: 10, wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs flex items-start gap-2 w-full max-w-md z-10 break-words">
                       <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <div className="break-words min-w-0 flex-1">{authSuccess}</div>
                     </div>
@@ -396,12 +399,22 @@ export default function AuthDashboard() {
                       {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isForgotPasswordMode ? '재설정 이메일 전송' : isLoginMode ? '로그인' : '회원가입'}
                     </button>
 
-                    {/* 약관 동의 안내 문구 - 회원가입 모드에서만 표시 */}
+                    {/* [P1] 약관 동의 안내 문구 - 회원가입 모드에서만 표시, 실제 링크 연결 */}
                     {!isLoginMode && !isForgotPasswordMode && (
                       <p className="text-[10px] text-gray-500 text-center leading-relaxed mt-1 break-words">
                         가입 시 랩터 숏폼 메이커의{' '}
-                        <span className="text-purple-400">이용약관</span> 및{' '}
-                        <span className="text-purple-400">개인정보 처리방침</span>에
+                        <a
+                          href="https://docs.google.com/document/d/18YmLQIcpjq8cghU5zukMWhu6W13QJo7WrGm-hl7TQuw/edit?usp=sharing"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
+                        >이용약관</a>{' '}및{' '}
+                        <a
+                          href="https://docs.google.com/document/d/18YmLQIcpjq8cghU5zukMWhu6W13QJo7WrGm-hl7TQuw/edit?usp=sharing"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
+                        >개인정보 처리방침</a>에
                         동의하는 것으로 간주됩니다.
                       </p>
                     )}
