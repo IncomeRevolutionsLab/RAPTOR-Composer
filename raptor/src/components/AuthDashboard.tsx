@@ -191,10 +191,10 @@ export default function AuthDashboard() {
           if (store.userId !== data.user.id || localUserId !== data.user.id) {
             store.resetWorkflow();
           }
-          setUser(data.user);
-          setAuthSuccess("회원가입 성공!");
+          // 이메일 인증 방식: 바로 로그인 처리하지 않고 인증 안내 메시지만 표시
+          setAuthSuccess("가입하신 이메일로 인증 메일이 발송되었습니다. 메일함의 인증 링크를 클릭하여 가입을 완료해 주세요.");
           setPassword('');
-          setTimeout(() => setIsModalOpen(true), 500);
+          setEmail('');
         }
       }
     } catch (err: any) {
@@ -346,16 +346,16 @@ export default function AuthDashboard() {
                   </div>
 
                   {authError && (
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <div>{authError}</div>
+                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-start gap-2 w-full max-w-md" style={{zIndex: 10, wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div className="break-words min-w-0 flex-1">{authError}</div>
                     </div>
                   )}
 
                   {authSuccess && (
-                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 shrink-0" />
-                      <div>{authSuccess}</div>
+                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs flex items-start gap-2 w-full max-w-md" style={{zIndex: 10, wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                      <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div className="break-words min-w-0 flex-1">{authSuccess}</div>
                     </div>
                   )}
 
@@ -395,6 +395,16 @@ export default function AuthDashboard() {
                     >
                       {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isForgotPasswordMode ? '재설정 이메일 전송' : isLoginMode ? '로그인' : '회원가입'}
                     </button>
+
+                    {/* 약관 동의 안내 문구 - 회원가입 모드에서만 표시 */}
+                    {!isLoginMode && !isForgotPasswordMode && (
+                      <p className="text-[10px] text-gray-500 text-center leading-relaxed mt-1 break-words">
+                        가입 시 랩터 숏폼 메이커의{' '}
+                        <span className="text-purple-400">이용약관</span> 및{' '}
+                        <span className="text-purple-400">개인정보 처리방침</span>에
+                        동의하는 것으로 간주됩니다.
+                      </p>
+                    )}
                   </form>
 
                   <div className="mt-6 pt-6 border-t border-white/5 flex flex-col gap-3 text-xs text-gray-400">
