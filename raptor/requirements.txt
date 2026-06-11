@@ -21,7 +21,7 @@ openai>=1.0.0
 supabase>=2.0.0
 
 # ── Auth & Security ────────────────────────────────────────────
-pyjwt>=2.7.0
+# pyjwt 제거 (v2.15.0) — Supabase SDK get_user()로 전환, PyJWT 불필요
 cryptography>=41.0.0
 
 # ── Media Processing ───────────────────────────────────────────

@@ -147,7 +147,7 @@ export default function BYOKSettingsForm() {
 
       {/* Popover Form */}
       {isOpen && (
-        <div className="absolute top-16 right-0 backdrop-blur-2xl bg-neutral-950/95 border border-white/10 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] w-[24rem] max-w-[90vw] flex flex-col max-h-[80vh] overflow-hidden animate-in slide-in-from-top-4 fade-in duration-300 origin-top-right z-[50]">
+        <div className="absolute top-16 right-0 backdrop-blur-2xl bg-neutral-950/95 border border-white/10 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] w-[24rem] max-w-[90vw] flex flex-col max-h-[85vh] overflow-hidden animate-in slide-in-from-top-4 fade-in duration-300 origin-top-right z-[50]">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           
           {/* 1. Modal Header (Fixed) */}
@@ -172,7 +172,7 @@ export default function BYOKSettingsForm() {
             </button>
           </div>
 
-          <div className="px-6 py-6 overflow-y-auto grow space-y-5 custom-scrollbar">
+          <div className="px-6 py-6 overflow-y-auto grow min-h-0 space-y-5 custom-scrollbar pb-4">
             <div className="space-y-4">
               <div className="col-span-2">
                 {renderKeyInput("🔑 KIE API Key", kieKey, "kieKey", "API Key 입력...", setKieKey, "purple")}

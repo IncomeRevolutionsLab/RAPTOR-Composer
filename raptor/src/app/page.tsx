@@ -35,7 +35,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-12 relative z-10 space-y-12">
+      <div className="container mx-auto px-6 py-12 z-10 space-y-12">
         {/* Auth Modal & Dashboard Panel */}
         <AuthDashboard />
 

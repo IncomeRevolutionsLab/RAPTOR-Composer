@@ -23,7 +23,7 @@ from backend.services.ffmpeg_worker import ffmpeg_worker
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 import secrets
-import jwt
+# [v2.15.0] import jwt (PyJWT) 제거 — Supabase SDK get_user()로 전환
 import asyncio
 
 load_dotenv()
@@ -42,9 +42,7 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 if not WEBHOOK_SECRET:
     raise RuntimeError("WEBHOOK_SECRET must be set in .env")
 
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
-if not SUPABASE_JWT_SECRET:
-    raise RuntimeError("SUPABASE_JWT_SECRET must be set in .env")
+# [v2.15.0] SUPABASE_JWT_SECRET 의존성 완전 제거 — ECC(P-256) 대응으로 SDK 위임 전환
 
 IS_PROD = os.getenv("ENV", "development").lower() in ["production", "prod"]
 
@@ -148,22 +146,27 @@ def get_decrypted_key(x_byok_kie: Optional[str] = Header(None)) -> str:
     return x_byok_kie.strip()
 
 def get_jwt_user_id(authorization: Optional[str] = Header(None)) -> str:
+    """
+    [v2.15.0] ECC(P-256) 대응 — PyJWT 수동 검증 철거, Supabase SDK 위임 방식으로 전환
+    - supabase.auth.get_user(token): SDK 레벨에서 JWKS 자동 처리 (HS256/ES256 모두 지원)
+    - sync def 유지: FastAPI가 스레드풀에서 실행 → 이벤트 루프 차단 없음
+    - Claude Code Pre-Review 권고 반영: 예외 메시지 은닉 + 올바른 예외 전파
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="인증 헤더가 누락되었거나 형식이 올바르지 않습니다.")
     token = authorization.split(" ", 1)[1]
-    supabase_jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
-    if not supabase_jwt_secret:
-        raise HTTPException(status_code=500, detail="서버 설정 오류: SUPABASE_JWT_SECRET 환경 변수가 설정되지 않았습니다.")
     try:
-        payload = jwt.decode(token, supabase_jwt_secret, algorithms=["HS256"], audience="authenticated")
-        sub = payload.get('sub')
-        if not sub:
-            raise HTTPException(status_code=401, detail="JWT 토큰 내 sub 클레임이 누락되었습니다.")
-        return sub
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="JWT 토큰 유효 기간이 만료되었습니다.")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="유효하지 않은 JWT 토큰 서명입니다.")
+        response = supabase.auth.get_user(token)
+        user = response.user
+        if not user or not user.id:
+            raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+        return user.id
+    except HTTPException:
+        raise
+    except Exception as e:
+        # [SECURITY] 내부 에러 메시지 클라이언트 노출 방지 — 서버 로그에만 상세 기록
+        print(f"[AUTH ERROR] get_user failed: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
 
 def map_image_model(model_name: Optional[str]) -> str:
     if not model_name:

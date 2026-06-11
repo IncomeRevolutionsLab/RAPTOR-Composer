@@ -1,4 +1,5 @@
 import { useWorkflowStore } from "@/store/useWorkflowStore";
+import { supabase } from "@/lib/supabaseClient";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
@@ -18,6 +19,19 @@ export const api = {
     };
     if (store.kieKey) {
       headers['X-BYOK-KIE'] = store.kieKey;
+    }
+
+    // [P1 FIX] Authorization: Bearer — Supabase 세션 JWT 동적 첨부 (401 원천 차단)
+    if (!isAuthRoute) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+      } catch (err) {
+        console.warn('[api-client] Failed to attach Authorization header:', err);
+      }
     }
 
     let activeCsrfToken = csrfToken;
