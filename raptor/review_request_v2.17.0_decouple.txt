@@ -1,0 +1,52 @@
+클로드 코드(Claude Code)에게 보내는 사후 리뷰(Post-Review) 요청:
+
+아래는 RAPTOR v2.17.0 - 렌더링 파이프라인(Step 4 KIE API / Step 5 FFmpeg) 완전 분리 수술의 최종 변경 내용이다.
+현재 변경된 상태를 실제 소스 코드(main.py, src/components/RaptorWorkflow.tsx)와 교차 검증하여 아키텍처 사후 리뷰(Post-Review) 보고서를 한국어로 작성해줘.
+
+[이번 패치 배경]
+다중 접속 환경에서 긴 시간 동안 결합되어 있던 렌더링 파이프라인이 커넥션 누수(Errno 11) 및 에러 파악의 모호함을 초래했다. 이에 따라 비디오 소스 생성(Step 4)과 최종 영상 조립(Step 5) 과정을 완전히 분리(Decoupling)하였다.
+
+[검토 대상 변경 사항 요약]
+
+변경 1: 백엔드 `main.py` 라우터 분리 및 KIE API 커넥션 정리
+  - 기존의 `@app.post("/api/render-stream")`를 삭제하고 두 개로 분리함.
+  - `@app.post("/api/generate-video-clips")`: KIE AI 비디오 생성 전용.
+    - `httpx.AsyncClient()`를 명시적으로 생성하고 `try...finally` 블록에서 `await client.aclose()`를 호출하여 커넥션 누수 차단.
+  - `@app.post("/api/render-final")`: FFmpeg 합성 전용.
+
+변경 2: 프론트엔드 `src/components/RaptorWorkflow.tsx` 로직 및 UI 분리
+  - 기존 `handleRenderVideo`를 `handleGenerateClips`와 `handleRenderFinal` 두 개의 독립적인 함수로 분리.
+  - [비디오 클립 생성 (Step 4)] 버튼 신설: `handleGenerateClips` 호출.
+  - [최종 영상 조립(렌더링) (Step 5)] 버튼 신설: 모든 비디오 클립이 준비(video_url 존재 또는 use_image_only)되었을 때만 활성화되며 `handleRenderFinal` 호출.
+  - 신호등(🟢🟠🔴) 서버 상태 표시는 최종 영상 조립(Step 5) 버튼 영역에만 국한되도록 렌더링 변경.
+
+[리뷰 포인트]
+1. 백엔드 아키텍처 및 자원 관리 완결성:
+   - `main.py`의 `generate_video_clips_stream`에서 `await client.aclose()`가 올바른 위치(finally 블록)에서 호출되어 커넥션 누수(Errno 11)를 원천 차단하는가?
+   - 분리된 두 엔드포인트 모두 SSE 스트리밍 도중 클라이언트 연결 끊김(`raw_request.is_disconnected()`)을 올바르게 처리하는가?
+
+2. 프론트엔드 로직 분리 완결성:
+   - `RaptorWorkflow.tsx`에서 `handleGenerateClips`와 `handleRenderFinal`이 독립적으로 동작하며 상태 전이 로직이 엉키지 않는가?
+   - Step 5 버튼의 활성화 조건이 정확하게 모든 씬의 `video_url` 또는 `use_image_only`가 충족될 때로 제어되는가?
+
+3. UI/UX 구현 정확성:
+   - 사용자가 두 단계의 명시적인 버튼을 통해 렌더링을 제어할 수 있는 구조인가?
+   - 렌더링 트래픽 신호등(🟢🟠🔴)이 FFmpeg 병목 구간인 Step 5에만 적용되어 UX 혼란을 방지했는가?
+
+리뷰 보고서는 반드시 다음 형식으로 한국어로 작성해줘:
+
+# 📋 RAPTOR v2.17.0 렌더링 파이프라인 완전 분리 사후 리뷰 보고서 (Post-Review)
+
+1. 백엔드 아키텍처 분리 및 자원 관리 평가
+   - KIE API 커넥션 정리 완결성 (PASS/FAIL)
+   - SSE 스트리밍 안정성 제어 (PASS/FAIL)
+
+2. 프론트엔드 로직 및 UI/UX 분리 평가
+   - 2단계 함수 분리 안정성 (PASS/FAIL)
+   - UI 버튼 및 신호등 컴포넌트 격리 적절성 (PASS/FAIL)
+
+3. 잔여 위험 요소 (있을 경우)
+
+4. TDD 채점표 (PASS/FAIL 표)
+
+5. 최종 결론 및 잔여 권고사항

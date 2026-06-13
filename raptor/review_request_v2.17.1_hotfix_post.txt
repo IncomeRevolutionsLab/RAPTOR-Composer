@@ -1,0 +1,28 @@
+클로드 코드(Claude Code)에게 보내는 핫픽스 사후 리뷰(Post-Review) 요청:
+
+아래는 RAPTOR Classic v2.17.1 핫픽스 (v2 실행 계획) 수술 완료 후의 검증 요청이다.
+현재 코드(`main.py`, `src/components/RaptorWorkflow.tsx`) 상태를 바탕으로 핫픽스 적용 결과를 점검하고 아키텍처 사후 리뷰 보고서를 한국어로 작성해줘.
+
+[검토 대상 패치 내역 (v2.17.1 핫픽스)]
+1. 백엔드 (main.py):
+   - [R-5 방어 완료] `/api/render-final` 상단에 `task_id = None` 초기화 추가.
+   - [R-5 가드 조건 강화 완료] `except Exception as e:` 블록 내에 `if request.project_id and task_id:` 조건을 적용하여 `task_id`가 `None`인 경우 DB 업데이트를 원천 차단함 (DB 오염 방어).
+
+2. 프론트엔드 (RaptorWorkflow.tsx):
+   - [R-1 수정 완료] Stage 5 트래커 버튼 `action`을 `handleRenderFinal`로 교정.
+   - [R-2 보완 완료] `handleRenderFinal` 내 CSRF 자동 재발급 로직 추가 및 `activeCsrfToken` 지역 변수 정상 할당.
+   - [R-3 교정 완료] Step 4 버튼 로딩 스피너 조건 `loading && !isRendering` 적용.
+
+[리뷰 포인트]
+1. [R-5] `main.py`의 `except` 블록 가드 조건(`and task_id`)이 정확하게 삽입되어 사전 리뷰(Pre-Review)에서 지적된 DB 오염 가능성이 완벽하게 제거되었는가?
+2. [R-1, R-2, R-3] `RaptorWorkflow.tsx`의 3가지 결함이 모두 정상적으로 패치되었으며 추가적인 부작용은 없는가?
+3. 모든 변경 사항이 v2.17.1 v2 실행 계획서 명세와 일치하는가?
+
+리뷰 보고서는 반드시 다음 형식으로 한국어로 작성해줘:
+
+# 📋 RAPTOR v2.17.1 핫픽스 사후 리뷰 보고서 (Post-Review)
+
+1. [R-5] 백엔드 예외 처리 가드 조건 검증 (PASS/FAIL)
+2. [R-1, R-2, R-3] 프론트엔드 핫픽스 검증 (PASS/FAIL)
+3. 구현과 계획서(v2) 간 일치도 평가
+4. 최종 결론 (PASS/FAIL)

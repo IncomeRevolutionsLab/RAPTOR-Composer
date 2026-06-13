@@ -1,0 +1,15 @@
+클로드 코드(Claude Code)에게 보내는 리뷰 요청:
+
+아래의 RAPTOR V2.9.21 프론트엔드 비디오 렌더링 예외 처리(Catch) 강화 핫픽스 패치 내용을 상세히 읽고, 아키텍처적 완성도나 잠재적 버그, 또는 더 나은 개선점이 있는지 한국어로 꼼꼼하게 리뷰해줘.
+
+검토 대상 파일:
+1. `src/components/RaptorWorkflow.tsx` (handleRenderVideo 및 트래커 UI 상태 결정 로직)
+
+패치 목적:
+KIE 서버에서 비디오 생성이 실패하여 백엔드가 에러를 정상적으로 반환했음에도 불구하고, 프론트엔드 RaptorWorkflow.tsx의 handleRenderVideo 함수가 이를 제대로 화면 UI 상태로 업데이트하지 못하고 콘솔 에러(Task ... failed or no video URL found.)만 내뿜으며 앱이 멈추는 UX 결함 해결.
+
+주요 패치 내용:
+1. handleRenderVideo 내 API 호출(fetch)의 response.ok가 false일 경우(예: 백엔드 500 에러), response.json()을 통해 detail 에러 메시지를 우선 파싱하여 명시적인 Error를 던지도록 수정.
+2. catch 블록 내에서 Zustand 스토어의 setErrorMessage를 호출하여 화면 상에 에러를 노출(사용자가 시스템 폴트 경고창을 통해 인지하고 재시도할 수 있도록 함).
+3. catch 블록 내에서 isRendering 상태를 false로 해제하고, 미완료된 각 씬(scene)의 status를 'error'로 롤백하여 화면이 무한 로딩 대기에 빠지지 않도록 처리.
+4. Visual Tracker(VT) 컴포넌트 내의 stage4Status(비디오 생성) 및 stage5Status(최종 렌더링) 에러 판단 조건식에 errorMessage가 존재할 경우의 분기 조건을 보강하여, 비디오 생성 도중 에러가 나면 트래커에서도 해당 단계가 '오류/중단' 상태로 명확히 표시되도록 수정.

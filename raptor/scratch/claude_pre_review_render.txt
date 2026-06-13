@@ -1,0 +1,7 @@
+I need Bash access to run `gh pr list`. Could you either:
+
+1. **Grant Bash permission** so I can check the open PRs automatically, or
+2. **Provide a PR number** directly (e.g., `/review 42`), or
+3. **Run `gh pr list`** yourself and paste the output here
+
+Which would you prefer?

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "get_global_realtime_stats_success",
+    "description": "Verify that GET /api/v1/stats returns a 200 status with a success status, total_analysis as a number, and top_domain as a string."
+  },
+  {
+    "id": "TC002",
+    "title": "get_global_realtime_stats_database_timeout",
+    "description": "Verify that GET /api/v1/stats returns a 503 status with an error status and appropriate database timeout message when the database times out."
+  },
+  {
+    "id": "TC003",
+    "title": "get_3d_visualization_trend_success",
+    "description": "Verify that GET /api/v1/domains/trend returns a 200 status with success status, months as an array of date strings, categories as an array of strings, and data as a 2D number array."
+  },
+  {
+    "id": "TC004",
+    "title": "get_3d_visualization_trend_query_timeout",
+    "description": "Verify that GET /api/v1/domains/trend returns a 504 status with an error status and query timeout message when the request is too large or times out."
+  },
+  {
+    "id": "TC005",
+    "title": "post_n_depth_category_analysis_with_path_success",
+    "description": "Verify that POST /api/v1/category_node with a valid category path returns a 200 status with the correct path, is_leaf boolean, trend_series object, and products array."
+  },
+  {
+    "id": "TC006",
+    "title": "post_n_depth_category_analysis_with_keyword_success",
+    "description": "Verify that POST /api/v1/category_node with a valid keyword returns a 200 status with the resolved path, is_leaf boolean, trend_series object, and products array."
+  },
+  {
+    "id": "TC007",
+    "title": "post_n_depth_category_analysis_empty_body_error",
+    "description": "Verify that POST /api/v1/category_node with an empty body returns a 400 status with an error status and message indicating that path or keyword is required."
+  },
+  {
+    "id": "TC008",
+    "title": "post_n_depth_category_analysis_large_result_set_error",
+    "description": "Verify that POST /api/v1/category_node returns a 504 status with an error status and message indicating the result set is too large and suggesting pagination or narrower path."
+  },
+  {
+    "id": "TC009",
+    "title": "get_popular_keywords_success",
+    "description": "Verify that GET /api/v1/popular_keywords with valid domain and window parameters returns a 200 status with success status and an items array containing keyword objects with keyword, score, domain, and timeframe fields."
+  },
+  {
+    "id": "TC010",
+    "title": "get_popular_keywords_exceed_batch_limit_error",
+    "description": "Verify that GET /api/v1/popular_keywords with more than 3 keywords returns a 400 status with an error status and message indicating the Naver batch limit exceeded."
+  }
+]

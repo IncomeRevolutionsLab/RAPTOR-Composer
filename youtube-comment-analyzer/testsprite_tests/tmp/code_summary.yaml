@@ -1,0 +1,57 @@
+version: "2"
+type: backend
+tech_stack:
+  - Python
+  - FastAPI
+  - Uvicorn
+  - YouTube Data API v3
+  - Google Gemini API (LLM)
+  - SQLite
+features:
+  - name: Unified Gateway
+    description: Single entry point for both collection and analysis services.
+    files:
+      - main_gateway.py
+    endpoints:
+      - method: GET
+        path: /
+        description: Dashboard frontend.
+        auth_required: false
+  - name: YouTube Comment Collection API
+    description: Manages the collection of comments from YouTube videos.
+    files:
+      - 1_collection/web_server.py
+    endpoints:
+      - method: GET
+        path: /status
+        description: Get current collection status.
+        auth_required: false
+      - method: POST
+        path: /start
+        description: Start the comment collection process (JSON Body).
+        auth_required: false
+      - method: POST
+        path: /stop
+        description: Request to stop the task.
+        auth_required: false
+      - method: GET
+        path: /history
+        description: List collection history.
+        auth_required: false
+  - name: Insight Engine API
+    description: Hybrid analysis pipeline (Sentiment + LLM).
+    files:
+      - 2_analysis/analyzer_server.py
+    endpoints:
+      - method: POST
+        path: /analysis/analyze
+        description: Trigger analysis (JSON Body).
+        auth_required: false
+      - method: GET
+        path: /analysis/results
+        description: Retrieve analysis data.
+        auth_required: false
+known_limitations:
+  - issue: Analysis endpoints prefixed with /analysis
+    location: main_gateway.py
+    impact: Requires path prefix update for analysis calls

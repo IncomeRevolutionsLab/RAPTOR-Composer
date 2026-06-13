@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "get_root_dashboard",
+    "description": "Verify that a GET request to the root endpoint '/' returns a 200 status code with the SPA dashboard HTML/JS and route metadata."
+  },
+  {
+    "id": "TC002",
+    "title": "post_start_comment_collection",
+    "description": "Test starting a YouTube comment collection task with valid video_id and options, expecting a 202 Accepted response with task_id and started status."
+  },
+  {
+    "id": "TC003",
+    "title": "get_collection_status",
+    "description": "Check that a GET request to '/status' returns a 200 status code with the current collection task status including task_id and running state."
+  },
+  {
+    "id": "TC004",
+    "title": "post_stop_collection_task",
+    "description": "Verify stopping a comment collection task by posting a valid task_id to '/stop' returns appropriate success response; also test stopping with nonexistent task_id returns 404 Not Found."
+  },
+  {
+    "id": "TC005",
+    "title": "get_collection_history",
+    "description": "Ensure that GET '/history' returns a 200 status code with a list of past collection tasks including collected comment counts."
+  },
+  {
+    "id": "TC006",
+    "title": "post_analysis_preprocess",
+    "description": "Test POST to '/analysis/analyze' with action 'preprocess' and valid video_ids triggers preprocessing, returning 200 with job_id and preprocessing status."
+  },
+  {
+    "id": "TC007",
+    "title": "post_analysis_preprocess_bad_input",
+    "description": "Verify that preprocessing with malformed CSV input returns 400 Bad Request with error message 'malformed CSV' and that results query for such job_id returns 404 Not Found."
+  },
+  {
+    "id": "TC008",
+    "title": "post_analysis_hybrid_pipeline",
+    "description": "Test hybrid analysis pipeline by POSTing to '/analysis/analyze' with mode 'hybrid', valid video_ids, and llm_token_fraction, expecting 200 with job_id and local_nlp_running stage."
+  },
+  {
+    "id": "TC009",
+    "title": "post_analysis_hybrid_llm_skipped",
+    "description": "Verify that hybrid analysis with missing LLM API key returns 200 with job_id and note indicating LLM was skipped and fallback to local NLP, and results reflect local NLP only."
+  },
+  {
+    "id": "TC010",
+    "title": "post_analysis_sna_mode",
+    "description": "Test SNA mode by POSTing to '/analysis/analyze' with mode 'sna' and compute_network true, expecting 200 with job_id and sna_running status, and GET results returns network map, cluster metrics, and distortion alerts."
+  }
+]

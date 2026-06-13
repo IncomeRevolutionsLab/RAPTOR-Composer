@@ -1,0 +1,69 @@
+version: "2"
+type: frontend
+tech_stack:
+  - JavaScript (Vanilla)
+  - HTML5
+  - CSS3
+  - ECharts
+routes:
+  - path: /
+    file: frontend/index.html
+    auth_required: false
+    description: Main dashboard for shopping trend visualization
+  - path: /raptor.html
+    file: frontend/raptor.html
+    auth_required: false
+    description: RAPTOR AI video and plan generation page
+features:
+  - name: Global Real-time Stats
+    description: Display real-time collected keywords and active sync version
+    files:
+      - frontend/index.html
+      - frontend/js/app.js
+    entry_route: /
+    user_interactions:
+      - View stats loaded on page initialization
+    api_calls:
+      - method: GET
+        endpoint: /api/v1/stats
+    auth_required: false
+  - name: 3D Trend Visualization
+    description: View 3D ECharts visualization for 12 major domains
+    files:
+      - frontend/index.html
+      - frontend/js/app.js
+    entry_route: /
+    user_interactions:
+      - View 3D chart rendering
+      - Click on chart points to see specific data
+    api_calls:
+      - method: GET
+        endpoint: /api/v1/domains/trend
+    auth_required: false
+  - name: N-Depth Category Analysis
+    description: Search category and view products/keywords for the category
+    files:
+      - frontend/index.html
+      - frontend/js/app.js
+    entry_route: /
+    user_interactions:
+      - Enter keyword in search input
+      - Click "검색/분석" button
+      - View returned product list and trend chart
+    api_calls:
+      - method: POST
+        endpoint: /api/v1/category_node
+    auth_required: false
+  - name: Popular Keywords
+    description: Fetch and display popular keywords
+    files:
+      - frontend/index.html
+      - frontend/js/app.js
+    entry_route: /
+    user_interactions:
+      - Click on popular keyword chips
+    api_calls:
+      - method: GET
+        endpoint: /api/v1/popular_keywords
+    auth_required: false
+known_limitations: []

@@ -1,0 +1,129 @@
+코드를 모두 확인했습니다. 이제 구현 계획에 대한 상세 리뷰를 한국어로 정리해 드리겠습니다.
+
+---
+
+## v2.14.1 구현 계획 리뷰
+
+### 1. CORS 이중 방어 (`main.py`)
+
+**현재 코드 (`main.py:117-121`):**
+```python
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+if allowed_origins_env:
+    origins.extend([...])
+```
+
+**진단: 계획 타당함, 즉시 수술 필요.**
+
+현재 하드코딩된 기본값에 `https://raptor-composer.vercel.app`이 없습니다. Koyeb 환경변수가 누락되면 프로덕션에서 CORS가 완전히 차단됩니다. 계획대로 기본 `origins` 리스트에 직접 추가하는 것이 올바른 접근입니다.
+
+```python
+# 수정 후
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://raptor-composer.vercel.app",  # 추가
+]
+```
+
+---
+
+### 2. 네트워크 에러 한글화 (`api-client.ts`)
+
+**현재 코드 (`api-client.ts:81-86`):**
+```typescript
+} catch (err: any) {
+  if (err.name === 'AbortError') {
+    throw new Error('요청 시간이 초과되었습니다...');
+  }
+  throw err;  // ← 여기서 영어 TypeError가 그대로 노출됨
+}
+```
+
+**진단: 계획 타당함, 누락된 핵심 가드.**
+
+`Failed to fetch`는 `TypeError`로 발생하며 현재 그대로 UI까지 노출됩니다. 계획대로 `TypeError` 또는 메시지에 `failed to fetch`/`networkerror`가 포함된 경우를 잡아 한글 메시지로 변환해야 합니다.
+
+```typescript
+// 추가 필요
+} catch (err: any) {
+  if (err.name === 'AbortError') {
+    throw new Error('요청 시간이 초과되었습니다...');
+  }
+  if (err instanceof TypeError || err.message?.toLowerCase().includes('failed to fetch') || err.message?.toLowerCase().includes('networkerror')) {
+    throw new Error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+  }
+  throw err;
+}
+```
+
+> **추가 지적:** `AuthDashboard.tsx`의 `fetch` 호출(로그인, 회원가입, 대시보드 조회)은 `api-client.ts`를 거치지 않는 raw `fetch`입니다. 이 경우 위 수정이 자동으로 적용되지 않으므로, `handleAuthSubmit`과 `fetchDashboardData`의 `catch` 블록에도 동일한 `TypeError` 가드를 별도로 추가해야 합니다.
+
+---
+
+### 3. `AuthDashboard.tsx` 종합 진단
+
+#### 3-A. 하드코딩된 백엔드 주소 (심각)
+
+현재 코드에 `http://localhost:8000`이 **3곳**에 하드코딩되어 있습니다:
+
+| 위치 | 문제 |
+|------|------|
+| `line 75` | 대시보드 프로젝트 조회 |
+| `line 108` | 로그인 API 호출 |
+| `line 150` | 회원가입 API 호출 |
+
+`api-client.ts:3`에는 `NEXT_PUBLIC_BACKEND_URL` 환경변수가 이미 적용되어 있지만, `AuthDashboard.tsx`는 이를 전혀 사용하지 않습니다. 계획대로 `BACKEND_URL` 상수로 통일해야 합니다.
+
+#### 3-B. 비밀번호 찾기 (`isForgotPasswordMode`) - 완전히 미구현
+
+현재 `AuthDashboard.tsx`에 `isForgotPasswordMode` 상태가 존재하지 않습니다. 계획이 완전히 신규 구현이며, 다음 세 가지가 필요합니다:
+1. `isForgotPasswordMode` 상태 변수 추가
+2. 이메일만 입력하는 별도 폼 UI 렌더링 분기
+3. `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })` 호출 로직
+
+> **Open Question 검토:** 계획의 `window.location.origin` 방식은 로컬/프로덕션 양쪽을 자동으로 처리하므로 타당합니다. `https://raptor-composer.vercel.app` 하드코딩보다 유연한 좋은 설계입니다.
+
+#### 3-C. 비밀번호 6자 가드 - 미구현
+
+현재 `handleAuthSubmit` 내부에 길이 검사 로직이 없습니다. 계획대로 회원가입 모드 시 서브밋 전 프론트엔드 레벨 가드가 필요합니다:
+
+```typescript
+if (!isLoginMode && password.length < 6) {
+  setAuthError("비밀번호는 최소 6자 이상이어야 합니다.");
+  return;
+}
+```
+
+안내 문구(`* 비밀번호는 최소 6자 이상이어야 합니다.`)도 비밀번호 필드 아래에 조건부 렌더링으로 추가해야 합니다.
+
+#### 3-D. 로그인 버튼 겹침 (`line 263`)
+
+**현재 코드:**
+```tsx
+<div className="absolute top-12 right-24 z-[40]">
+```
+
+**수정 필요:**
+```tsx
+<div className="fixed top-6 right-6 z-[999]">
+```
+
+`absolute`는 부모 컨테이너 기준으로 위치가 결정되어 스크롤이나 레이아웃 변화에 취약합니다. `fixed`로 변경하면 뷰포트 기준으로 고정되어 타이틀 이미지 및 하단 패널과의 겹침 문제가 해결됩니다. `z-[40]`에서 `z-[999]`로의 상향도 모달(`z-[1000]`) 바로 아래 레이어로서 적절합니다.
+
+---
+
+### 최종 리뷰 요약
+
+| # | 항목 | 계획 타당성 | 현재 상태 | 우선순위 |
+|---|------|------------|-----------|---------|
+| 1 | CORS 하드코딩 추가 | ✅ 타당 | 누락 | **P0 긴급** |
+| 2 | api-client 네트워크 에러 한글화 | ✅ 타당 | 누락 | **P1** |
+| 3 | AuthDashboard raw fetch 에러 가드 | ✅ 타당 (계획에 언급됨) | 누락 | **P1** |
+| 4 | 하드코딩 BACKEND_URL 교체 | ✅ 타당 | 3곳 누락 | **P0 긴급** |
+| 5 | 비밀번호 찾기 모드 | ✅ 타당 | 완전 미구현 | **P1** |
+| 6 | 비밀번호 6자 가드 | ✅ 타당 | 누락 | **P1** |
+| 7 | 로그인 버튼 absolute→fixed | ✅ 타당 | 수정 필요 | **P2** |
+
+계획 자체의 방향성은 모두 올바릅니다. 구현 시 특히 **P0 항목(CORS, 하드코딩된 localhost URL)** 을 가장 먼저 처리하면 클라우드 연결 장애를 즉시 해소할 수 있습니다. 구현을 진행할까요?

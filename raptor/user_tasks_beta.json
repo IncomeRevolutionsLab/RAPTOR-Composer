@@ -1,0 +1,112 @@
+[
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_1_1780601439",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 1 비디오 생성 시도",
+    "status": "success",
+    "result_url": "https://tempfile.aiquickdraw.com/g/users/4358e11e-fca8-40c6-8077-c011e16a32bb/generated/1c5421ed-3b8c-4503-9844-00a2e123c3d3/generated_video.mp4",
+    "error": null,
+    "created_at": "2026-06-05T04:30:39.607033"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_2_1780601440",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 2 비디오 생성 시도",
+    "status": "success",
+    "result_url": "https://tempfile.aiquickdraw.com/g/users/cb593cda-5ac0-4820-9a68-de5b399b731a/generated/044c0679-c932-48a5-8aec-dd5a6b212c47/generated_video.mp4",
+    "error": null,
+    "created_at": "2026-06-05T04:30:40.384637"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_3_1780601441",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 3 비디오 생성 시도",
+    "status": "success",
+    "result_url": "https://tempfile.aiquickdraw.com/g/users/dc1c325b-cd06-43b7-bc55-3f7c0a8ba2b2/generated/f8c2900e-2268-49d2-9192-e734eb4037ec/generated_video.mp4",
+    "error": null,
+    "created_at": "2026-06-05T04:30:41.094883"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_4_1780601441",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 4 비디오 생성 시도",
+    "status": "success",
+    "result_url": "https://tempfile.aiquickdraw.com/g/users/e1bd6611-ec5e-4ebf-a2dc-ca11d9d8b61b/generated/7c592f84-355a-4807-a9da-8199c8dac31e/generated_video.mp4",
+    "error": null,
+    "created_at": "2026-06-05T04:30:41.696794"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_5_1780601442",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 5 비디오 생성 시도",
+    "status": "pending",
+    "result_url": null,
+    "error": null,
+    "created_at": "2026-06-05T04:30:42.289764"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_6_1780601443",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 6 비디오 생성 시도",
+    "status": "success",
+    "result_url": "https://tempfile.aiquickdraw.com/g/users/5ed60e64-169e-4792-990c-9076d7bbdc93/generated/8bb89116-2f75-42d6-af4d-a7e5a1f56e00/generated_video.mp4",
+    "error": null,
+    "created_at": "2026-06-05T04:30:43.153673"
+  },
+  {
+    "task_id": "task_1780601523",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "final_render",
+    "description": "최종 동영상 MP4 렌더링 시도",
+    "status": "failed",
+    "result_url": null,
+    "error": "OpenAI TTS API Error (401): {\n    \"error\": {\n        \"message\": \"Incorrect API key provided: c0edc7dd********************be10. You can find your API key at https://platform.openai.com/account/api-keys.\",\n        \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\": \"invalid_api_key\"\n    }\n}\n",
+    "created_at": "2026-06-05T04:32:03.541422"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_5_1780602544",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 5 비디오 생성 시도",
+    "status": "success",
+    "result_url": null,
+    "error": null,
+    "created_at": "2026-06-05T04:49:04.180962"
+  },
+  {
+    "task_id": "task_1780602544",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "final_render",
+    "description": "최종 동영상 MP4 렌더링 시도",
+    "status": "failed",
+    "result_url": null,
+    "error": "OpenAI TTS API Error (401): {\n    \"error\": {\n        \"message\": \"Incorrect API key provided: c0edc7dd********************be10. You can find your API key at https://platform.openai.com/account/api-keys.\",\n        \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\": \"invalid_api_key\"\n    }\n}\n",
+    "created_at": "2026-06-05T04:49:04.236815"
+  },
+  {
+    "task_id": "task_8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981_5_1780603002",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "video_generation",
+    "description": "장면 5 비디오 생성 시도",
+    "status": "success",
+    "result_url": null,
+    "error": null,
+    "created_at": "2026-06-05T04:56:42.288520"
+  },
+  {
+    "task_id": "task_1780603002",
+    "project_id": "8fe6f6c0-fdb5-48a8-bf50-8e2d8ab84981",
+    "task_type": "final_render",
+    "description": "최종 동영상 MP4 렌더링 시도",
+    "status": "failed",
+    "result_url": null,
+    "error": "OpenAI TTS API Error (401): {\n    \"error\": {\n        \"message\": \"Incorrect API key provided: c0edc7dd********************be10. You can find your API key at https://platform.openai.com/account/api-keys.\",\n        \"type\": \"invalid_request_error\",\n        \"param\": null,\n        \"code\": \"invalid_api_key\"\n    }\n}\n",
+    "created_at": "2026-06-05T04:56:42.345339"
+  }
+]

@@ -1,0 +1,69 @@
+클로드 코드(Claude Code)에게 보내는 사후 리뷰(Post-Review) 요청:
+
+아래는 RAPTOR v2.14.1-hotfix CSRF Cross-Origin 수술 및 환경변수 정합성 패치의 최종 변경 내용이다.
+현재 변경된 상태를 실제 소스 코드와 교차 검증하여 아키텍처 사후 리뷰(Post-Review) 보고서를 한국어로 작성해줘.
+
+[이번 패치 배경]
+Vercel(프론트) → Render(백엔드) cross-origin 직접 호출 아키텍처로 인해 발생한 2가지 버그 수술:
+1. (P0) CSRF 쿠키 SameSite=Lax 정책이 cross-origin POST 요청에서 쿠키 전송을 차단하여 핵심 API 403 에러 발생
+2. (P1) AuthDashboard.tsx에서 존재하지 않는 NEXT_PUBLIC_API_URL 환경변수를 참조하여 영상 재생 URL 폴백 실패
+
+[검토 대상 변경 사항 요약]
+
+변경 1: main.py — CSRF 쿠키 SameSite 정책 변경 (P0)
+  수정 위치 4곳 (모두 동일한 패턴):
+  - /api/auth/csrf-token (GET) L695: samesite="lax" → samesite="none"
+  - /api/auth/set-key (POST) L710: samesite="lax" → samesite="none"  
+  - /api/auth/clear-key (POST) L719: delete_cookie samesite="lax" → samesite="none"
+  - /api/auth/check-key (GET) L733: samesite="lax" → samesite="none"
+  ※ secure=IS_PROD 설정은 전부 유지됨 (samesite=none은 반드시 Secure 필요)
+
+변경 2: src/components/AuthDashboard.tsx — 환경변수명 통일 (P1)
+  - L15: process.env.NEXT_PUBLIC_API_URL → process.env.NEXT_PUBLIC_BACKEND_URL
+  - getAbsoluteVideoUrl() 함수의 폴백 baseUrl 참조 변수 교정
+
+변경 3: src/components/RaptorWorkflow.tsx — 하드코딩 localhost URL 제거 (이전 세션)
+  - 비디오 업로드/재생 관련 http://localhost:8000 하드코딩 5개 → ${BACKEND_URL} 변수 교체
+
+변경 4: Vercel 환경변수 업데이트 (이전 세션)
+  - NEXT_PUBLIC_BACKEND_URL: "" → "https://raptor-composer.onrender.com"
+
+[현재 아키텍처 요약]
+- Frontend: https://raptor-composer.vercel.app (Next.js, Vercel Hobby)
+- Backend: https://raptor-composer.onrender.com (FastAPI, Render Free)
+- 통신 방식: 직접 cross-origin 호출 (CORS 허용, Vercel 10초 타임아웃 우회 목적)
+- 쿠키: raptor_csrf (SameSite=None, Secure=IS_PROD, HttpOnly=False)
+- CORS 헤더: main.py에 allow_origins 설정 있음
+
+[주요 소스 코드 참고 파일]
+main.py 파일의 다음 섹션을 중점 검토:
+1. L685~L736: set_cookie / delete_cookie 4곳 (samesite=none 적용 여부)
+2. L695: IS_PROD 변수 정의 확인 (secure=IS_PROD가 실제로 True인지)
+3. CORS 설정 (allow_origins에 vercel 도메인 포함 여부)
+4. verify_csrf() 함수: Cookie(None)으로 수신하는 raptor_csrf가 none 정책으로 정상 수신되는지
+src/components/AuthDashboard.tsx L10~L20 섹션 검토
+
+리뷰 보고서는 반드시 다음 형식으로 한국어로 작성해주세요:
+
+# 📋 RAPTOR v2.14.1-hotfix CSRF Cross-Origin 멸균 수술 사후 아키텍처 리뷰 보고서 (Post-Review)
+
+1. [P0] CSRF SameSite=None 수술 평가
+   - samesite=none 적용 완결성 (4곳 모두 수정 여부)
+   - IS_PROD=True 보장 여부 (Secure 속성 실효성)
+   - verify_csrf() 함수가 cross-origin에서 쿠키를 정상 수신하는지
+   - CORS allow_origins 설정이 Vercel 도메인을 포함하는지
+   - PASS / FAIL 판정
+
+2. [P1] AuthDashboard.tsx 환경변수 교정 평가
+   - NEXT_PUBLIC_BACKEND_URL 참조 정확성
+   - getAbsoluteVideoUrl() 함수의 동작 흐름 검증
+   - PASS / FAIL 판정
+
+3. 잠재적 신규 위험 요소 (SameSite=None 변경으로 인한 부작용)
+   - CSRF 공격 노출면 변화 평가
+   - HttpOnly=False 유지에 따른 XSS 취약점 평가
+   - Render Free Plan 슬립 이후 쿠키 세션 소실 가능성
+
+4. TDD 채점표 (코드 기반 PASS/FAIL 표)
+
+5. 최종 결론 및 잔여 권고사항

@@ -5,15 +5,25 @@
 ---
 
 ## 📊 리스크 현황 요약
-*   **[New] 신규 리스크:** 0건
+*   **[New] 신규 리스크:** 2건 (N-PERF-001, N-MEM-001)
 *   **[Pending] 진행 중/보류 리스크:** 5건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010)
-*   **[Resolved] 해결된 리스크:** 59건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009)
+*   **[Resolved] 해결된 리스크:** 63건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009, N-BUG-001, N-BUG-002, N-SEC-001, N-SEC-002)
 
 ---
 
 ## 1. 🔴 [New] 신규 리스크
 
-현재 신규 리스크가 존재하지 않습니다. 최종 Human Validation 과정에서 보고된 5대 CORS/UX 결함들이 전원 완치되어 정상 해결되었습니다.
+### 🟡 N-PERF-001: 신호등 UX 폴링 — DB 과부하
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 보통 (Medium / P3)
+*   **상태:** `[New]`
+*   **리스크 내용:** 5초 주기 폴링이 유휴 상태에서도 계속 DB 쿼리를 발생시켜 연결 풀 압박을 줌.
+
+### 🟡 N-MEM-001: 클라이언트 ZIP 패키징 — 메모리 과부하
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 보통 (Medium / P3)
+*   **상태:** `[New]`
+*   **리스크 내용:** 비디오 전체를 브라우저 메모리에 로드(blob)하여 JSZip에 담아 OOM(크래시) 위험 존재.
 
 ---
 
@@ -59,6 +69,22 @@
 ---
 
 ## 3. 🟢 [Resolved] 해결된 리스크
+
+### 🛠️ N-BUG-001: `render_video` 성공 시 `output_url` yield 절대 미실행 (Dead Code)
+*   **상태:** `[Resolved]`
+*   **해결 내역:** `ffmpeg_worker.py` 내부에서 `yield` 블록을 `except` 구문 밖인 `if os.path.exists` 구문 정상 레벨로 Un-indent 하여 반환 불능 버그 완전 수리.
+
+### 🛠️ N-BUG-002: Phase 1/2 예외 발생 시 Semaphore 영구 누수
+*   **상태:** `[Resolved]`
+*   **해결 내역:** 렌더링 블록 최상단에 `async with self.render_semaphore:` 구문을 컨텍스트 매니저로 이식하여 임의 예외 발생 시에도 자동 락 해제가 100% 보장되도록 복구 완료.
+
+### 🛠️ N-SEC-001: `/api/projects/{project_id}/download-assets` — 인증 없는 IDOR
+*   **상태:** `[Resolved]`
+*   **해결 내역:** 백엔드에 쿼리 파라미터(`?token=...`) 기반 JWT 검증과 `project_owner_id` 조회 및 대조 가드를 추가하고, 프론트엔드 URL 호출부에도 `access_token`을 동적으로 주입하여 IDOR 취약점 완전 방어.
+
+### 🛠️ N-SEC-002: `/api/render-stream-test` — 비인증 공개 엔드포인트 노출
+*   **상태:** `[Resolved]`
+*   **해결 내역:** 프로덕션 환경에서 불필요한 테스트용 엔드포인트를 원천 삭제하여 해당 경로를 통한 접근 및 IDOR 취약점 완전 소거.
 
 ### 🛠️ RISK-005: Koyeb CORS 설정 누락 및 ALLOWED_ORIGINS 미작동 결함
 *   **상태:** `[Resolved]`

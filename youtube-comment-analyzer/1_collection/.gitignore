@@ -1,0 +1,6 @@
+.env
+*.json
+!checkpoint.json.template
+data/
+__pycache__/
+*.csv

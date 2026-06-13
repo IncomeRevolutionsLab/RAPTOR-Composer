@@ -1,0 +1,117 @@
+클로드 코드(Claude Code)에게 보내는 리뷰 요청:
+
+아래의 RAPTOR v2.14.1 Vercel 프록시 정합성 핫픽스(Hotfix) 패치 내용을 상세히 읽고,
+아키텍처적 완성도, 잠재적 버그, 보안 문제, 또는 더 나은 개선점이 있는지
+한국어로 꼼꼼하게 리뷰해줘.
+
+[패치 배경 및 원인 분석]
+프론트엔드 로그인/회원가입 시 `<!DOCTYPE html> is not valid JSON` 에러가 발생.
+원인: API 요청이 JSON을 반환하는 Render 백엔드가 아닌, Vercel 자신의 HTML 폴백 페이지로
+라우팅되고 있었음.
+
+[근본 원인 (Root Cause)]
+1. NEXT_PUBLIC_BACKEND_URL 환경변수 버그:
+   Vercel 대시보드에 NEXT_PUBLIC_BACKEND_URL이 빈 문자열("")로 설정되어 있었음.
+   JavaScript에서 빈 문자열은 truthy이므로 `|| 'http://localhost:8000'` 폴백이 작동하지 않음.
+   결과: fetch("" + "/api/auth/signin") = fetch("/api/auth/signin") → Vercel 자신에게 요청
+   → Next.js 404 HTML 반환 → JSON.parse 실패 → "<!DOCTYPE html> is not valid JSON"
+
+2. RaptorWorkflow.tsx 내 하드코딩된 localhost URL 5개:
+   비디오 업로드(/api/user-videos) 및 outputs 경로가 http://localhost:8000으로
+   하드코딩되어 있어, 프로덕션 환경에서도 로컬 서버로 요청이 전송되고 있었음.
+
+[검토 대상 파일]
+1. `vercel.json` — 프록시 리라이트 설정 확인 (원래 정상, 수정 없음)
+2. `.env.production.local` — NEXT_PUBLIC_BACKEND_URL 값 수정
+3. `src/components/RaptorWorkflow.tsx` — 하드코딩 URL 5개 변수 참조로 교체
+
+[주요 패치 내용]
+
+패치 1: Vercel 환경변수 업데이트 (CLI 명령)
+  - 기존: vercel env에 NEXT_PUBLIC_BACKEND_URL = "" (빈 문자열)
+  - 변경: NEXT_PUBLIC_BACKEND_URL = "https://raptor-composer.onrender.com"
+  - 방법: `vercel env rm NEXT_PUBLIC_BACKEND_URL production --yes` 후
+          `echo "https://raptor-composer.onrender.com" | vercel env add NEXT_PUBLIC_BACKEND_URL production`
+
+패치 2: .env.production.local 동기화
+  - 기존: NEXT_PUBLIC_BACKEND_URL=""
+  - 변경: NEXT_PUBLIC_BACKEND_URL="https://raptor-composer.onrender.com"
+  - 목적: 로컬 환경과 Vercel 환경변수 정합성 확보
+
+패치 3: RaptorWorkflow.tsx 하드코딩 URL 제거
+  변경 위치 및 내용 (총 5곳):
+
+  [L1346] video src 속성:
+  - 기존: `http://localhost:8000/outputs/${scene.user_video_id}.mp4`
+  - 변경: `${BACKEND_URL}/outputs/${scene.user_video_id}.mp4`
+
+  [L1424] 비디오 업로드 fetch (첫 번째 인스턴스):
+  - 기존: fetch('http://localhost:8000/api/user-videos', ...)
+  - 변경: fetch(`${BACKEND_URL}/api/user-videos`, ...)
+
+  [L1431] 업로드 후 video_url 설정 (첫 번째):
+  - 기존: `http://localhost:8000/outputs/${data.id}.mp4`
+  - 변경: `${BACKEND_URL}/outputs/${data.id}.mp4`
+
+  [L1491] 비디오 업로드 fetch (두 번째 인스턴스, "비디오 변경" 버튼):
+  - 기존: fetch('http://localhost:8000/api/user-videos', ...)
+  - 변경: fetch(`${BACKEND_URL}/api/user-videos`, ...)
+
+  [L1498] 업로드 후 video_url 설정 (두 번째):
+  - 기존: `http://localhost:8000/outputs/${data.id}.mp4`
+  - 변경: `${BACKEND_URL}/outputs/${data.id}.mp4`
+
+  ※ BACKEND_URL은 파일 상단 L9에서 이미 선언되어 있었음:
+    `const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';`
+
+패치 4: Vercel 강제 재배포
+  - 명령: `npx vercel --prod --yes --force`
+  - 결과: READY (dpl_BFp2NEBvpnrYJB2wRwa77W8ufWXN)
+  - 배포 URL: https://raptor-composer.vercel.app
+
+[vercel.json 현재 상태 (참고용 — 수정 없음)]
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://raptor-composer.onrender.com/api/:path*"
+    },
+    {
+      "source": "/outputs/:path*",
+      "destination": "https://raptor-composer.onrender.com/outputs/:path*"
+    }
+  ]
+}
+
+[리뷰 요청 포인트]
+1. 환경변수 관리 아키텍처 평가:
+   - NEXT_PUBLIC_BACKEND_URL을 명시적 Render URL로 설정하는 방식 vs
+     빈 값으로 두고 Vercel 프록시(/api/*)만 활용하는 방식 중 어느 쪽이 더 안전하고 올바른가?
+   - 두 방식의 CORS 및 쿠키(credentials: 'include') 처리 관점에서의 차이점은?
+
+2. 하드코딩 URL 제거의 완결성:
+   - 현재 코드베이스에 남아있는 localhost 또는 절대 URL 하드코딩이 더 있는지?
+   - AuthDashboard.tsx (L15)의 NEXT_PUBLIC_API_URL 변수는 무엇이며 실제로 사용되는가?
+
+3. CORS 및 credentials 이슈 가능성:
+   - NEXT_PUBLIC_BACKEND_URL이 https://raptor-composer.onrender.com을 직접 가리킬 때
+     credentials: 'include' 요청에서 CORS 정책 위반이 발생할 가능성은?
+   - Vercel 프록시를 통하면 same-origin으로 처리되어 쿠키가 올바르게 전달되지만,
+     직접 Render를 가리키면 cross-origin이 되어 CORS 헤더 설정이 필요함.
+     현재 Render 백엔드(main.py)의 CORS 설정이 이를 허용하고 있는지?
+
+4. 보안 관점:
+   - NEXT_PUBLIC_ 변수는 클라이언트에 노출됨. Render URL을 공개해도 보안상 문제없는가?
+   - vercel.json의 리라이트 규칙이 모든 /api/* 경로를 Render로 전달하는 현재 구조에서
+     Vercel 자체 API Routes와의 충돌 가능성은?
+
+리뷰 보고서 형식:
+# 📋 RAPTOR v2.14.1 Vercel 프록시 정합성 핫픽스 사후 리뷰 보고서
+
+1. 핵심 버그 수정 평가 (NEXT_PUBLIC_BACKEND_URL 빈 문자열 버그)
+2. 하드코딩 URL 제거 완결성 평가
+3. CORS/credentials 아키텍처 위험도 평가 (직접 Render vs Vercel 프록시)
+4. 보안 관점 평가
+5. 잠재적 회귀(Regression) 위험 요소
+6. 최종 결론 및 추가 권고사항

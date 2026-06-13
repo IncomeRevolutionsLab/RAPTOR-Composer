@@ -1,0 +1,7 @@
+{
+    "video_id": "EXAMPLE_ID",
+    "next_page_token": "TOKEN_HERE",
+    "part_index": 1,
+    "total_collected": 0,
+    "last_updated": "2024-01-01T00:00:00"
+}

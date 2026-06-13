@@ -1,0 +1,590 @@
+[
+  {
+    "id": "TC001",
+    "title": "View real-time stats and data freshness on dashboard load",
+    "description": "Verifies that opening the dashboard automatically renders global stats including data freshness indicators and top collected keywords.",
+    "category": "Global Real-time Stats",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify global real-time statistics are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify data freshness indicators including an active dataset/sync version and top collected keywords are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "View the 3D trend chart on dashboard load",
+    "description": "Verifies that the 3D trend visualization renders on page initialization so users can start exploring domain trajectories.",
+    "category": "3D Trend Visualization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a 3D trend visualization is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Open a domain time-series detail by selecting a chart point",
+    "description": "Verifies that selecting a point in the 3D trend visualization reveals time-series details for the chosen domain.",
+    "category": "3D Trend Visualization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Click a visible point on the 3D trend chart"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify time-series details for a selected domain are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Run N-depth analysis from a category keyword and review results",
+    "description": "Verifies that submitting a category keyword returns an N-depth category view with products, related keywords, and a focused trend chart.",
+    "category": "N-Depth Category Analysis",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"wireless earbuds\" into the category/keyword search field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the category analysis search"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an N-depth category path or tree is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a product list and a focused trend chart are displayed for the analysis results"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Start analysis from a popular keyword chip",
+    "description": "Selecting a popular keyword chip filters the analysis view so the product list and trend chart update to reflect that keyword.",
+    "category": "Popular Keywords",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for popular keyword chips to load"
+      },
+      {
+        "type": "action",
+        "description": "Click a popular keyword chip"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a product list is displayed for the selected keyword"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a focused trend chart is displayed for the selected keyword"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "See collection progress indicators during rolling updates",
+    "description": "Verifies that the dashboard presents collection progress and recent-activity signals so users can understand ongoing updates and what domains are active.",
+    "category": "Global Real-time Stats",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify collection progress information is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a view of recent activity by domain or keyword is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Rotate or pan the 3D trend view to inspect different slices",
+    "description": "Verifies that users can manipulate the 3D trend visualization to inspect different domains and time slices.",
+    "category": "3D Trend Visualization",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Click and drag on the 3D trend chart to rotate the view"
+      },
+      {
+        "type": "action",
+        "description": "Click and drag on the 3D trend chart again to pan the view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the 3D trend visualization view updates in response to the interaction"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Iterate on N-depth analysis by refining the keyword fragment",
+    "description": "Verifies that users can refine a keyword and re-run analysis to update the returned products/keywords and trend chart.",
+    "category": "N-Depth Category Analysis",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"protein\" into the category/keyword search field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the category analysis search"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"protein bar\" into the category/keyword search field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the category analysis search"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the analysis results refresh to show a new or updated product list and focused trend chart"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC009",
+    "title": "Browse popular keywords and switch between chips",
+    "description": "Switching from one popular keyword chip to another updates the displayed analysis results accordingly.",
+    "category": "Popular Keywords",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for popular keyword chips to load"
+      },
+      {
+        "type": "action",
+        "description": "Click one popular keyword chip"
+      },
+      {
+        "type": "action",
+        "description": "Click a different popular keyword chip"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the analysis results update after switching chips"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the product list is still displayed after switching chips"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC010",
+    "title": "Identify which keywords are currently most collected",
+    "description": "Verifies that users can see a ranked or grouped view of top-collected keywords to decide what to explore next.",
+    "category": "Global Real-time Stats",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Scroll to the top-collected keywords section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a list of top-collected keywords is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC011",
+    "title": "Generate a short-form plan from a keyword input",
+    "description": "Submitting a keyword on the RAPTOR page generates a plan output including top product picks and hook points.",
+    "category": "RAPTOR AI Short-form Plan Generation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /raptor.html"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid keyword into the RAPTOR input field"
+      },
+      {
+        "type": "action",
+        "description": "Request generation of a short-form plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a generated plan output is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify top recommended products and hook points are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC012",
+    "title": "Regenerate a plan after refining the input",
+    "description": "Refining the RAPTOR input and requesting regeneration updates the displayed plan output.",
+    "category": "RAPTOR AI Short-form Plan Generation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /raptor.html"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid keyword into the RAPTOR input field"
+      },
+      {
+        "type": "action",
+        "description": "Request generation of a short-form plan"
+      },
+      {
+        "type": "action",
+        "description": "Fill additional refinement text into the RAPTOR input field"
+      },
+      {
+        "type": "action",
+        "description": "Request regeneration of the short-form plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an updated plan output is displayed after regeneration"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify top recommended products and hook points are displayed after regeneration"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC013",
+    "title": "Chip selection is reflected consistently in analysis area",
+    "description": "After selecting a popular keyword chip, the analysis area consistently reflects the selected keyword without showing mismatched or stale results.",
+    "category": "Popular Keywords",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for popular keyword chips to load"
+      },
+      {
+        "type": "action",
+        "description": "Click a popular keyword chip"
+      },
+      {
+        "type": "action",
+        "description": "Scroll to the analysis results section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the analysis view appears consistent, with products and trend visualization aligned to the current selection"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC014",
+    "title": "Explore returned category path and drill into listed products or keywords",
+    "description": "Verifies that after running analysis, users can interact with the returned category path/tree and related items to continue exploration without breaking the view.",
+    "category": "N-Depth Category Analysis",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"standing desk\" into the category/keyword search field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the category analysis search"
+      },
+      {
+        "type": "action",
+        "description": "Click a category node or segment within the returned N-depth category path/tree"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the focused trend chart and product list update to reflect the selected node"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC015",
+    "title": "Navigate between dashboard and RAPTOR without losing input expectations",
+    "description": "Moving from RAPTOR to the dashboard and back keeps the pages usable and the RAPTOR page still clearly accepts new input for generation.",
+    "category": "RAPTOR AI Short-form Plan Generation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /raptor.html"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid keyword into the RAPTOR input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to the main dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to return to the RAPTOR page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the RAPTOR input field is available for entering a keyword"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user can see the controls needed to request plan generation"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC016",
+    "title": "Chip interaction remains responsive after multiple selections",
+    "description": "Repeatedly selecting different popular keyword chips keeps the UI responsive and continues updating analysis results.",
+    "category": "Popular Keywords",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for popular keyword chips to load"
+      },
+      {
+        "type": "action",
+        "description": "Click a popular keyword chip"
+      },
+      {
+        "type": "action",
+        "description": "Click a different popular keyword chip"
+      },
+      {
+        "type": "action",
+        "description": "Click a third popular keyword chip"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the analysis results are displayed after the final selection"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the page remains interactive after multiple selections"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC017",
+    "title": "Show validation prompt when submitting N-depth search with empty input",
+    "description": "Verifies that submitting the category analysis with an empty keyword prompts the user to enter a keyword and does not run analysis.",
+    "category": "N-Depth Category Analysis",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard to finish initial loading"
+      },
+      {
+        "type": "action",
+        "description": "Focus the category/keyword search field"
+      },
+      {
+        "type": "action",
+        "description": "Press Enter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a keyword-required validation prompt is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC018",
+    "title": "Prevent generation with empty input",
+    "description": "Attempting to generate a RAPTOR plan with empty input shows a validation prompt and does not produce a plan output.",
+    "category": "RAPTOR AI Short-form Plan Generation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /raptor.html"
+      },
+      {
+        "type": "action",
+        "description": "Fill whitespace-only text into the RAPTOR input field"
+      },
+      {
+        "type": "action",
+        "description": "Request generation of a short-form plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an input validation message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no plan output is displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC019",
+    "title": "Popular keywords show an empty state when no chips are available",
+    "description": "If popular keywords cannot be displayed as chips, the page shows an appropriate empty state instead of a broken UI.",
+    "category": "Popular Keywords",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the popular keywords area to finish loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify either popular keyword chips are displayed or an empty state message is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC020",
+    "title": "Handle long and special-character keywords in RAPTOR input",
+    "description": "Submitting a long keyword with special characters still results in a generated plan output without UI breakage.",
+    "category": "RAPTOR AI Short-form Plan Generation",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /raptor.html"
+      },
+      {
+        "type": "action",
+        "description": "Fill a very long keyword string with special characters into the RAPTOR input field"
+      },
+      {
+        "type": "action",
+        "description": "Request generation of a short-form plan"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a generated plan output is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the plan area renders normally without broken layout"
+      }
+    ],
+    "priority": "Low"
+  }
+]

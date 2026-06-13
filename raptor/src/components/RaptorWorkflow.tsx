@@ -73,6 +73,36 @@ export default function RaptorWorkflow() {
   const [sceneFeedbacks, setSceneFeedbacks] = useState<Record<number, string>>({});
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  // [NEW] 렌더링 큐 상태 폴링
+  const [renderQueueCount, setRenderQueueCount] = useState(0);
+
+  useEffect(() => {
+    const fetchRenderStatus = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/status/render`);
+        if (res.ok) {
+          const data = await res.json();
+          setRenderQueueCount(data.active_renders || 0);
+        }
+      } catch (err) {
+        console.error("Render status poll failed", err);
+      }
+    };
+    
+    if (mounted) {
+      fetchRenderStatus();
+      const interval = setInterval(fetchRenderStatus, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [mounted]);
+
+  const getTrafficLight = () => {
+    if (renderQueueCount === 0) return { color: "bg-green-500", text: "원활" };
+    if (renderQueueCount === 1) return { color: "bg-orange-500", text: "보통" };
+    return { color: "bg-red-500", text: "포화 대기" };
+  };
+  const trafficLight = getTrafficLight();
+
   const handleCancelRender = () => {
     if (abortController) {
       abortController.abort();
@@ -333,7 +363,7 @@ export default function RaptorWorkflow() {
         } catch (error: any) {
           let displayError = error.message;
           if (error.message.includes('401') || error.message.includes('403') || error.message.includes('Tier') || error.message.includes('model_not_found') || error.message.includes('not exist')) {
-            displayError = "AI 이미지 생성 권한 없음 (KIE 결제 정보 확인 필요)";
+            displayError = `${error.message}`; // 에러 마스킹 해제 (실제 에러 원문 노출)
           }
 
           setFinalAssets((prev: any) => {
@@ -486,34 +516,15 @@ export default function RaptorWorkflow() {
     }
   };
 
-  const handleRenderVideo = async (overrideScript?: any[]) => {
+  const handleGenerateClips = async (overrideScript?: any[]) => {
     if (!finalAssets?.script) return;
     const store = useWorkflowStore.getState();
     if (!store.user) {
       alert("계정 로그인이 필요합니다. 상단의 로그인 패널에서 이메일 인증을 진행해주세요.");
       return;
     }
-    if (process.env.NODE_ENV === 'production') {
-      const userEmail = store.user?.email || '';
-      const isMock = userEmail.endsWith('@example.com') || 
-                     userEmail.endsWith('@mock.com') || 
-                     userEmail.includes('mock') || 
-                     userEmail.includes('test');
-      if (isMock) {
-        alert("프로덕션 환경에서는 Mock/테스트 계정으로 렌더링을 진행할 수 없습니다.");
-        return;
-      }
-    }
-    const allVideosReady = finalAssets.script.every((s: any) => s.video_url || s.use_image_only);
     
-    if (allVideosReady) {
-      setRenderStatus(true, 50);
-      setLoading(true, '[스마트 스킵] 비디오 소스 준비 완료 - FFmpeg 렌더링 직행 중...');
-    } else {
-      setRenderStatus(true, 10);
-      setLoading(true, '장면별 동영상 생성 중입니다');
-    }
-    
+    setLoading(true, '장면별 비디오 클립 생성 중입니다...');
     setErrorMessage(null);
     const cleanedScript = finalAssets.script.map((scene: any) => {
       if (scene.status === 'error') {
@@ -528,17 +539,12 @@ export default function RaptorWorkflow() {
         'Content-Type': 'application/json',
         'Connection': 'keep-alive',
       };
-      if (store.kieKey) {
-        headers['X-BYOK-KIE'] = store.kieKey;
-      }
+      if (store.kieKey) headers['X-BYOK-KIE'] = store.kieKey;
 
       let activeCsrfToken = store.csrfToken;
       if (!activeCsrfToken) {
         try {
-          const res = await fetch(`${BACKEND_URL}/api/auth/csrf-token`, {
-            method: 'GET',
-            credentials: 'include'
-          });
+          const res = await fetch(`${BACKEND_URL}/api/auth/csrf-token`, { method: 'GET', credentials: 'include' });
           if (res.ok) {
             const data = await res.json();
             if (data.csrf_token) {
@@ -546,23 +552,143 @@ export default function RaptorWorkflow() {
               activeCsrfToken = data.csrf_token;
             }
           }
-        } catch (err) {
-          console.error("Failed to pre-fetch CSRF token for streaming render", err);
-        }
+        } catch (err) {}
       }
-
-      if (activeCsrfToken) {
-        headers['X-CSRF-Token'] = activeCsrfToken;
-      }
+      if (activeCsrfToken) headers['X-CSRF-Token'] = activeCsrfToken;
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
       const requestBody = {
         product_name: productData.name,
         scenes: overrideScript || finalAssets.script,
+        engine: videoEngine,
+        aspect_ratio: aspectRatio,
+        project_id: projectId || undefined
+      };
+
+      const controller = new AbortController();
+      setAbortController(controller);
+      timeoutId = setTimeout(() => { controller.abort(); setAbortController(null); }, 1800000); 
+
+      const response = await fetch(`${BACKEND_URL}/api/generate-video-clips`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+        credentials: 'include',
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        let errorDetail = `API Error (${response.status})`;
+        try { const errData = await response.json(); if (errData.detail) errorDetail = errData.detail; } catch (e) {}
+        throw new Error(errorDetail);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      if (reader) {
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+          for (const part of parts) {
+            if (part.startsWith("data: ")) {
+               try {
+                const dataStr = part.replace("data: ", "");
+                const data = JSON.parse(dataStr);
+                
+                if (data.error) throw new Error(data.error);
+                if (data.message) setLoading(true, data.message);
+                if (data.scene_update) {
+                  setFinalAssets((prev: any) => {
+                    if (!prev || !prev.script) return prev;
+                    const updatedScript = [...prev.script];
+                    const targetIndex = data.scene_update._index;
+                    if (updatedScript[targetIndex]) {
+                      updatedScript[targetIndex] = { ...updatedScript[targetIndex], ...data.scene_update };
+                    }
+                    return { ...prev, script: updatedScript };
+                  });
+                }
+                if (data.clips_ready) {
+                    setLoading(false);
+                    // 클립 생성 완료 표시
+                }
+              } catch (e: any) {
+                if (e.message !== "Unexpected end of JSON input" && !e.message.includes("Unexpected token")) throw e;
+              }
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('Clip Generation Error:', e);
+      let errorMsg = e.message;
+      if (e.name === 'AbortError' || e.message?.includes('aborted')) errorMsg = '응답 시간 초과입니다.';
+      setErrorMessage(`비디오 클립 생성 오류: ${errorMsg}`);
+      const latestAssets = useWorkflowStore.getState().finalAssets;
+      if (latestAssets && latestAssets.script) {
+        const rolledBackScript = latestAssets.script.map((scene: any) => {
+          if (!scene.video_url && !scene.use_image_only) {
+            return { ...scene, status: 'error', error: e.message };
+          }
+          return scene;
+        });
+        setFinalAssets({ ...latestAssets, script: rolledBackScript });
+      }
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+      setLoading(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleRenderFinal = async () => {
+    if (!finalAssets?.script) return;
+    const allVideosReady = finalAssets.script.every((s: any) => s.video_url || s.use_image_only);
+    if (!allVideosReady) {
+        alert("모든 비디오 클립이 준비되지 않았습니다. 실패한 씬을 재생성하거나 스틸컷으로 대체하세요.");
+        return;
+    }
+
+    const store = useWorkflowStore.getState();
+    setRenderStatus(true, 50);
+    setLoading(true, '최종 영상 조립(렌더링) 직행 중...');
+    setErrorMessage(null);
+    let timeoutId: any = null;
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Connection': 'keep-alive',
+      };
+      if (store.kieKey) headers['X-BYOK-KIE'] = store.kieKey;
+
+      let activeCsrfToken = store.csrfToken;
+      if (!activeCsrfToken) {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/auth/csrf-token`, { method: 'GET', credentials: 'include' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.csrf_token) {
+              store.setCsrfToken(data.csrf_token);
+              activeCsrfToken = data.csrf_token;
+            }
+          }
+        } catch (err) {}
+      }
+      if (activeCsrfToken) headers['X-CSRF-Token'] = activeCsrfToken;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const requestBody = {
+        product_name: productData.name,
+        scenes: finalAssets.script,
         voice_type: voiceType,
         aspect_ratio: aspectRatio,
         subtitle_position: subtitlePosition,
@@ -580,13 +706,9 @@ export default function RaptorWorkflow() {
 
       const controller = new AbortController();
       setAbortController(controller);
-      // Increase timeout to 1800s (30 minutes) for heavy parallel AI rendering & Keep-Alive
-      timeoutId = setTimeout(() => {
-        controller.abort();
-        setAbortController(null);
-      }, 1800000); 
+      timeoutId = setTimeout(() => { controller.abort(); setAbortController(null); }, 1800000); 
 
-      const response = await fetch(`${BACKEND_URL}/api/render-stream`, {
+      const response = await fetch(`${BACKEND_URL}/api/render-final`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
@@ -595,24 +717,11 @@ export default function RaptorWorkflow() {
       });
 
       if (!response.ok) {
-        let errorDetail = `API Error (${response.status})`;
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.detail) {
-            errorDetail = errorData.detail;
-          }
-        } catch (err) {
-          try {
-            const text = await response.text();
-            if (text) errorDetail = text;
-          } catch (errInner) {}
-        }
-        throw new Error(errorDetail);
+        throw new Error(`API Error (${response.status})`);
       }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
-      
       let finalUrl = null;
 
       if (reader) {
@@ -620,89 +729,42 @@ export default function RaptorWorkflow() {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-
           buffer += decoder.decode(value, { stream: true });
           const parts = buffer.split("\n\n");
-          buffer = parts.pop() || ""; // Keep the incomplete part
-
+          buffer = parts.pop() || "";
           for (const part of parts) {
             if (part.startsWith("data: ")) {
                try {
                 const dataStr = part.replace("data: ", "");
                 const data = JSON.parse(dataStr);
                 
-                if (data.error) {
-                  throw new Error(data.error);
-                }
-                if (data.message) {
-                  setLoading(true, data.message);
-                }
-                if (data.scene_update) {
-                  setFinalAssets((prev: any) => {
-                    if (!prev || !prev.script) return prev;
-                    const updatedScript = [...prev.script];
-                    const targetIndex = data.scene_update._index;
-                    if (updatedScript[targetIndex]) {
-                      updatedScript[targetIndex] = {
-                        ...updatedScript[targetIndex],
-                        ...data.scene_update
-                      };
-                    }
-                    return { ...prev, script: updatedScript };
-                  });
-                }
+                if (data.error) throw new Error(data.error);
+                if (data.message) setLoading(true, data.message);
                 if (data.output_url) {
                   finalUrl = `${BACKEND_URL}${data.output_url}`;
                 }
               } catch (e: any) {
-                if (e.message !== "Unexpected end of JSON input" && !e.message.includes("Unexpected token")) {
-                  throw e; // rethrow actual errors like FFmpeg error
-                }
+                if (e.message !== "Unexpected end of JSON input" && !e.message.includes("Unexpected token")) throw e;
               }
             }
           }
         }
       }
 
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      
       if (finalUrl) {
         setRenderStatus(false, 100, finalUrl);
         store.setLastRenderTimestamp(Date.now());
       } else {
         throw new Error("결과 URL을 서버로부터 받지 못했습니다.");
       }
-
     } catch (e: any) {
-      console.error('Render Error:', e);
-      let errorMsg = e.message;
-      if (e.name === 'AbortError' || e.message?.includes('aborted') || e.message?.includes('시간 초과') || e.message?.includes('지연') || e.message?.includes('timeout') || e.message?.includes('Timeout')) {
-        errorMsg = '서버 응답 지연(시간 초과)입니다. 실패한 씬 비디오 생성 재시도 버튼을 눌러주세요.';
-      } else {
-        errorMsg = `렌더링 중단 안내: ${errorMsg}. 아래의 '실패한 씬 비디오 생성 재시도' 버튼을 눌러 작업을 이어갈 수 있습니다.`;
-      }
-      setErrorMessage(errorMsg);
+      console.error('Final Render Error:', e);
+      setErrorMessage(`렌더링 중단 안내: ${e.message}`);
       setRenderStatus(false, 0);
-
-      // 미완료된 씬들의 status를 'error'로 명확히 롤백하여 무한 대기 UX 방지
-      const latestAssets = useWorkflowStore.getState().finalAssets;
-      if (latestAssets && latestAssets.script) {
-        const rolledBackScript = latestAssets.script.map((scene: any) => {
-          if (!scene.video_url && !scene.use_image_only) {
-            return { ...scene, status: 'error', error: e.message || '렌더링 중단' };
-          }
-          return scene;
-        });
-        setFinalAssets({ ...latestAssets, script: rolledBackScript });
-      }
     } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
+      setAbortController(null);
     }
   };
 
@@ -710,7 +772,7 @@ export default function RaptorWorkflow() {
     if (!finalAssets?.script) return;
     const cleanScript = finalAssets.script.map((s: any) => ({ ...s, video_url: undefined }));
     setFinalAssets({ ...finalAssets, script: cleanScript });
-    handleRenderVideo(cleanScript);
+    handleGenerateClips(cleanScript);
   };
 
   const handleDownloadPackage = async (url: string, filename: string) => {
@@ -1224,7 +1286,8 @@ export default function RaptorWorkflow() {
 
       {/* Step 3: Final Assets (기획안 편집) */}
       {step === 3 && finalAssets && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
+        <TrafficLightUX />
+<div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
           {(() => {
             const canGoToStep4 = finalAssets?.script && finalAssets.script.length > 0;
             return (
@@ -1412,15 +1475,19 @@ export default function RaptorWorkflow() {
                             <Film className="w-3.5 h-3.5" /> 🎬 비디오 등록
                             <input 
                               type="file" 
-                              accept="video/mp4" 
+                              accept="video/mp4,video/x-m4v,video/*"
                               className="hidden" 
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const formData = new FormData();
-                                  formData.append('file', file);
-                                  setLoading(true, "비디오 업로드 및 정밀 분석 중...");
-                                  try {
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    if (!file.type.startsWith('video/')) {
+                                      alert("비디오 파일만 업로드 가능합니다.");
+                                      return;
+                                    }
+                                    const formData = new FormData();
+                                    formData.append('file', file);
+                                    setLoading(true, "비디오 업로드 및 정밀 분석 중...");
+                                    try {
                                     const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
                                       method: 'POST',
                                       body: formData
@@ -1479,11 +1546,15 @@ export default function RaptorWorkflow() {
                           비디오 변경
                           <input 
                             type="file" 
-                            accept="video/mp4" 
+                            accept="video/mp4,video/x-m4v,video/*"
                             className="hidden" 
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                if (!file.type.startsWith('video/')) {
+                                  alert("비디오 파일만 업로드 가능합니다.");
+                                  return;
+                                }
                                 const formData = new FormData();
                                 formData.append('file', file);
                                 setLoading(true, "비디오 업로드 및 정밀 분석 중...");
@@ -1646,7 +1717,7 @@ export default function RaptorWorkflow() {
                         : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5 opacity-50 pointer-events-none'
                     }`}
                   >
-                    <span>🎬 비디오 생성/렌더링 단계로 이동 (Step 4)</span>
+                    <span>🎬 비디오 생성 단계로 이동 (Step 4)</span>
                   </button>
                 )}
               </div>
@@ -1660,7 +1731,7 @@ export default function RaptorWorkflow() {
         <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-3xl font-black text-white whitespace-nowrap">4단계: 최종 비디오 렌더링 및 모니터</h2>
+              <h2 className="text-3xl font-black text-white whitespace-nowrap">4단계: 비디오 클립 생성 및 모니터</h2>
               <p className="text-xs text-gray-500 tracking-widest flex items-center gap-2"><Smartphone className="w-3 h-3" /> {aspectRatio} • {productData?.targetLanguage} Optimized</p>
             </div>
           </div>
@@ -1682,7 +1753,7 @@ export default function RaptorWorkflow() {
               const totalScenes = script.length || 0;
               const completedImages = script.filter((s: any) => s.image_url).length;
               const hasImageError = script.some((s: any) => s.status === 'error');
-              const completedVideos = script.filter((s: any) => s.video_url).length;
+              const completedVideos = script.filter((s: any) => s.video_url || s.use_image_only).length;
 
               const stage1Status = analysis ? 'success' : 'error';
               const stage2Status = totalScenes > 0 ? 'success' : 'error';
@@ -1706,8 +1777,8 @@ export default function RaptorWorkflow() {
                 { id: 1, name: '상품 분석', status: stage1Status, desc: 'AI 상품 기획 및 소구점 도출', action: handleAnalyze, actionLabel: '분석 재시도' },
                 { id: 2, name: '시나리오 작성', status: stage2Status, desc: `총 ${totalScenes}개 씬 구성 완료`, action: handleAnalyze, actionLabel: '스크립트 재작성' },
                 { id: 3, name: '이미지 생성', status: stage3Status, desc: `이미지 완료 (${completedImages}/${totalScenes})`, action: undefined, actionLabel: '' },
-                { id: 4, name: '비디오 생성', status: stage4Status, desc: `비디오 클립 완료 (${completedVideos}/${totalScenes})`, action: handleRenderVideo, actionLabel: '실패한 씬 비디오 생성 재시도' },
-                { id: 5, name: '최종 렌더링', status: stage5Status, desc: renderedVideoUrl ? '최종 MP4 완성' : isRendering ? `렌더링 진행 중 (${renderProgress}%)` : '대기 중', action: handleRenderVideo, actionLabel: '최종 렌더링 재시도' },
+                { id: 4, name: '비디오 생성', status: stage4Status, desc: `비디오 클립 완료 (${completedVideos}/${totalScenes})`, action: handleGenerateClips, actionLabel: '실패한 씬 비디오 생성 재시도' },
+                { id: 5, name: '최종 렌더링', status: stage5Status, desc: renderedVideoUrl ? '최종 MP4 완성' : isRendering ? `렌더링 진행 중 (${renderProgress}%)` : '대기 중', action: handleRenderFinal, actionLabel: '최종 렌더링 재시도' },
               ];
 
               return (
@@ -1838,18 +1909,65 @@ export default function RaptorWorkflow() {
                 </div>
               </div>
 
-              <div className="w-full">
-                <button 
-                  onClick={() => handleRenderVideo()} 
-                  disabled={isRendering} 
-                  className="w-full bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 py-3 px-6 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600/30 hover:border-emerald-500/50 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
-                >
-                  {isRendering ? (
-                    <><Loader2 className="w-4 h-4 animate-spin text-emerald-300" /> <span>렌더링 진행 중 {renderProgress}%</span></>
-                  ) : (
-                    <><Play className="w-3.5 h-3.5 fill-emerald-300" /> <span>🎬 최종 비디오 렌더링 시작</span></>
-                  )}
-                </button>
+              <div className="w-full space-y-4">
+                {completedImages === totalScenes && completedVideos < totalScenes && (
+                  <button 
+                    onClick={() => handleGenerateClips()} 
+                    disabled={isRendering || loading} 
+                    className="w-full bg-blue-600/20 border border-blue-500/30 text-blue-300 py-3 px-6 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600/30 hover:border-blue-500/50 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {loading && !isRendering ? (
+                      <><Loader2 className="w-4 h-4 animate-spin text-blue-300" /> <span>클립 생성 중...</span></>
+                    ) : (
+                      <><Film className="w-5 h-5" /> <span>비디오 클립 생성 시작 (Step 4)</span></>
+                    )}
+                  </button>
+                )}
+
+                {completedVideos === totalScenes && totalScenes > 0 && (
+                  <button 
+                    onClick={() => handleRenderFinal()} 
+                    disabled={isRendering || loading || !(finalAssets?.script && finalAssets.script.every((s: any) => s.video_url || s.use_image_only))} 
+                    className="w-full bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 py-3 px-6 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600/30 hover:border-emerald-500/50 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {isRendering && renderProgress > 0 ? (
+                      <><Loader2 className="w-4 h-4 animate-spin text-emerald-300" /> <span>최종 렌더링 진행 중 {renderProgress}%</span></>
+                    ) : renderQueueCount >= 2 ? (
+                      <><AlertCircle className="w-5 h-5 text-red-400" /> <span>서버 포화: 잠시 후 시도해주세요</span></>
+                    ) : (
+                      <><Upload className="w-5 h-5" /> <span>최종 렌더링 시작 (Step 5)</span></>
+                    )}
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-slate-300">서버 상태:</span>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-slate-900/80 rounded-full border border-slate-700">
+                    <div className={`w-3 h-3 rounded-full shadow-[0_0_8px_currentColor] ${trafficLight.color}`}></div>
+                    <span className="text-sm font-bold text-slate-200">{trafficLight.text} ({renderQueueCount}명 진행중)</span>
+                  </div>
+                </div>
+                {finalAssets?.script && (
+                  <button 
+                    onClick={async () => {
+                      if (!projectId) {
+                        alert("프로젝트 ID가 존재하지 않습니다.");
+                        return;
+                      }
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (!session?.access_token) {
+                        alert("로그인이 필요합니다.");
+                        return;
+                      }
+                      window.open(`${BACKEND_URL}/api/projects/${projectId}/download-assets?token=${session.access_token}`, '_blank');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-bold text-white transition-colors"
+                  >
+                    <Download className="w-4 h-4" /> CapCut 폴백용 에셋 원본 ZIP 다운로드 (즉시)
+                  </button>
+                )}
               </div>
 
               {isRendering && (() => {
@@ -1881,7 +1999,7 @@ export default function RaptorWorkflow() {
           {/* 장면별 비디오 생성 상태 모니터링 카드 리스트 */}
           <div className="bg-neutral-900/40 border border-white/5 rounded-3xl p-6 space-y-6">
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-emerald-400" /> 장면별 실시간 렌더링 모니터 (Scene Monitor)
+              <ImageIcon className="w-4 h-4 text-emerald-400" /> 장면별 실시간 비디오 생성 모니터 (Scene Monitor)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {finalAssets.script?.map((scene: any, i: number) => (
@@ -1890,14 +2008,24 @@ export default function RaptorWorkflow() {
                     {scene.status === 'success' && scene.video_url ? (
                       <video src={scene.video_url} controls className="w-full h-full object-cover" />
                     ) : scene.use_image_only ? (
-                      <div className="w-full h-full relative">
+                      <div className="w-full h-full relative group">
                         {scene.image_url ? (
-                          <img src={scene.image_url} className="w-full h-full object-cover opacity-80" />
+                          <img src={scene.image_url} className="w-full h-full object-cover opacity-80 transition-all group-hover:opacity-60" />
                         ) : (
                           <div className="w-full h-full bg-neutral-800 flex items-center justify-center text-xs text-gray-500">이미지 없음</div>
                         )}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <span className="px-3 py-1 bg-orange-500 text-white font-black text-[10px] rounded-lg tracking-wider uppercase">🖼️ 스틸컷 연출</span>
+                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
+                          <span className="px-3 py-1 bg-orange-500 text-white font-black text-[10px] rounded-lg tracking-wider uppercase">🖼️ 스틸컷 유지</span>
+                          <button 
+                            onClick={() => {
+                              const newScript = [...finalAssets.script];
+                              newScript[i].use_image_only = false;
+                              setFinalAssets({...finalAssets, script: newScript});
+                            }}
+                            className="px-3 py-1 bg-red-600/90 hover:bg-red-500 text-white rounded-full text-[10px] font-bold shadow-lg transition-transform active:scale-95"
+                          >
+                            비디오 생성으로 전환
+                          </button>
                         </div>
                       </div>
                     ) : scene.status === 'fallback' ? (

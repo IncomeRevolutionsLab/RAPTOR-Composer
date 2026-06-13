@@ -1,0 +1,12 @@
+pandas
+numpy
+kiwipiepy
+transformers
+torch
+scikit-learn
+networkx
+wordcloud
+matplotlib
+fastapi
+uvicorn
+python-dotenv

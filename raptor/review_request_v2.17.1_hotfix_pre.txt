@@ -1,0 +1,39 @@
+클로드 코드(Claude Code)에게 보내는 사전 리뷰(Pre-Review) 요청:
+
+아래는 RAPTOR Classic v2.17.1 핫픽스 실행 계획서(Implementation Plan)이다.
+이 계획서의 설계 무결성을 사전에 검증하고 아키텍처 사전 리뷰(Pre-Review) 보고서를 한국어로 작성해줘.
+
+[이번 패치 배경]
+v2.17.0 완전 분리 수술 후 발생한 부작용(사후 리뷰 결함 R-1, R-2, R-3, R-5)을 멸균 수술하기 위한 핫픽스 설계이다.
+
+[검토 대상 실행 계획 (Implementation Plan)]
+1. 백엔드 (main.py):
+   - [R-5 방어] render-final 엔드포인트 내 예외 처리부에서 UnboundLocalError가 발생하지 않도록 상단에 task_id = None 명시적 초기화.
+   - [R-4 전략적 보류] 씬별 다중 AsyncClient 개방 문제는 소규모 N 환경에서 리스크가 극히 낮으므로, 세션 공유 등 복잡한 리팩토링을 스킵하고 구조 유지.
+
+2. 프론트엔드 (RaptorWorkflow.tsx):
+   - [R-1] Stage 5 (최종 렌더링) 트래커 버튼의 action이 handleGenerateClips를 참조하는 것을 handleRenderFinal로 변경하여 오류 복구 경로 정상화.
+   - [R-2] handleRenderFinal 호출 전, CSRF 토큰이 없을 경우 재발급받는 방어 로직 추가 (handleGenerateClips와 동일).
+   - [R-3] Step 4 (클립 생성) 버튼 로딩 스피너 및 텍스트 렌더링 조건이 isRendering을 바라보는 것을 loading && !isRendering 으로 수정.
+
+[리뷰 포인트]
+1. 제안된 4개의 픽스(R-1, R-2, R-3, R-5)가 각 문제의 원인을 정확하게 제거하는 완벽한 설계인지 평가하라.
+2. R-4(다중 AsyncClient 개방 문제)를 이번 패치에서 보류(Skip)하기로 한 결정이 아키텍처 측면에서 합리적인 기술 부채 관리 전략인지 평가하라.
+3. 이 실행 계획대로 코딩했을 때 발생할 수 있는 잠재적인 부작용이나 추가적인 취약점은 없는가?
+
+리뷰 보고서는 반드시 다음 형식으로 한국어로 작성해줘:
+
+# 📋 RAPTOR v2.17.1 핫픽스 실행 계획 사전 리뷰 보고서 (Pre-Review)
+
+1. 실행 계획의 완결성 및 안전성 평가
+   - 프론트엔드 픽스(R-1, R-2, R-3) 설계 평가 (PASS/FAIL)
+   - 백엔드 픽스(R-5) 설계 평가 (PASS/FAIL)
+
+2. 기술 부채 관리 전략(R-4 Skip) 타당성 평가
+   - 타당성 점검 내용 (PASS/FAIL)
+
+3. 예상되는 부작용 및 잠재적 취약점
+
+4. TDD 채점표 (PASS/FAIL 표)
+
+5. 최종 결론 및 코딩 진입 승인 여부 (APPROVED/REJECTED)

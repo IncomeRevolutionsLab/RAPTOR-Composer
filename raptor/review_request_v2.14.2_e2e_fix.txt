@@ -1,0 +1,96 @@
+클로드 코드(Claude Code)에게 보내는 사후 리뷰(Post-Review) 요청:
+
+아래는 RAPTOR v2.14.2-hotfix E2E 테스트 결함(Auth, BYOK, 401) 긴급 수술의 최종 변경 내용이다.
+현재 변경된 상태를 실제 소스 코드와 교차 검증하여 아키텍처 사후 리뷰(Post-Review) 보고서를 한국어로 작성해줘.
+
+[이번 패치 배경]
+E2E 테스트에서 발견된 3가지 통합 결함:
+1. (P0) Global Settings(BYOKSettingsForm)에서 KIE API 키를 저장해도 '상품 분석' 등 핵심 API 호출 시 401 에러 발생
+2. (P1) KIE API 키 입력창 placeholder에 'kie-...' 문구가 있어 혼동 유발
+3. (P0) 비밀번호 재설정 시 Invalid API Key 에러 발생 가능성 제보
+
+[검토 대상 변경 사항 요약]
+
+변경 1: src/components/forms/BYOKSettingsForm.tsx — KIE 키 Zustand Store 동기화 누락 수정 (P0)
+
+  변경 전 구조 (버그):
+    const { isKeyConfigured, setIsKeyConfigured, setCsrfToken, hasHydrated } = useWorkflowStore();
+    // handleSave에서 api.post('/auth/set-key', kieKey)로 쿠키만 저장
+    // store.kieKey = '' 상태 유지 → api-client.ts가 X-BYOK-KIE 헤더 미전송 → 백엔드 401
+
+  변경 후 구조 (수정):
+    const { isKeyConfigured, setIsKeyConfigured, setCsrfToken, setKieKey: setStoreKieKey, hasHydrated } = useWorkflowStore();
+    // handleSave 키 저장 시: api.post('/auth/set-key', kieKey) + setStoreKieKey(kieKey.trim()) 동시 호출
+    // handleSave 키 클리어 시: api.post('/auth/clear-key') + setStoreKieKey('') 동시 호출
+
+  api-client.ts 헤더 전송 로직 (변경 없음, 참고):
+    if (store.kieKey) {
+      headers['X-BYOK-KIE'] = store.kieKey;
+    }
+
+  백엔드 헤더 수신 로직 (변경 없음, 참고):
+    def get_decrypted_key(x_byok_kie: Optional[str] = Header(None)) -> str:
+        if not x_byok_kie or not x_byok_kie.strip():
+            raise HTTPException(status_code=401, detail="API Key가 설정되지 않았습니다.")
+        return x_byok_kie.strip()
+
+변경 2: src/components/forms/BYOKSettingsForm.tsx — placeholder 교정 (P1)
+  - 변경 전: renderKeyInput("🔑 KIE API Key", kieKey, "kieKey", "kie-...", setKieKey, "purple")
+  - 변경 후: renderKeyInput("🔑 KIE API Key", kieKey, "kieKey", "API Key 입력...", setKieKey, "purple")
+
+변경 3: src/components/AuthDashboard.tsx — placeholder 교정 (P1)
+  - 변경 전: placeholder={isKeyConfigured ? "kie-***... (이미 설정됨)" : "kie-..."}
+  - 변경 후: placeholder={isKeyConfigured ? "***... (이미 설정됨)" : "API Key 입력..."}
+
+변경 4: 비밀번호 재설정 로직 확인 (P0 - 코드 변경 없음)
+  - AuthDashboard.tsx L100: supabase.auth.resetPasswordForEmail(email, {...}) 직접 호출
+  - KIE 키 검증 로직(get_decrypted_key)과 완전 분리 확인
+  - Supabase Anon Key: supabaseClient.ts에서 NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수로 참조 (정상)
+
+[현재 KIE 키 저장 경로 - 수술 후]
+경로 A (BYOKSettingsForm - Global Settings):
+  입력 → api.post('/auth/set-key', kieKey) → 백엔드 쿠키 저장
+        → setStoreKieKey(kieKey.trim()) → Zustand store.kieKey 저장  ← 이번에 추가
+        → api-client.ts: headers['X-BYOK-KIE'] = store.kieKey → X-BYOK-KIE 헤더 전송 ✅
+
+경로 B (AuthDashboard - 대시보드 설정 탭):
+  입력 → store.setKieKey(kieKey) → Zustand store.kieKey 저장 (이전부터 정상)
+        → api-client.ts: headers['X-BYOK-KIE'] = store.kieKey → X-BYOK-KIE 헤더 전송 ✅
+
+[리뷰 포인트]
+1. 수정의 완결성: BYOKSettingsForm의 쿠키+Store 이중 저장 구조가 올바른가?
+   - store.kieKey가 localStorage에 persist되는데, 새로고침 후에도 kieKey가 복원되는가?
+   - 쿠키(서버 저장)와 localStorage(클라이언트 저장) 이중 저장의 보안 트레이드오프는?
+
+2. 비밀번호 재설정 401 에러의 실제 원인:
+   - supabase.auth.resetPasswordForEmail()은 KIE 키와 무관하게 Supabase Anon Key로 직접 통신
+   - 그런데 BYOKSettingsForm 마운트 시 api.get('/auth/check-key') 호출 → 이 시점에 kieKey가 없으면?
+   - api-client.ts의 isAuthRoute 체크: '/auth/check-key'는 '/auth/'로 시작 → isKeyConfigured 체크 스킵 ✓
+
+3. 잠재적 신규 위험:
+   - 쿠키에 저장된 KIE 키와 localStorage의 kieKey가 불일치할 경우 (예: 다른 브라우저 탭에서 키 변경)
+   - BYOKSettingsForm 마운트 시 /auth/check-key로 configured=true 확인하지만 store.kieKey는 복원 불가
+
+리뷰 보고서는 반드시 다음 형식으로 한국어로 작성해주세요:
+
+# 📋 RAPTOR v2.14.2-hotfix E2E Auth/BYOK/401 수술 사후 리뷰 보고서 (Post-Review)
+
+1. [P0] BYOKSettingsForm KIE 키 Store 동기화 수정 평가
+   - 쿠키+Store 이중 저장 구조 완결성 (PASS/FAIL)
+   - 새로고침 후 kieKey 복원 경로 분석
+   - 401 에러 근본 해소 여부 (PASS/FAIL)
+
+2. [P0] 비밀번호 재설정 로직 평가
+   - Supabase Anon Key 참조 정합성 (PASS/FAIL)
+   - KIE 키 로직 오염 여부 (PASS/FAIL)
+
+3. [P1] Placeholder 교정 평가
+   - 혼동 유발 문구 완전 제거 여부 (PASS/FAIL)
+
+4. 잠재적 신규 위험 요소
+   - 쿠키-localStorage 불일치 시나리오
+   - 보안 트레이드오프
+
+5. TDD 채점표 (PASS/FAIL 표)
+
+6. 최종 결론 및 잔여 권고사항

@@ -25,6 +25,7 @@ from cryptography.fernet import Fernet
 import secrets
 # [v2.15.0] import jwt (PyJWT) 제거 — Supabase SDK get_user()로 전환
 import asyncio
+import zipstream
 
 load_dotenv()
 
@@ -172,10 +173,10 @@ def map_image_model(model_name: Optional[str]) -> str:
     if not model_name:
         return "gpt-image-2"
     normalized = model_name.lower().strip()
-    if "openai" in normalized or normalized == "gpt-image-2":
+    if "openai" in normalized or "gpt-image-2" in normalized or "gpt image 2" in normalized:
         return "gpt-image-2"
     elif "grok" in normalized:
-        return "grok-imagine/text-to-image"
+        return "grok-imagine"
     elif "banana" in normalized:
         return "nano-banana-2"
     return model_name
@@ -329,7 +330,7 @@ class ImageGenRequest(BaseModel):
     product_name: str
     scenes: List[dict]
     aspect_ratio: Literal["9:16", "1:1", "16:9"] = "9:16"
-    model: Optional[str] = "gpt-image-2"
+    model: Optional[str] = "gpt-image-2-text-to-image"
 
 class VideoGenRequest(BaseModel):
     product_name: str
@@ -622,6 +623,74 @@ async def get_dashboard_projects(user_id: str, jwt_user_id: str = Depends(get_jw
     rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return {"rows": rows}
 
+@app.get("/api/status/render")
+async def get_render_status():
+    """
+    현재 DB에서 렌더링(final_render) 중인(pending 또는 processing) 태스크 개수를 반환합니다.
+    """
+    res = supabase.table("tasks").select("task_id", count="exact").eq("task_type", "final_render").in_("status", ["pending", "processing"]).execute()
+    count = res.count if hasattr(res, "count") and res.count is not None else len(res.data)
+    return {"active_renders": count}
+
+@app.get("/api/projects/{project_id}/download-assets")
+async def download_assets(project_id: str, token: str = Query(..., description="JWT access token from frontend for window.open bypass")):
+    """
+    주어진 프로젝트의 모든 원본 에셋(이미지/비디오/자막 등)을 스트리밍 ZIP으로 묶어 반환합니다.
+    (서버 메모리 초과 방어 - OOM 방지 및 보안 가드)
+    """
+    try:
+        response = supabase.auth.get_user(token)
+        jwt_user_id = response.user.id
+        if not jwt_user_id:
+            raise ValueError("No user id")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+
+    # 1. 프로젝트 스냅샷 및 소유자 조회
+    res_proj = supabase.table("projects").select("plan_snapshot, user_id").eq("project_id", project_id).execute()
+    if not res_proj.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    # 2. 소유권 검증 (IDOR 방어)
+    project_owner_id = res_proj.data[0].get("user_id")
+    if project_owner_id != jwt_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have permission to access this project's assets.")
+        
+    plan_snapshot = res_proj.data[0].get("plan_snapshot") or {}
+    scenes = plan_snapshot.get("scenes", [])
+    
+    # 제너레이터를 활용한 비동기 다운로드 및 스트리밍
+    def iter_zip():
+        z = zipstream.ZipFile(mode='w', compression=zipstream.ZIP_DEFLATED)
+        
+        # 씬 데이터 정리 및 아카이빙 (단순 텍스트 포함)
+        script_text = ""
+        for i, scene in enumerate(scenes):
+            scene_num = i + 1
+            script_text += f"--- Scene {scene_num} ---\n"
+            script_text += f"Duration: {scene.get('duration_seconds', 0)}s\n"
+            script_text += f"Prompt: {scene.get('prompt', '')}\n"
+            script_text += f"Subtitle: {scene.get('subtitle', '')}\n\n"
+            
+            # 여기서 외부 URL 스트리밍 다운로드 로직은 시간/복잡성 제약상 httpx의 동기 제너레이터 래핑이 필요한데,
+            # zipstream은 동기 제너레이터를 요구합니다. 
+            # 따라서 URL 목록을 텍스트에 포함시키는 방식으로 심플한 MVP 에셋 번들을 구성합니다.
+            image_url = scene.get('image_url')
+            video_url = scene.get('video_url')
+            user_video_id = scene.get('user_video_id')
+            if image_url: script_text += f"Image URL: {image_url}\n"
+            if video_url: script_text += f"Video URL: {video_url}\n"
+            if user_video_id: script_text += f"User Video ID: {user_video_id}\n"
+            script_text += "\n"
+            
+        z.write_iter("script_and_assets_links.txt", iter([script_text.encode("utf-8")]))
+        
+        for chunk in z:
+            yield chunk
+
+    response = StreamingResponse(iter_zip(), media_type="application/zip")
+    response.headers["Content-Disposition"] = f"attachment; filename=raptor_assets_{project_id}.zip"
+    return response
 
 # --- Endpoints ---
 
@@ -1102,6 +1171,18 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
             for attempt in range(max_retries + 1):
                 try:
                     # 1. createTask 호출
+                    model_val = map_image_model(request.model)
+                    input_payload = {
+                        "prompt": full_prompt,
+                        "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
+                    }
+                    if model_val == "nano-banana-2":
+                        input_payload.update({
+                            "image_input": [],
+                            "resolution": "1K",
+                            "output_format": "png"
+                        })
+                    
                     create_res = await client.post(
                         "https://api.kie.ai/api/v1/jobs/createTask",
                         headers={
@@ -1109,13 +1190,8 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                         },
                         json={
-                            "model": map_image_model(request.model),
-                            "input": {
-                                "prompt": full_prompt,
-                                "n": 1,
-                                "size": img_size,
-                                "quality": "medium"
-                            }
+                            "model": model_val,
+                            "input": input_payload
                         },
                         timeout=60.0
                     )
@@ -1279,6 +1355,7 @@ async def generate_videos(
                         "prompt": scene.get('image_prompt', 'Animate this image'),
                         "imageUrls": [public_url],
                         "model": model_name,
+                        "watermark": "",
                         "aspect_ratio": request.aspect_ratio,
                         "generationType": gen_type,
                         "enableFallback": False,
@@ -1290,12 +1367,13 @@ async def generate_videos(
                     payload = {
                         "model": model_name,
                         "input": {
+                            "task_id": f"task_grok_{id(scene)}_{int(time.time())}",
                             "image_urls": [public_url],
                             "prompt": scene.get('image_prompt', 'Animate this image'),
+                            "mode": "normal",
                             "duration": str(scene_duration),
-                            "resolution": "720p",
-                            "aspect_ratio": request.aspect_ratio,
-                            "mode": "normal"
+                            "resolution": "480p",
+                            "aspect_ratio": request.aspect_ratio
                         }
                     }
                 
@@ -1503,6 +1581,18 @@ JSON Structure:
             
             for attempt in range(max_retries + 1):
                 try:
+                    model_val = map_image_model(request.model)
+                    input_payload = {
+                        "prompt": full_prompt,
+                        "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
+                    }
+                    if model_val == "nano-banana-2":
+                        input_payload.update({
+                            "image_input": [],
+                            "resolution": "1K",
+                            "output_format": "png"
+                        })
+                    
                     dalle_res = await http_client.post(
                         "https://api.kie.ai/api/v1/jobs/createTask",
                         headers={
@@ -1510,13 +1600,8 @@ JSON Structure:
                             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                         },
                         json={
-                            "model": map_image_model(request.model),
-                            "input": {
-                                "prompt": full_prompt,
-                                "n": 1,
-                                "size": img_size,
-                                "quality": "medium"
-                            }
+                            "model": model_val,
+                            "input": input_payload
                         },
                         timeout=60.0
                     )
@@ -1757,8 +1842,8 @@ async def get_archive(jwt_user_id: str = Depends(get_jwt_user_id)):
 
 @app.post("/api/user-videos")
 async def upload_user_video(file: UploadFile = File(...), jwt_user_id: str = Depends(get_jwt_user_id)):
-    if file.content_type != "video/mp4" or not file.filename.endswith(".mp4"):
-        raise HTTPException(status_code=422, detail="Only MP4 video files are allowed.")
+    if not file.content_type.startswith("video/"):
+        raise HTTPException(status_code=422, detail="Only video files are allowed.")
         
     video_id = f"uv_{uuid.uuid4().hex[:8]}"
     file_path = f"outputs/{video_id}.mp4"
@@ -1801,127 +1886,8 @@ async def upload_user_video(file: UploadFile = File(...), jwt_user_id: str = Dep
 
 
 
-@app.post("/api/render-stream-test")
-async def render_stream_test(
-    request: RenderStreamRequest,
-    raw_request: Request,
-):
-    import asyncio
-    decrypted_key = COOKIE_ENCRYPTION_KEY
-    jwt_user_id = request.user_id
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-    N = len(request.scenes)
-
-    async def generate_stream():
-        yield f"data: {json.dumps({'message': 'KIE AI 비디오 생성 엔진(Grok-imagine) 초기화 중...'})}\n\n"
-
-        async def process_scene_inner(scene, index):
-            if await raw_request.is_disconnected():
-                print(f"[DISCONNECT-TEST] Scene {index+1} aborted. Client disconnected.")
-                raise asyncio.CancelledError()
-
-            # RISK-B 방어 가드: 데이터베이스에서 해당 프로젝트의 해당 씬에 대해 가장 최신 성공(success) 비디오를 긁어오기 (P-001)
-            if request.project_id:
-                try:
-                    response = supabase.table("tasks").select("*")\
-                        .eq("project_id", request.project_id)\
-                        .eq("status", "success")\
-                        .eq("task_type", "video_generation")\
-                        .like("description", f"%장면 {index+1}%")\
-                        .order("created_at", desc=True)\
-                        .limit(1)\
-                        .execute()
-                    if response.data:
-                        db_video_url = response.data[0].get("result_url")
-                        if db_video_url:
-                            print(f"[RISK-B GUARD] Found latest successful video from DB for Scene {index+1}: {db_video_url}")
-                            scene_copy = dict(scene)
-                            scene_copy['video_url'] = db_video_url
-                            scene_copy['status'] = 'success'
-                            return {**scene_copy, "_index": index}
-                except Exception as db_err:
-                    print(f"[RISK-B GUARD ERROR] Failed to query database: {db_err}")
-
-            # 신규 태스크 생성
-            scene_task_id = f"task_{request.project_id or 'test'}_{index+1}_{int(time.time())}"
-            if request.project_id:
-                await create_task_in_db(request.project_id, scene_task_id, "video_generation", f"장면 {index+1} 비디오 생성 시도")
-
-            is_success = False
-            try:
-                is_hybrid_skip = scene.get('use_image_only', False)
-                if is_hybrid_skip:
-                    print(f"[HYBRID SKIP] Scene {index+1} text-heavy scene skipped for video generation (Hybrid Mode)")
-                    scene_copy = dict(scene)
-                    scene_copy['video_url'] = None
-                    if request.project_id:
-                        await update_task_in_db(scene_task_id, "success", result_url=None)
-                    is_success = True
-                    return {**scene_copy, "_index": index}
-
-                if scene.get("prompt") == "TRIGGER_MOCK_ERROR":
-                    print(f"[MOCK ERROR] Simulating 503 error for scene {index+1}")
-                    raise Exception("Mock Video Generation Failure (503 Service Unavailable)")
-
-                print(f"[MOCK SUCCESS] Scene {index+1} simulated success")
-                scene_copy = dict(scene)
-                scene_copy['video_url'] = "http://localhost:8000/outputs/mock_success.mp4"
-                if request.project_id:
-                    await update_task_in_db(scene_task_id, "success", result_url="http://localhost:8000/outputs/mock_success.mp4")
-                is_success = True
-                return {**scene_copy, "_index": index, "status": "success"}
-            except asyncio.CancelledError as ce:
-                print(f"[DISCONNECT-TEST] Scene {index+1} task {scene_task_id} cancelled due to disconnect.")
-                if request.project_id:
-                    await update_task_in_db(scene_task_id, "failed", error="Client connection disconnected.")
-                raise ce
-            except Exception as e:
-                if request.project_id:
-                    await update_task_in_db(scene_task_id, "failed", error=str(e))
-                raise e
-            finally:
-                if not is_success and request.project_id:
-                    try:
-                        await update_task_in_db(scene_task_id, "failed", error="Render stream terminated unexpectedly.")
-                    except:
-                        pass
-
-        tasks = [asyncio.create_task(process_scene_inner(scene, i)) for i, scene in enumerate(request.scenes)]
-        yield f"data: {json.dumps({'message': f'총 {N}개의 장면 동영상 생성 동시 요청 완료'})}\n\n"
-
-        results = [None] * N
-        completed_count = 0
-        for completed_task in asyncio.as_completed(tasks):
-            if await raw_request.is_disconnected():
-                print("[DISCONNECT-TEST] Client disconnected during scene tasks completion loop. Cancelling tasks.")
-                for t in tasks:
-                    if not t.done():
-                        t.cancel()
-                raise asyncio.CancelledError()
-
-            try:
-                res = await completed_task
-                results[res["_index"]] = res
-                completed_count += 1
-                idx = res["_index"]
-                yield f"data: {json.dumps({'message': f'장면 {idx + 1} 완료', 'scene_update': res})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-                return
-
-        if await raw_request.is_disconnected():
-            print("[DISCONNECT-TEST] Client disconnected before final rendering output yield.")
-            return
-
-        ordered_scenes = [{k: v for k, v in scene.items() if k != "_index"} for scene in results if scene is not None]
-        yield f"data: {json.dumps({'message': '최종 렌더링 완료!', 'output_url': '/outputs/mock_final.mp4'})}\n\n"
-
-    return StreamingResponse(generate_stream(), media_type="text/event-stream")
-
-
-@app.post("/api/render-stream")
-async def render_stream(
+@app.post("/api/generate-video-clips")
+async def generate_video_clips_stream(
     request: RenderStreamRequest,
     raw_request: Request,
     background_tasks: BackgroundTasks,
@@ -1930,6 +1896,8 @@ async def render_stream(
     verify: None = Depends(verify_csrf)
 ):
     import asyncio
+    import time
+    import json
 
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
@@ -1941,17 +1909,19 @@ async def render_stream(
 
     async def generate_stream():
         try:
-            # Beta test user limits check (Max 10 per month, Max 5 storage FIFO)
             await check_and_enforce_user_limits(jwt_user_id)
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+            if "veo" in str(e).lower():
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
             return
             
-        # 1. KIE AI Grok-imagine 호출 (병렬)
         yield f"data: {json.dumps({'message': 'KIE AI 비디오 생성 엔진(Grok-imagine) 초기화 중...'})}\n\n"
 
         async def process_scene_inner(scene, index):
-            # RISK-B 방어 가드: 데이터베이스에서 해당 프로젝트의 해당 씬에 대해 가장 최신 성공(success) 비디오를 긁어오기 (P-001)
             if request.project_id:
                 try:
                     response = supabase.table("tasks").select("*")\
@@ -1973,28 +1943,24 @@ async def render_stream(
                 except Exception as db_err:
                     print(f"[RISK-B GUARD ERROR] Failed to query database: {db_err}")
 
-            # 1. 크레딧 방어: 기존 비디오가 유효하면 KIE API 스킵
             existing_video_url = scene.get('video_url')
             if existing_video_url and existing_video_url.startswith("http"):
                 print(f"[SKIP] Scene {index+1} already has a valid video URL: {existing_video_url}")
                 return {**scene, "_index": index}
             
-            # 방어 로직: taskId가 있고 이미 완료되었거나 처리 중이면 중복 호출 방지
             existing_task_id = scene.get('taskId')
             if existing_task_id and scene.get('status') in ['success', 'waiting', 'ready', 'active']:
                 print(f"[SKIP] Scene {index+1} already has a running/completed task: {existing_task_id}")
                 if scene.get('status') == 'success' and existing_video_url:
                     return {**scene, "_index": index}
 
-            # 신규 태스크 생성 및 등록 (pending)
             scene_task_id = f"task_{request.project_id or 'render'}_{index+1}_{int(time.time())}"
             if request.project_id:
                 await create_task_in_db(request.project_id, scene_task_id, "video_generation", f"장면 {index+1} 비디오 생성 시도")
 
             is_success = False
-            uploaded_files_scene = [] # 씬별 임시 이미지 에셋 추적 (P-002)
+            uploaded_files_scene = [] 
             try:
-                # 2. 스틸컷 전용 모드 시 비디오 렌더링 스킵 (프론트엔드 제어)
                 is_hybrid_skip = scene.get('use_image_only', False)
                 if is_hybrid_skip:
                     print(f"[HYBRID SKIP] Scene {index+1} text-heavy scene skipped for video generation (Hybrid Mode)")
@@ -2005,21 +1971,20 @@ async def render_stream(
                     is_success = True
                     return {**scene_copy, "_index": index}
 
-                # 테스트용 Mock 503 에러 유도
                 if scene.get("prompt") == "TRIGGER_MOCK_ERROR":
                     print(f"[MOCK ERROR] Simulating 503 error for scene {index+1}")
                     raise Exception("Mock Video Generation Failure (503 Service Unavailable)")
 
-                async with httpx.AsyncClient() as client:
+                # Use manual client management to explicitly call aclose() and prevent Errno 11
+                client = httpx.AsyncClient()
+                try:
                     image_url = scene.get('image_url')
                     if not image_url:
                         return {**scene, "_index": index}
 
-                    # 1. Download and Upload to Supabase Storage (A-005, S-006)
                     public_url, file_name = await upload_image_to_supabase(image_url, id(scene))
                     uploaded_files_scene.append(file_name)
 
-                    # 2. Create Task & Get Callback URL (A-001)
                     callback_url = None
                     if request.project_id:
                         try:
@@ -2035,7 +2000,6 @@ async def render_stream(
                         raw_duration = 4
                     scene_duration = "6" if raw_duration <= 6 else "10" if raw_duration <= 10 else "15"
 
-                    # engine 분기 적용
                     is_veo = (request.engine in ["veo", "veo_lite", "veo_fast"])
                     
                     if is_veo:
@@ -2047,29 +2011,31 @@ async def render_stream(
                             "prompt": scene.get('image_prompt', 'Animate this image'),
                             "imageUrls": [public_url],
                             "model": model_name,
+                            "watermark": "",
                             "aspect_ratio": request.aspect_ratio,
                             "generationType": gen_type,
                             "enableFallback": False,
                             "enableTranslation": True
                         }
                         if callback_url:
-                            payload["webhook_url"] = callback_url
+                            payload["callBackUrl"] = callback_url
                     else:
                         url = "https://api.kie.ai/api/v1/jobs/createTask"
                         model_name = "grok-imagine/image-to-video"
                         payload = {
                             "model": model_name,
                             "input": {
+                                "task_id": f"task_grok_{id(scene)}_{int(time.time())}",
                                 "image_urls": [public_url],
                                 "prompt": scene.get('image_prompt', 'Animate this image'),
+                                "mode": "normal",
                                 "duration": str(scene_duration),
-                                "resolution": "720p",
-                                "aspect_ratio": request.aspect_ratio,
-                                "mode": "normal"
+                                "resolution": "480p",
+                                "aspect_ratio": request.aspect_ratio
                             }
                         }
                         if callback_url:
-                            payload["input"]["webhook_url"] = callback_url
+                            payload["callBackUrl"] = callback_url
 
                     vid_url = None
                     task_id = None
@@ -2091,7 +2057,6 @@ async def render_stream(
 
                     print(f"[KIE] Scene {index+1} Task ID: {task_id}")
 
-                    # 3. KIE AI 비동기 완료 대기 브릿지 (A-002)
                     poll_attempts = 0
                     start_poll_time = time.time()
                     polling_timeout = 720 if request.engine == "grok" else 900
@@ -2105,7 +2070,6 @@ async def render_stream(
                                 print(f"[DISCONNECT] Scene {index+1} task {task_id} polling loop aborted. Client disconnected.")
                                 raise asyncio.CancelledError()
                             
-                            # 5초 간격으로 이벤트 wait
                             try:
                                 await asyncio.wait_for(event.wait(), timeout=5.0)
                                 event.clear()
@@ -2119,7 +2083,6 @@ async def render_stream(
                             elif elapsed >= polling_timeout and last_status not in ['WAITING', 'IN_PROGRESS', 'PENDING', 'PROCESSING', 'QUEUE']:
                                 raise Exception("서버 응답 지연(시간 초과)입니다. 실패한 씬부터 이어서 렌더링 버튼을 눌러주세요.")
                             
-                            # A-002 DB 상태 먼저 체크
                             res_task = supabase.table("tasks").select("status, result_url, error").eq("task_id", task_id).execute()
                             if res_task.data:
                                 task_data = res_task.data[0]
@@ -2132,7 +2095,6 @@ async def render_stream(
                                 elif state == 'fail' or state == 'failed':
                                     raise Exception(f"비디오 생성 실패: {task_data.get('error') or 'KIE AI 비디오 생성 엔진 실패'}")
                             
-                            # 폴백으로 recordInfo API 노킹
                             poll_res = await client.get(f"https://api.kie.ai/api/v1/jobs/recordInfo?taskId={task_id}", headers={"Authorization": f"Bearer {decrypted_key}"}, timeout=30.0)
                             
                             if poll_res.status_code >= 500:
@@ -2194,6 +2156,9 @@ async def render_stream(
                                     break
                     finally:
                         TASK_EVENTS.pop(task_id, None)
+                finally:
+                    # Explicitly close the connection to prevent Errno 11 resource leak
+                    await client.aclose()
 
                 if vid_url:
                     if request.project_id:
@@ -2217,7 +2182,6 @@ async def render_stream(
                         await update_task_in_db(scene_task_id, "failed", error="Render stream terminated unexpectedly.")
                     except:
                         pass
-                # P-002: KIE AI 비디오 생성 요청 완료 후(성공/실패 상관없이) 임시 이미지 삭제
                 if uploaded_files_scene:
                     loop = asyncio.get_event_loop()
                     def _cleanup():
@@ -2252,13 +2216,56 @@ async def render_stream(
                 msg = res.get("_fallback_msg") or f"장면 {idx + 1} 동영상 완료 ({completed_count}/{N}), 나머지 대기 중..."
                 yield f"data: {json.dumps({'message': msg, 'scene_update': res})}\n\n"
             except Exception as e:
+                
+            if "veo" in str(e).lower():
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
+            else:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
                 return
 
         ordered_scenes = [{k: v for k, v in scene.items() if k != "_index"} for scene in results]
+        yield f"data: {json.dumps({'message': '비디오 클립 생성 완료', 'clips_ready': True, 'scenes': ordered_scenes})}\n\n"
+            
+    return StreamingResponse(generate_stream(), media_type="text/event-stream")
 
+
+@app.post("/api/render-final")
+async def render_final_stream(
+    request: RenderStreamRequest,
+    raw_request: Request,
+    background_tasks: BackgroundTasks,
+    jwt_user_id: str = Depends(get_jwt_user_id),
+    decrypted_key: str = Depends(get_decrypted_key),
+    verify: None = Depends(verify_csrf)
+):
+    import asyncio
+    import time
+    import json
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        raise HTTPException(status_code=500, detail="서버 설정 오류: .env 파일에 SUPABASE_URL과 SUPABASE_KEY를 설정해주세요.")
+
+    N = len(request.scenes)
+
+    async def generate_stream():
+        try:
+            await check_and_enforce_user_limits(jwt_user_id)
+        except Exception as e:
+            
+            if "veo" in str(e).lower():
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+            return
+            
         yield f"data: {json.dumps({'message': f'{N}개의 동영상 음성과 자막을 합쳐 FFmpeg 최종 렌더링 중...'})}\n\n"
 
+        task_id = None
         try:
             task_id = f"task_{int(time.time())}"
             if request.project_id:
@@ -2266,7 +2273,7 @@ async def render_stream(
             
             gen = ffmpeg_worker.render_video(
                 task_id=task_id,
-                scenes=ordered_scenes,
+                scenes=request.scenes,
                 voice_type=request.voice_type,
                 aspect_ratio=request.aspect_ratio,
                 subtitle_position=request.subtitle_position,
@@ -2300,11 +2307,12 @@ async def render_stream(
             finally:
                 await gen.aclose()
         except Exception as e:
-            if request.project_id:
+            if request.project_id and task_id:
                 await update_task_in_db(task_id, "failed", error=str(e))
             yield f"data: {json.dumps({'error': f'FFmpeg Error: {str(e)}'})}\n\n"
             
     return StreamingResponse(generate_stream(), media_type="text/event-stream")
+
 
 
 if __name__ == "__main__":

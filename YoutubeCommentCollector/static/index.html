@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CommentLens PRO - YouTube Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+</head>
+<body>
+    <div class="glass-bg"></div>
+    
+    <header>
+        <div class="logo">CommentLens <span>PRO</span></div>
+        <div class="api-status">
+            <input type="password" id="apiKeyInput" placeholder="Gemini API Key (Optional)">
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>Unlock the Story <span>Behind Every Comment.</span></h1>
+            <p>URL 하나만 입력하면 수집부터 AI 분석, 네트워크 지도까지 한 번에 완료됩니다.</p>
+            
+            <div class="input-group">
+                <input type="text" id="mainVideoId" placeholder="https://youtu.be/..." value="https://youtu.be/hJ9epllkD-s">
+                <button id="unifiedStartBtn">분석 시작 (One-Click)</button>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section id="progressSection" class="card progress-card" style="display:none;">
+            <div class="card-header">
+                <div class="spinner" id="loadingSpinner"></div>
+                <h3 id="videoTitle">비디오 분석 준비 중...</h3>
+                <span id="currentStatus" class="badge">READY</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-stats">
+                <span id="collectedCount">0 / 0 collected</span>
+                <span id="phaseInfo">Phase: Collection & Sentiment Analysis</span>
+            </div>
+        </section>
+
+        <div class="dashboard-grid">
+            <!-- Sentiment -->
+            <div class="card sentiment-card">
+                <h3>Sentiment Breakdown</h3>
+                <div class="chart-container">
+                    <canvas id="sentimentChart"></canvas>
+                    <div class="chart-overlay">
+                        <span id="statPos">0%</span>
+                        <small>Positive</small>
+                    </div>
+                </div>
+                <div class="sentiment-legend">
+                    <span class="dot pos"></span> Positive <span id="posCount">0</span>
+                    <span class="dot neu"></span> Neutral <span id="neuCount">0</span>
+                    <span class="dot neg"></span> Negative <span id="negCount">0</span>
+                </div>
+            </div>
+
+            <!-- AI Insight -->
+            <div class="card insight-card">
+                <h3>AI Summary & Insights</h3>
+                <div class="insight-content" id="aiSummary">
+                    분석 엔진 가동 중... 잠시만 기다려 주세요.
+                </div>
+                <div class="insight-footer">
+                    <span>AI Score: <strong id="aiScore">0</strong>/100</span>
+                </div>
+            </div>
+
+            <!-- Temporal Hour -->
+            <div class="card temporal-card">
+                <h3>Temporal Activity (By Hour)</h3>
+                <p class="subtext">댓글(진함) vs 답글(연함) 분포</p>
+                <div class="chart-wrapper">
+                    <canvas id="temporalChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Temporal Day -->
+            <div class="card temporal-card">
+                <h3>Temporal Activity (By Day)</h3>
+                <p class="subtext">요일별 참여 통계 (월-일)</p>
+                <div class="chart-wrapper">
+                    <canvas id="dayChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top Comments -->
+            <div class="card table-card full-width">
+                <h3>Top Liked Comments (Most Popular Content)</h3>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Author</th>
+                                <th>Comment Content</th>
+                                <th>Likes</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topCommentsBody">
+                            <tr><td colspan="4" style="text-align:center;">데이터 수집 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Keywords -->
+            <div class="card keyword-card">
+                <h3>Keyword Hot Topics</h3>
+                <div id="keywordCloud" class="word-cloud">
+                    분석 후 키워드가 추출됩니다.
+                </div>
+            </div>
+
+            <!-- SNA Map -->
+            <div class="card sna-card">
+                <h3>Comment-Reply Network (Visual Map)</h3>
+                <div id="snaContainer" class="sna-visual">
+                    <!-- D3 or Canvas Map goes here -->
+                </div>
+                <div id="snaInfo" class="sna-stats">
+                    0 관계망 감지됨
+                </div>
+            </div>
+
+            <!-- Bot/Spam Detection -->
+            <div class="card detection-card">
+                <h3>Coordinated Action Detection</h3>
+                <ul id="detectionList" class="detection-list">
+                    <li>분석 진행 중...</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        &copy; 2026 CommentLens Intelligence Platform. All Rights Reserved.
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

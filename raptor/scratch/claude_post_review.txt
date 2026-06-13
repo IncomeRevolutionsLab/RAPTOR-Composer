@@ -1,0 +1,8 @@
+I need Bash access to run `gh pr list`. I don't have permission to run shell commands in the current mode.
+
+To proceed with the review, you have two options:
+
+1. **Provide a PR number directly** — type `/review <number>` and I'll review that specific PR.
+2. **Enable Bash permissions** — go to Claude Code settings and allow Bash commands, or switch out of "don't ask" mode so I can run `gh pr list` and `gh pr diff`.
+
+Which would you prefer?

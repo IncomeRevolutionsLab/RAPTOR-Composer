@@ -1,0 +1,17 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:5000",
+  "executionArgs": {
+    "projectName": "SSPS",
+    "projectPath": "c:\\Antigravity Work\\SSPS",
+    "testIds": [],
+    "additionalInstruction": "Execute frontend tests to verify the fallback UI and test mock data injection.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-aNXoLiuP9emS8rg4Cz_jLUHh_pOvuMriwoUy333f0QXKBVwMzX2Dgm6c6MfTS50z3y0hr6NKEj5WFDna-jYy0DN_O6MdEYMQ5ZNc8iQDecckLK2o2U9pe27N1gwPMEqaEHA"
+    }
+  },
+  "serverPort": 8324
+}

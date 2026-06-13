@@ -1,0 +1,18 @@
+아래는 이번 v2.13.3-security 보안 및 인프라 누수 멸균 수술을 통해 조치된 소스 코드 내용입니다.
+현재 변경된 상태를 바탕으로 아키텍처 사후 리뷰(Post-Review) 보고서를 작성해주세요.
+
+[검토 대상 변경 사항 요약]
+1. N-12 (P0): ffmpeg_worker.py의 render_video 내 temp_dir 삭제 보장을 위한 try/finally 적용 (완료), main.py의 render_stream 제너레이터 내 ffmpeg_worker.render_video 루프를 try/finally로 감싸고 finally에서 await gen.aclose() 명시적 실행 보장하여 리소스 회수 보장 (완료). download_image 내 except: pass를 except Exception: pass로 보완 완료.
+2. N-13 (P0): /api/webhook/kie에서 raw body 가로채기 방식을 통해 WEBHOOK_SECRET을 사용한 HMAC-SHA256 서명 검증(hmac.compare_digest)을 도입하고, Pydantic 역직렬화(model_validate_json)를 수동 적용하여 위조 공격 원천 차단 (완료). tests/test_webhook.py도 서명 헤더를 생성하여 요청하도록 업데이트 (완료).
+3. N-14 (P0): /api/user-videos (GET/POST), /api/dashboard/projects (GET), /api/projects (POST) 등 4대 API에 Depends(get_jwt_user_id)를 적용하여 JWT 인증 및 IDOR 방어 가드 연동 (완료).
+4. N-15 (P1): main.py에 db_lock = asyncio.Lock() 싱글턴을 선언하고, create_project 및 upload_user_video API 엔드포인트 핸들러와 webhook_kie 등 DB 쓰기 작업 진입 시 async with db_lock: 원자적 락을 획득하여 TOCTOU 및 Race Condition 박멸 (완료).
+
+[주요 소스 코드 변경 분량]
+(main.py와 tests/test_webhook.py, backend/services/ffmpeg_worker.py 파일 내용을 참고하여 리뷰를 작성해주세요.)
+
+리뷰 보고서는 반드시 다음 형식으로 한국어로 작성해주세요:
+# 📋 RAPTOR v2.13.3-security 사후 아키텍처 리뷰 보고서 (Post-Review)
+1. 성능 저하 / 메모리·디스크 누수 (N-12, N-15 관련 조치 평가 및 pass/fail 기술)
+2. 보안 결함 (N-13, N-14 관련 조치 평가 및 pass/fail 기술)
+3. TDD 채점 (N-12, N-13, N-14, N-15의 PASS/FAIL 여부 표 정리)
+4. 최종 결론

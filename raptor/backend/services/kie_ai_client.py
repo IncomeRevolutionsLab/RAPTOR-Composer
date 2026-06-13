@@ -16,11 +16,12 @@ class KieAiClient:
             "export": "720p"
         }
         return {
-            "model": "grok-imagine/image-to-video",
+            "model": "grok-imagine/text-to-image",
             "quality": res_map.get(quality, "480p"),
             "input": {
                 "image_url": image_url,
-                "duration": str(duration)
+                "duration": str(duration),
+                "aspect_ratio": "9:16"
             }
         }
 
