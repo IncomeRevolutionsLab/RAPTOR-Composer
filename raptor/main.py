@@ -171,12 +171,12 @@ def get_jwt_user_id(authorization: Optional[str] = Header(None)) -> str:
 
 def map_image_model(model_name: Optional[str]) -> str:
     if not model_name:
-        return "gpt-image-2"
+        return "gpt-image-2-text-to-image"
     normalized = model_name.lower().strip()
     if "openai" in normalized or "gpt-image-2" in normalized or "gpt image 2" in normalized:
-        return "gpt-image-2"
+        return "gpt-image-2-text-to-image"
     elif "grok" in normalized:
-        return "grok-imagine"
+        return "grok-imagine/text-to-image"
     elif "banana" in normalized:
         return "nano-banana-2"
     return model_name
@@ -1172,15 +1172,30 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                 try:
                     # 1. createTask 호출
                     model_val = map_image_model(request.model)
+                    
+                    # 베이스 페이로드 구성 (KIE 기술지원팀 공식 스펙 완전 일치화)
                     input_payload = {
-                        "prompt": full_prompt,
-                        "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
+                        "prompt": full_prompt
                     }
+                    
                     if model_val == "nano-banana-2":
                         input_payload.update({
                             "image_input": [],
+                            "aspect_ratio": "auto",
                             "resolution": "1K",
                             "output_format": "png"
+                        })
+                    elif model_val == "grok-imagine/text-to-image":
+                        input_payload.update({
+                            "aspect_ratio": "3:2"
+                        })
+                    elif model_val == "gpt-image-2-text-to-image":
+                        input_payload.update({
+                            "aspect_ratio": "auto"
+                        })
+                    else:
+                        input_payload.update({
+                            "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
                         })
                     
                     create_res = await client.post(
@@ -1582,15 +1597,29 @@ JSON Structure:
             for attempt in range(max_retries + 1):
                 try:
                     model_val = map_image_model(request.model)
+                    # 베이스 페이로드 구성 (KIE 기술지원팀 공식 스펙 완전 일치화)
                     input_payload = {
-                        "prompt": full_prompt,
-                        "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
+                        "prompt": full_prompt
                     }
+                    
                     if model_val == "nano-banana-2":
                         input_payload.update({
                             "image_input": [],
+                            "aspect_ratio": "auto",
                             "resolution": "1K",
                             "output_format": "png"
+                        })
+                    elif model_val == "grok-imagine/text-to-image":
+                        input_payload.update({
+                            "aspect_ratio": "3:2"
+                        })
+                    elif model_val == "gpt-image-2-text-to-image":
+                        input_payload.update({
+                            "aspect_ratio": "auto"
+                        })
+                    else:
+                        input_payload.update({
+                            "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
                         })
                     
                     dalle_res = await http_client.post(
