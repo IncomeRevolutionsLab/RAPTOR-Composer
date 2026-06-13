@@ -1480,6 +1480,7 @@ export default function RaptorWorkflow() {
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
+                                    // [FIX] MP4 업로드 JS 락 해제 (video/* 전면 허용)
                                     if (!file.type.startsWith('video/')) {
                                       alert("비디오 파일만 업로드 가능합니다.");
                                       return;
@@ -1551,6 +1552,7 @@ export default function RaptorWorkflow() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                // [FIX] MP4 업로드 JS 락 해제 (video/* 전면 허용)
                                 if (!file.type.startsWith('video/')) {
                                   alert("비디오 파일만 업로드 가능합니다.");
                                   return;
@@ -1731,7 +1733,7 @@ export default function RaptorWorkflow() {
         <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-3xl font-black text-white whitespace-nowrap">4단계: 비디오 클립 생성 및 모니터</h2>
+              <h2 className="text-3xl font-black text-white whitespace-nowrap">4단계: 비디오 생성</h2>
               <p className="text-xs text-gray-500 tracking-widest flex items-center gap-2"><Smartphone className="w-3 h-3" /> {aspectRatio} • {productData?.targetLanguage} Optimized</p>
             </div>
           </div>
@@ -1753,6 +1755,7 @@ export default function RaptorWorkflow() {
               const totalScenes = script.length || 0;
               const completedImages = script.filter((s: any) => s.image_url).length;
               const hasImageError = script.some((s: any) => s.status === 'error');
+              // [FIX] 100% 스틸컷 방어 해제: use_image_only 포함 산출 (스틸컷 모드에서도 최종 렌더링 가능하도록 개방)
               const completedVideos = script.filter((s: any) => s.video_url || s.use_image_only).length;
 
               const stage1Status = analysis ? 'success' : 'error';
@@ -1910,6 +1913,7 @@ export default function RaptorWorkflow() {
               </div>
 
               <div className="w-full space-y-4">
+                {/* [FIX] 물리적 완전 분리: Step 4 (비디오 생성) 버튼은 아직 생성되지 않은 비디오가 있을 때만 렌더링 */}
                 {completedImages === totalScenes && completedVideos < totalScenes && (
                   <button 
                     onClick={() => handleGenerateClips()} 
@@ -1924,6 +1928,7 @@ export default function RaptorWorkflow() {
                   </button>
                 )}
 
+                {/* [FIX] 물리적 완전 분리: Step 5 (최종 렌더링) 버튼은 모든 비디오(스틸컷 포함) 생성이 완료되었을 때만 렌더링 */}
                 {completedVideos === totalScenes && totalScenes > 0 && (
                   <button 
                     onClick={() => handleRenderFinal()} 
@@ -2024,7 +2029,7 @@ export default function RaptorWorkflow() {
                             }}
                             className="px-3 py-1 bg-red-600/90 hover:bg-red-500 text-white rounded-full text-[10px] font-bold shadow-lg transition-transform active:scale-95"
                           >
-                            비디오 생성으로 전환
+                            ✕ 스틸컷 모드 취소 (비디오 대기 상태로 복귀)
                           </button>
                         </div>
                       </div>
