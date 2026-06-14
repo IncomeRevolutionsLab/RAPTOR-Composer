@@ -1294,8 +1294,7 @@ export default function RaptorWorkflow() {
 
       {/* Step 3: Final Assets (기획안 편집) */}
       {step === 3 && finalAssets && (
-        <div className="hidden"></div>
-<div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
+        <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
           {(() => {
             const canGoToStep4 = finalAssets?.script && finalAssets.script.length > 0;
             return (
