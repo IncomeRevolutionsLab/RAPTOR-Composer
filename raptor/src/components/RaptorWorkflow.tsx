@@ -73,6 +73,14 @@ export default function RaptorWorkflow() {
   const [sceneFeedbacks, setSceneFeedbacks] = useState<Record<number, string>>({});
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  // [FIX] P0: Step 4, 5 버튼 스코프 버그 수정을 위한 컴포넌트 최상위 호이스팅
+  const script = finalAssets?.script || [];
+  const totalScenes = script.length || 0;
+  const completedImages = script.filter((s: any) => s.image_url).length;
+  const completedVideos = script.filter((s: any) => s.video_url || s.use_image_only).length;
+  const allVideosReady = completedVideos === totalScenes && totalScenes > 0;
+
+
   // [NEW] 렌더링 큐 상태 폴링
   const [renderQueueCount, setRenderQueueCount] = useState(0);
 
@@ -1286,7 +1294,7 @@ export default function RaptorWorkflow() {
 
       {/* Step 3: Final Assets (기획안 편집) */}
       {step === 3 && finalAssets && (
-        <TrafficLightUX />
+        <div className="hidden"></div>
 <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
           {(() => {
             const canGoToStep4 = finalAssets?.script && finalAssets.script.length > 0;
@@ -1751,12 +1759,7 @@ export default function RaptorWorkflow() {
             </div>
 
             {(() => {
-              const script = finalAssets?.script || [];
-              const totalScenes = script.length || 0;
-              const completedImages = script.filter((s: any) => s.image_url).length;
               const hasImageError = script.some((s: any) => s.status === 'error');
-              // [FIX] 100% 스틸컷 방어 해제: use_image_only 포함 산출 (스틸컷 모드에서도 최종 렌더링 가능하도록 개방)
-              const completedVideos = script.filter((s: any) => s.video_url || s.use_image_only).length;
 
               const stage1Status = analysis ? 'success' : 'error';
               const stage2Status = totalScenes > 0 ? 'success' : 'error';
@@ -1780,8 +1783,8 @@ export default function RaptorWorkflow() {
                 { id: 1, name: '상품 분석', status: stage1Status, desc: 'AI 상품 기획 및 소구점 도출', action: handleAnalyze, actionLabel: '분석 재시도' },
                 { id: 2, name: '시나리오 작성', status: stage2Status, desc: `총 ${totalScenes}개 씬 구성 완료`, action: handleAnalyze, actionLabel: '스크립트 재작성' },
                 { id: 3, name: '이미지 생성', status: stage3Status, desc: `이미지 완료 (${completedImages}/${totalScenes})`, action: undefined, actionLabel: '' },
-                { id: 4, name: '비디오 생성', status: stage4Status, desc: `비디오 클립 완료 (${completedVideos}/${totalScenes})`, action: handleGenerateClips, actionLabel: '실패한 씬 비디오 생성 재시도' },
-                { id: 5, name: '최종 렌더링', status: stage5Status, desc: renderedVideoUrl ? '최종 MP4 완성' : isRendering ? `렌더링 진행 중 (${renderProgress}%)` : '대기 중', action: handleRenderFinal, actionLabel: '최종 렌더링 재시도' },
+                { id: 4, name: '비디오 생성', status: stage4Status, desc: `비디오 클립 완료 (${completedVideos}/${totalScenes})`, action: undefined, actionLabel: '' },
+                { id: 5, name: '최종 렌더링', status: stage5Status, desc: renderedVideoUrl ? '최종 MP4 완성' : isRendering ? `렌더링 진행 중 (${renderProgress}%)` : '대기 중', action: undefined, actionLabel: '' },
               ];
 
               return (

@@ -5,7 +5,7 @@
 ---
 
 ## 📊 리스크 현황 요약
-*   **[New] 신규 리스크:** 2건 (N-PERF-001, N-MEM-001)
+*   **[New] 신규 리스크:** 6건 (N-PERF-001, N-MEM-001, R-01, P0-B01, P0-B02, P1-B03)
 *   **[Pending] 진행 중/보류 리스크:** 5건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010)
 *   **[Resolved] 해결된 리스크:** 63건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009, N-BUG-001, N-BUG-002, N-SEC-001, N-SEC-002)
 
@@ -13,7 +13,29 @@
 
 ## 1. 🔴 [New] 신규 리스크
 
-### 🟡 N-PERF-001: 신호등 UX 폴링 — DB 과부하
+### 🔴 P0-B01: `TrafficLightUX` 미정의 컴포넌트 호출 (빌드 에러)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 치명적 (Critical / P0)
+*   **상태:** `[New]`
+*   **리스크 내용:** `<TrafficLightUX />`가 임포트나 정의 없이 사용되어 TypeScript 빌드 오류(TS2304) 발생. Vercel 배포 실패가 확정됨. 추가로 JSX Fragment 누락에 의한 구문 오류도 동반됨.
+
+### 🔴 P0-B02: Step 4 렌더링 버튼 IIFE 스코프 버그 (진행 불가)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 치명적 (Critical / P0)
+*   **상태:** `[New]`
+*   **리스크 내용:** `completedImages`, `completedVideos` 변수가 IIFE 내부에서만 정의되어 외부의 Step 4 버튼 렌더링 조건식에서 참조될 때 항상 `undefined`로 평가됨. 결과적으로 비디오/최종 렌더링 시작 버튼이 영구적으로 미표시되어 사용자가 진행 불가 상태에 빠짐.
+
+### 🟠 P1-B03: 스틸컷 뱃지 렌더링 조건 논리 오류
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 높음 (High / P1)
+*   **상태:** `[New]`
+*   **리스크 내용:** `scene.use_image_only && scene.status === 'success'` 조건에서, 스틸컷 모드 시 비디오 생성을 건너뛰므로 `status`가 `'success'`에 도달하지 않아 "스틸컷 연출 준비완료" 뱃지가 영구 미표시됨.
+
+### 🟡 R-01: `nano-banana-2` 모델의 `9:16` 지원 여부 불확실성
+*   **관련 컴포넌트:** `main.py`
+*   **영향도:** 보통 (Medium / P2)
+*   **상태:** `[New]`
+*   **리스크 내용:** 이전에는 `auto` 비율이 강제 주입되었으나 패치로 소거됨에 따라 프론트엔드가 요청한 `9:16` 비율이 그대로 전달됨. nano-banana-2 모델이 해당 비율을 미지원할 경우 422 에러 재발 가능성 존재.### 🟡 N-PERF-001: 신호등 UX 폴링 — DB 과부하
 *   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
 *   **영향도:** 보통 (Medium / P3)
 *   **상태:** `[New]`
