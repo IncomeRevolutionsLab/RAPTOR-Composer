@@ -1294,7 +1294,8 @@ export default function RaptorWorkflow() {
 
       {/* Step 3: Final Assets (기획안 편집) */}
       {step === 3 && finalAssets && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
+        <>
+          <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
           {(() => {
             const canGoToStep4 = finalAssets?.script && finalAssets.script.length > 0;
             return (
@@ -1732,7 +1733,8 @@ export default function RaptorWorkflow() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Step 4: Final Video Render (최종 렌더링 및 완성) */}
