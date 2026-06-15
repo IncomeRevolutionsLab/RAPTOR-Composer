@@ -3,6 +3,13 @@ import { supabase } from "@/lib/supabaseClient";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
+export class ApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export const api = {
   async request(method: 'GET' | 'POST', path: string, body: any = null, quality: string = 'preview') {
     const store = useWorkflowStore.getState();
@@ -88,7 +95,18 @@ export const api = {
           const json = JSON.parse(errorText);
           detail = json.detail || errorText;
         } catch (e) {}
-        throw new Error(`API Error (${response.status}): ${detail}`);
+
+        let userMessage: string;
+        if (response.status === 401) {
+          userMessage = 'API 키가 누락되었거나 만료되었습니다. 우측 상단에 API 키를 다시 입력해 주세요.';
+        } else if (response.status === 403) {
+          userMessage = `접근이 거부되었습니다. CSRF 토큰이 만료되었을 수 있습니다. 페이지를 새로고침 후 다시 시도해 주세요. (${detail})`;
+        } else if (response.status === 500) {
+          userMessage = `서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (${detail})`;
+        } else {
+          userMessage = `API Error (${response.status}): ${detail}`;
+        }
+        throw new ApiError(response.status, userMessage);
       }
 
       return await response.json();
@@ -98,7 +116,7 @@ export const api = {
       }
       const errMsg = (err.message || '').toLowerCase();
       if (err instanceof TypeError || errMsg.includes('failed to fetch') || errMsg.includes('networkerror') || errMsg.includes('network error')) {
-        throw new Error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        throw new Error('서버와 연결할 수 없습니다. (CORS 오류, 서드파티 쿠키 차단 또는 백엔드 장애 의심)');
       }
       throw err;
     }

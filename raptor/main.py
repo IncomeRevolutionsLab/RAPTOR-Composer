@@ -429,6 +429,19 @@ async def update_task_in_db(task_id: str, status: str, result_url: str = None, e
         return {}
     return res.data[0]
 
+def _supabase_retry(operation, max_retries: int = 2, delay: float = 0.5):
+    """Retry a Supabase call on transient network/API failure."""
+    last_exc: Exception = None
+    for attempt in range(max_retries + 1):
+        try:
+            return operation()
+        except Exception as e:
+            last_exc = e
+            if attempt < max_retries:
+                print(f"[Supabase Retry] Attempt {attempt + 1}/{max_retries + 1} failed: {e}. Retrying in {delay}s...")
+                time.sleep(delay)
+    raise last_exc
+
 async def enforce_user_fifo_limit(user_id: str, limit: int):
     """
     [P-006] FIFO 한도 정리 로직을 공통 함수로 단일화
@@ -458,8 +471,11 @@ async def enforce_user_fifo_limit(user_id: str, limit: int):
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 
-        supabase.table("projects").delete().in_("project_id", to_delete_ids).execute()
-        print(f"[CASCADE FIFO] Cleaned up oldest projects: {to_delete_ids} to enforce limit {limit}")
+        try:
+            _supabase_retry(lambda: supabase.table("projects").delete().in_("project_id", to_delete_ids).execute())
+            print(f"[CASCADE FIFO] Cleaned up oldest projects: {to_delete_ids} to enforce limit {limit}")
+        except Exception as e:
+            print(f"[CASCADE FIFO] Warning: FIFO enforcement failed (non-critical, skipped): {str(e)}")
 
 async def check_and_enforce_user_limits(user_id: str = "beta_tester"):
     sanitized_user = sanitize_uuid(user_id)

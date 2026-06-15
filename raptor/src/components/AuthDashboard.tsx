@@ -246,15 +246,21 @@ export default function AuthDashboard() {
             ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           },
         });
-        if (res.ok) {
-          const data = await res.json();
-          setRows(data.rows || []);
-        } else {
-          throw new Error('서버 응답 오류');
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error('API 키가 누락되었거나 만료되었습니다. 우측 상단에 API 키를 다시 입력해 주세요.');
+          } else if (res.status === 403) {
+            throw new Error('접근이 거부되었습니다. 페이지를 새로고침 후 다시 시도해 주세요.');
+          } else if (res.status === 500) {
+            throw new Error('서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+          }
+          throw new Error('서버 응답 오류가 발생했습니다.');
         }
-      } catch (err) {
+        const data = await res.json();
+        setRows(data.rows || []);
+      } catch (err: any) {
         console.warn("Failed to fetch dashboard rows:", err);
-        setToast({ message: "대시보드 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.", type: "error" });
+        setToast({ message: err.message || "대시보드 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.", type: "error" });
       } finally {
         setRowsLoading(false);
       }
@@ -996,7 +1002,7 @@ export default function AuthDashboard() {
                           <p className="text-[10px] text-gray-500 text-center leading-relaxed mt-1 break-words">
                             가입 시 랩터 숏폼 메이커의{' '}
                             <a href="https://docs.google.com/document/d/18YmLQIcpjq8cghU5zukMWhu6W13QJo7WrGm-hl7TQuw/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors">이용약관</a>{' '}및{' '}
-                            <a href="https://docs.google.com/document/d/18YmLQIcpjq8cghU5zukMWhu6W13QJo7WrGm-hl7TQuw/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors">개인정보 처리방침</a>에
+                            <a href={process.env.NEXT_PUBLIC_PRIVACY_URL || '#privacy'} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors">개인정보 처리방침</a>에
                             동의하는 것으로 간주됩니다.
                           </p>
                         )}
