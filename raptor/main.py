@@ -447,7 +447,7 @@ async def enforce_user_fifo_limit(user_id: str, limit: int):
     [P-006] FIFO 한도 정리 로직을 공통 함수로 단일화
     """
     sanitized_user = sanitize_uuid(user_id)
-    res_projects = supabase.table("projects").select("project_id, created_at").eq("user_id", sanitized_user).execute()
+    res_projects = _supabase_retry(lambda: supabase.table("projects").select("project_id, created_at").eq("user_id", sanitized_user).execute())
     user_projects = res_projects.data or []
     
     if len(user_projects) > limit:
@@ -457,7 +457,7 @@ async def enforce_user_fifo_limit(user_id: str, limit: int):
         to_delete_ids = [p.get("project_id") for p in to_delete]
         
         # CASCADE delete: Supabase will delete tasks automatically
-        res_tasks = supabase.table("tasks").select("task_id").in_("project_id", to_delete_ids).execute()
+        res_tasks = _supabase_retry(lambda: supabase.table("tasks").select("task_id").in_("project_id", to_delete_ids).execute())
         tasks_to_delete = res_tasks.data or []
         for t in tasks_to_delete:
             t_id = t.get("task_id")

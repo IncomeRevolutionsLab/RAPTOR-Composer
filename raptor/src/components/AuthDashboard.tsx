@@ -248,7 +248,7 @@ export default function AuthDashboard() {
         });
         if (!res.ok) {
           if (res.status === 401) {
-            throw new Error('API 키가 누락되었거나 만료되었습니다. 우측 상단에 API 키를 다시 입력해 주세요.');
+            throw new Error('세션이 만료되었습니다. 다시 로그인해 주세요.');
           } else if (res.status === 403) {
             throw new Error('접근이 거부되었습니다. 페이지를 새로고침 후 다시 시도해 주세요.');
           } else if (res.status === 500) {
