@@ -1864,19 +1864,29 @@ async def get_archive(jwt_user_id: str = Depends(get_jwt_user_id)):
     return {"items": items, "total": len(items)}
 
 @app.post("/api/user-images")
-async def upload_user_image(file: UploadFile = File(...), jwt_user_id: str = Depends(get_jwt_user_id)):
+async def upload_user_image(
+    request: Request,
+    file: UploadFile = File(...), 
+    jwt_user_id: str = Depends(get_jwt_user_id)
+):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 10MB limit.")
+
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=422, detail="Only image files are allowed.")
         
     filename = file.filename or 'upload.png'
+    ext = filename.split('.')[-1].lower() if '.' in filename else 'png'
+    
+    if ext not in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
+        raise HTTPException(status_code=422, detail=f"Unsupported image format: {ext}")
+        
     image_id = f"ui_{uuid.uuid4().hex[:8]}"
-    ext = filename.split('.')[-1] if '.' in filename else 'png'
     file_name = f"{image_id}.{ext}"
     sanitized_user = sanitize_uuid(jwt_user_id)
     
     file_content = await file.read()
-    if len(file_content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File size exceeds 10MB limit.")
         
     try:
         supabase.storage.from_("assets").upload(
@@ -1888,7 +1898,7 @@ async def upload_user_image(file: UploadFile = File(...), jwt_user_id: str = Dep
         print(f"[Supabase Storage Upload Warning] {e}")
         raise HTTPException(status_code=500, detail="Failed to upload image to storage")
         
-    signed_res = supabase.storage.from_("assets").create_signed_url(file_name, 1800)
+    signed_res = supabase.storage.from_("assets").create_signed_url(file_name, 3600)
     signed_url = None
     if isinstance(signed_res, dict):
         signed_url = signed_res.get("signedURL") or signed_res.get("signedUrl")
