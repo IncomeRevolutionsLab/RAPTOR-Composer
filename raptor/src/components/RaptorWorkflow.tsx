@@ -43,7 +43,10 @@ const compressImage = (base64: string): Promise<string> => {
 
 // --- Helper: File Upload with JWT Check ---
 const uploadFile = async (endpoint: string, file: File) => {
-  const { data: sessionData } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw new Error(`세션 조회 실패: ${sessionError.message}`);
+  }
   const token = sessionData?.session?.access_token;
   if (!token) {
     throw new Error("로그인이 필요합니다. (인증 토큰 누락)");
@@ -55,8 +58,26 @@ const uploadFile = async (endpoint: string, file: File) => {
     body: formData,
     headers: { 'Authorization': `Bearer ${token}` }
   });
-  if (!res.ok) throw new Error("업로드 실패 (서버 에러)");
-  return await res.json();
+  if (!res.ok) {
+    let errMsg = "업로드 실패 (서버 에러)";
+    if (res.status === 401) {
+      errMsg = "세션이 만료되었습니다. 다시 로그인해 주세요. (401)";
+    } else if (res.status === 413) {
+      errMsg = "파일 용량이 초과되었습니다. (413)";
+    } else if (res.status === 429) {
+      errMsg = "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요. (429)";
+    } else if (res.status >= 500) {
+      errMsg = "서버 내부 오류가 발생했습니다. (500)";
+    } else {
+      errMsg = `업로드 실패 (상태 코드: ${res.status})`;
+    }
+    throw new Error(errMsg);
+  }
+  try {
+    return await res.json();
+  } catch (parseErr) {
+    throw new Error("서버 응답 데이터를 분석하는 데 실패했습니다.");
+  }
 };
 
 export default function RaptorWorkflow() {
@@ -87,7 +108,6 @@ export default function RaptorWorkflow() {
   } = useWorkflowStore();
   
   const [videoEngine, setVideoEngine] = useState<'grok' | 'veo_lite' | 'veo_fast'>('grok');
-  const [isUploading, setIsUploading] = useState(false);
   const [sceneFeedbacks, setSceneFeedbacks] = useState<Record<number, string>>({});
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
@@ -186,7 +206,6 @@ export default function RaptorWorkflow() {
     });
 
     if (validFiles.length > 0) {
-      setIsUploading(true);
       for (const file of validFiles) {
         const promise = new Promise<void>((resolve) => {
           const reader = new FileReader();
@@ -200,7 +219,6 @@ export default function RaptorWorkflow() {
         });
         await promise;
       }
-      setIsUploading(false);
     }
   };
 
@@ -1073,12 +1091,6 @@ export default function RaptorWorkflow() {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">상품 이미지 ({productData.images.length}/20)</label>
                 <div onPaste={handleImageInput} onDrop={handleImageInput} onDragOver={(e) => e.preventDefault()} className="relative min-h-[140px] bg-black/40 border-2 border-dashed border-white/10 rounded-2xl p-4 flex flex-wrap gap-3 overflow-y-auto max-h-[300px]">
-                  {isUploading && (
-                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 rounded-xl backdrop-blur-sm">
-                       <Loader2 className="w-6 h-6 animate-spin text-white mr-2" />
-                       <span className="text-white font-bold text-sm">[⏳ 업로드 중...]</span>
-                     </div>
-                  )}
                   {productData.images.length === 0 ? <div className="m-auto text-center"><Plus className="w-6 h-6 text-gray-600 mx-auto" /><p className="text-[10px] text-gray-600 font-medium uppercase mt-2">드래그하거나 붙여넣으세요</p></div> :
                     productData.images.map((img, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/20 shadow-lg group">
@@ -1484,6 +1496,10 @@ export default function RaptorWorkflow() {
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    alert("이미지 파일 크기는 10MB를 초과할 수 없습니다.");
+                                    return;
+                                  }
                                   if (!file.type.startsWith('image/')) {
                                     alert("이미지 파일만 업로드 가능합니다.");
                                     return;
@@ -1497,6 +1513,8 @@ export default function RaptorWorkflow() {
                                       updateSceneScript(i, 'video_url', null);
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
+                                    } else {
+                                      alert("업로드된 파일의 URL을 반환받지 못했습니다.");
                                     }
                                   } catch (err: any) {
                                     console.error(err);
@@ -1517,6 +1535,10 @@ export default function RaptorWorkflow() {
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
+                                  if (file.size > 500 * 1024 * 1024) {
+                                    alert("비디오 파일 크기는 500MB를 초과할 수 없습니다.");
+                                    return;
+                                  }
                                   if (!file.type.startsWith('video/')) {
                                     alert("비디오 파일만 업로드 가능합니다.");
                                     return;
@@ -1531,7 +1553,7 @@ export default function RaptorWorkflow() {
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
                                     } else {
-                                      alert("MP4 비디오 업로드 실패. 파일 타입을 확인하세요.");
+                                      alert("업로드된 파일의 URL을 반환받지 못했습니다.");
                                     }
                                   } catch (err: any) {
                                     console.error(err);
@@ -1559,6 +1581,10 @@ export default function RaptorWorkflow() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                if (file.size > 10 * 1024 * 1024) {
+                                  alert("이미지 파일 크기는 10MB를 초과할 수 없습니다.");
+                                  return;
+                                }
                                 if (!file.type.startsWith('image/')) {
                                   alert("이미지 파일만 업로드 가능합니다.");
                                   return;
@@ -1573,6 +1599,8 @@ export default function RaptorWorkflow() {
                                     updateSceneScript(i, 'video_url', null);
                                     updateSceneScript(i, 'status', 'ready');
                                     updateSceneScript(i, 'error', null);
+                                  } else {
+                                    alert("업로드된 파일의 URL을 반환받지 못했습니다.");
                                   }
                                 } catch (err: any) {
                                   console.error(err);
@@ -1594,6 +1622,10 @@ export default function RaptorWorkflow() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                if (file.size > 500 * 1024 * 1024) {
+                                  alert("비디오 파일 크기는 500MB를 초과할 수 없습니다.");
+                                  return;
+                                }
                                 // [FIX] MP4 업로드 JS 락 해제 (video/* 전면 허용)
                                 if (!file.type.startsWith('video/')) {
                                   alert("비디오 파일만 업로드 가능합니다.");
@@ -1610,7 +1642,7 @@ export default function RaptorWorkflow() {
                                     updateSceneScript(i, 'status', 'ready');
                                     updateSceneScript(i, 'error', null);
                                   } else {
-                                    alert("비디오 파일 업로드 실패");
+                                    alert("업로드된 파일의 URL을 반환받지 못했습니다.");
                                   }
                                 } catch (err: any) {
                                   console.error(err);

@@ -5,13 +5,49 @@
 ---
 
 ## 📊 리스크 현황 요약
-*   **[New] 신규 리스크:** 6건 (N-PERF-001, N-MEM-001, R-01, P0-B01, P0-B02, P1-B03)
+*   **[New] 신규 리스크:** 12건 (P1-B04, P1-B05, P1-SEC-01, P2-B01, P2-B02, P2-B03, N-PERF-001, N-MEM-001, R-01, P0-B01, P0-B02, P1-B03)
 *   **[Pending] 진행 중/보류 리스크:** 5건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010)
 *   **[Resolved] 해결된 리스크:** 63건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009, N-BUG-001, N-BUG-002, N-SEC-001, N-SEC-002)
 
 ---
 
 ## 1. 🔴 [New] 신규 리스크
+
+### 🔴 P1-B04: 이미지 업로드 후 data.url 미반환 시 무응답 (Silent Failure)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 높음 (High / P1)
+*   **상태:** `[New]`
+*   **리스크 내용:** 서버 응답에 url 필드가 누락될 경우, else 분기 부재로 오류 피드백 없이 로딩 스피너만 사라지고 씬 갱신이 중단됨.
+
+### 🔴 P1-B05: HTTP 상태 코드 미포함 (인증 만료 vs 서버 오류 구분 불가)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx` (uploadFile 헬퍼)
+*   **영향도:** 높음 (High / P1)
+*   **상태:** `[New]`
+*   **리스크 내용:** 401(토큰 만료), 413(크기 초과), 429(Rate Limit) 등 모든 오류를 일괄 "서버 에러"로 처리하여, 토큰 만료 시 재로그인 유도 등 적절한 분기 대응이 불가능함.
+
+### 🔴 P1-SEC-01: 클라이언트 파일 크기 검증 누락 (OOM 방어 취약)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 높음 (High / P1)
+*   **상태:** `[New]`
+*   **리스크 내용:** 대용량 파일에 대한 프론트엔드 측의 사전 검사 로직이 부재하여, 서버 통신이 발생한 이후에야 거절당해 불필요한 네트워크 대기 및 비용 낭비 초래.
+
+### 🟡 P2-B01: supabase.auth.getSession() error 객체 미처리
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 보통 (Medium / P2)
+*   **상태:** `[New]`
+*   **리스크 내용:** getSession의 error 객체를 파싱하지 않아 스토리지 접근 불가 등 기타 세션 조회 실패 상황에서도 부정확한 "로그인이 필요합니다" 메시지만 출력됨.
+
+### 🟡 P2-B02: isUploading 상태 변수 Dead State
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 보통 (Medium / P2)
+*   **상태:** `[New]`
+*   **리스크 내용:** isUploading은 선언되었으나 4곳의 핸들러에서 모두 Zustand의 setLoading만 호출하며 사용되지 않는 상태 누수.
+
+### 🟡 P2-B03: res.json() 파싱 실패 시 혼란스러운 오류 메시지 노출
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 보통 (Medium / P2)
+*   **상태:** `[New]`
+*   **리스크 내용:** 서버가 200 응답을 주더라도 유효한 JSON이 아닐 경우 프론트엔드에서 SyntaxError 오류 원문이 사용자에게 그대로 노출됨.
 
 ### 🔴 P0-B01: `TrafficLightUX` 미정의 컴포넌트 호출 (빌드 에러)
 *   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
