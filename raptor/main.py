@@ -173,7 +173,7 @@ def map_image_model(model_name: Optional[str]) -> str:
     if not model_name:
         return "gpt-image-2-text-to-image"
     normalized = model_name.lower().strip()
-    if "openai" in normalized or "gpt-image-2" in normalized or "gpt image 2" in normalized:
+    if "openai" in normalized or "gpt-image-2" in normalized or "gpt image 2" in normalized or "dall-e" in normalized or "dalle" in normalized:
         return "gpt-image-2-text-to-image"
     elif "grok" in normalized:
         return "grok-imagine/text-to-image"
@@ -1862,6 +1862,36 @@ async def get_archive(jwt_user_id: str = Depends(get_jwt_user_id)):
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     items = items[:50]
     return {"items": items, "total": len(items)}
+
+@app.post("/api/user-images")
+async def upload_user_image(file: UploadFile = File(...), jwt_user_id: str = Depends(get_jwt_user_id)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=422, detail="Only image files are allowed.")
+        
+    image_id = f"ui_{uuid.uuid4().hex[:8]}"
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+    file_name = f"{image_id}.{ext}"
+    sanitized_user = sanitize_uuid(jwt_user_id)
+    
+    file_content = await file.read()
+    
+    try:
+        supabase.storage.from_("assets").upload(
+            path=file_name,
+            file=file_content,
+            file_options={"content-type": file.content_type}
+        )
+    except Exception as e:
+        print(f"[Supabase Storage Upload Warning] {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image to storage")
+        
+    public_url = supabase.storage.from_("assets").get_public_url(file_name)
+    
+    return {
+        "url": public_url,
+        "id": image_id,
+        "filename": file_name
+    }
 
 @app.post("/api/user-videos")
 async def upload_user_video(file: UploadFile = File(...), jwt_user_id: str = Depends(get_jwt_user_id)):

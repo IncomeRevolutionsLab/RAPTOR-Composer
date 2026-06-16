@@ -1463,18 +1463,36 @@ export default function RaptorWorkflow() {
                               type="file" 
                               accept="image/*" 
                               className="hidden" 
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (event) => {
-                                    updateSceneScript(i, 'image_url', event.target?.result as string);
-                                    updateSceneScript(i, 'image_source', 'manual');
-                                    updateSceneScript(i, 'video_url', null);
-                                    updateSceneScript(i, 'status', 'ready');
-                                    updateSceneScript(i, 'error', null);
-                                  };
-                                  reader.readAsDataURL(file);
+                                  if (!file.type.startsWith('image/')) {
+                                    alert("이미지 파일만 업로드 가능합니다.");
+                                    return;
+                                  }
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  setLoading(true, "이미지 업로드 중...");
+                                  try {
+                                    const res = await fetch(`${BACKEND_URL}/api/user-images`, {
+                                      method: 'POST',
+                                      body: formData
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      updateSceneScript(i, 'image_url', data.url);
+                                      updateSceneScript(i, 'image_source', 'manual');
+                                      updateSceneScript(i, 'video_url', null);
+                                      updateSceneScript(i, 'status', 'ready');
+                                      updateSceneScript(i, 'error', null);
+                                    } else {
+                                      alert("이미지 업로드 실패");
+                                    }
+                                  } catch (err) {
+                                    console.error(err);
+                                  } finally {
+                                    setLoading(false);
+                                  }
                                 }
                               }}
                             />
@@ -1533,19 +1551,37 @@ export default function RaptorWorkflow() {
                             type="file" 
                             accept="image/*" 
                             className="hidden" 
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  updateSceneScript(i, 'image_url', event.target?.result as string);
-                                  updateSceneScript(i, 'image_source', 'manual');
-                                  updateSceneScript(i, 'user_video_id', null);
-                                  updateSceneScript(i, 'video_url', null);
-                                  updateSceneScript(i, 'status', 'ready');
-                                  updateSceneScript(i, 'error', null);
-                                };
-                                reader.readAsDataURL(file);
+                                if (!file.type.startsWith('image/')) {
+                                  alert("이미지 파일만 업로드 가능합니다.");
+                                  return;
+                                }
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                setLoading(true, "이미지 업로드 중...");
+                                try {
+                                  const res = await fetch(`${BACKEND_URL}/api/user-images`, {
+                                    method: 'POST',
+                                    body: formData
+                                  });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    updateSceneScript(i, 'image_url', data.url);
+                                    updateSceneScript(i, 'image_source', 'manual');
+                                    updateSceneScript(i, 'user_video_id', null);
+                                    updateSceneScript(i, 'video_url', null);
+                                    updateSceneScript(i, 'status', 'ready');
+                                    updateSceneScript(i, 'error', null);
+                                  } else {
+                                    alert("이미지 업로드 실패");
+                                  }
+                                } catch (err) {
+                                  console.error(err);
+                                } finally {
+                                  setLoading(false);
+                                }
                               }
                             }}
                           />
