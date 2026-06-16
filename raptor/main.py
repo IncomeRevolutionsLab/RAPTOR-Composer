@@ -47,6 +47,9 @@ if not WEBHOOK_SECRET:
 
 IS_PROD = os.getenv("ENV", "development").lower() in ["production", "prod"]
 
+MAX_IMAGE_SIZE = 10 * 1024 * 1024
+MAX_VIDEO_SIZE = 500 * 1024 * 1024
+
 class KIEHTTPClient(httpx.Client):
     def __init__(self, decrypted_key: str, *args, **kwargs):
         self.decrypted_key = decrypted_key.strip()
@@ -1863,9 +1866,6 @@ async def get_archive(jwt_user_id: str = Depends(get_jwt_user_id)):
     items = items[:50]
     return {"items": items, "total": len(items)}
 
-MAX_IMAGE_SIZE = 10 * 1024 * 1024
-MAX_VIDEO_SIZE = 500 * 1024 * 1024
-
 @app.post("/api/user-images")
 async def upload_user_image(
     request: Request,
@@ -1947,12 +1947,12 @@ async def upload_user_video(
     file_path = f"outputs/{video_id}.mp4"
     sanitized_user = sanitize_uuid(jwt_user_id)
     
-    # Save file locally for test runner and worker access
     file_content = await file.read()
     if len(file_content) > MAX_VIDEO_SIZE:
         raise HTTPException(status_code=413, detail="Video file size exceeds 500MB limit.")
 
     try:
+        os.makedirs("outputs", exist_ok=True)
         with open(file_path, "wb") as buffer:
             buffer.write(file_content)
             
@@ -1965,7 +1965,7 @@ async def upload_user_video(
             )
         except Exception as e:
             print(f"[Supabase Storage Upload Error] {e}")
-            raise HTTPException(status_code=500, detail="비디오 스토리지 업로드 실패")
+            raise HTTPException(status_code=500, detail="Video storage upload failed.")
             
         duration_seconds = 5.0
         asset_data = {
