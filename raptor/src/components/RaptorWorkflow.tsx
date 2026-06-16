@@ -41,6 +41,24 @@ const compressImage = (base64: string): Promise<string> => {
   });
 };
 
+// --- Helper: File Upload with JWT Check ---
+const uploadFile = async (endpoint: string, file: File) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) {
+    throw new Error("로그인이 필요합니다. (인증 토큰 누락)");
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${BACKEND_URL}${endpoint}`, {
+    method: 'POST',
+    body: formData,
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("업로드 실패 (서버 에러)");
+  return await res.json();
+};
+
 export default function RaptorWorkflow() {
   const [mounted, setMounted] = useState(false);
 
@@ -1470,19 +1488,9 @@ export default function RaptorWorkflow() {
                                     alert("이미지 파일만 업로드 가능합니다.");
                                     return;
                                   }
-                                  const formData = new FormData();
-                                  formData.append('file', file);
                                   setLoading(true, "이미지 업로드 중...");
                                   try {
-                                    const { data: sessionData } = await supabase.auth.getSession();
-                                    const token = sessionData?.session?.access_token;
-                                    const res = await fetch(`${BACKEND_URL}/api/user-images`, {
-                                      method: 'POST',
-                                      body: formData,
-                                      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                                    });
-                                    if (!res.ok) throw new Error("업로드 에러");
-                                    const data = await res.json();
+                                    const data = await uploadFile('/api/user-images', file);
                                     if (data && data.url) {
                                       updateSceneScript(i, 'image_url', data.url);
                                       updateSceneScript(i, 'image_source', 'manual');
@@ -1490,9 +1498,9 @@ export default function RaptorWorkflow() {
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
                                     }
-                                  } catch (err) {
+                                  } catch (err: any) {
                                     console.error(err);
-                                    alert("이미지 업로드 실패: 파일 형식을 확인해주세요 (최대 10MB).");
+                                    alert(`이미지 업로드 실패: ${err.message}`);
                                   } finally {
                                     setLoading(false);
                                   }
@@ -1506,26 +1514,16 @@ export default function RaptorWorkflow() {
                               type="file" 
                               accept="video/mp4,video/x-m4v,video/*"
                               className="hidden" 
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    if (!file.type.startsWith('video/')) {
-                                      alert("비디오 파일만 업로드 가능합니다.");
-                                      return;
-                                    }
-                                    const formData = new FormData();
-                                    formData.append('file', file);
-                                    setLoading(true, "비디오 업로드 및 정밀 분석 중...");
-                                    try {
-                                    const { data: sessionData } = await supabase.auth.getSession();
-                                    const token = sessionData?.session?.access_token;
-                                    const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
-                                      method: 'POST',
-                                      body: formData,
-                                      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                                    });
-                                    if (!res.ok) throw new Error("업로드 에러");
-                                    const data = await res.json();
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (!file.type.startsWith('video/')) {
+                                    alert("비디오 파일만 업로드 가능합니다.");
+                                    return;
+                                  }
+                                  setLoading(true, "비디오 업로드 및 정밀 분석 중...");
+                                  try {
+                                    const data = await uploadFile('/api/user-videos', file);
                                     if (data && data.id) {
                                       updateSceneScript(i, 'user_video_id', data.id);
                                       updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${data.id}.mp4`);
@@ -1535,8 +1533,9 @@ export default function RaptorWorkflow() {
                                     } else {
                                       alert("MP4 비디오 업로드 실패. 파일 타입을 확인하세요.");
                                     }
-                                  } catch (err) {
+                                  } catch (err: any) {
                                     console.error(err);
+                                    alert(`비디오 업로드 실패: ${err.message}`);
                                   } finally {
                                     setLoading(false);
                                   }
@@ -1564,19 +1563,9 @@ export default function RaptorWorkflow() {
                                   alert("이미지 파일만 업로드 가능합니다.");
                                   return;
                                 }
-                                const formData = new FormData();
-                                formData.append('file', file);
                                 setLoading(true, "이미지 업로드 중...");
                                 try {
-                                  const { data: sessionData } = await supabase.auth.getSession();
-                                  const token = sessionData?.session?.access_token;
-                                  const res = await fetch(`${BACKEND_URL}/api/user-images`, {
-                                    method: 'POST',
-                                    body: formData,
-                                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                                  });
-                                  if (!res.ok) throw new Error("업로드 에러");
-                                  const data = await res.json();
+                                  const data = await uploadFile('/api/user-images', file);
                                   if (data && data.url) {
                                     updateSceneScript(i, 'image_url', data.url);
                                     updateSceneScript(i, 'image_source', 'manual');
@@ -1585,9 +1574,9 @@ export default function RaptorWorkflow() {
                                     updateSceneScript(i, 'status', 'ready');
                                     updateSceneScript(i, 'error', null);
                                   }
-                                } catch (err) {
+                                } catch (err: any) {
                                   console.error(err);
-                                  alert("이미지 업로드 실패: 파일 형식을 확인해주세요 (최대 10MB).");
+                                  alert(`이미지 업로드 실패: ${err.message}`);
                                 } finally {
                                   setLoading(false);
                                 }
@@ -1610,16 +1599,10 @@ export default function RaptorWorkflow() {
                                   alert("비디오 파일만 업로드 가능합니다.");
                                   return;
                                 }
-                                const formData = new FormData();
-                                formData.append('file', file);
                                 setLoading(true, "비디오 업로드 및 정밀 분석 중...");
                                 try {
-                                  const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
-                                    method: 'POST',
-                                    body: formData
-                                  });
-                                  if (res.ok) {
-                                    const data = await res.json();
+                                  const data = await uploadFile('/api/user-videos', file);
+                                  if (data && data.id) {
                                     updateSceneScript(i, 'user_video_id', data.id);
                                     updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${data.id}.mp4`);
                                     updateSceneScript(i, 'image_source', 'manual');
@@ -1629,8 +1612,9 @@ export default function RaptorWorkflow() {
                                   } else {
                                     alert("비디오 파일 업로드 실패");
                                   }
-                                } catch (err) {
+                                } catch (err: any) {
                                   console.error(err);
+                                  alert(`비디오 업로드 실패: ${err.message}`);
                                 } finally {
                                   setLoading(false);
                                 }
