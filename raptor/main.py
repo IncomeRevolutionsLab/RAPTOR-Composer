@@ -1870,8 +1870,11 @@ async def upload_user_image(
     jwt_user_id: str = Depends(get_jwt_user_id)
 ):
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File size exceeds 10MB limit.")
+    try:
+        if content_length and int(content_length) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="File size exceeds 10MB limit.")
+    except ValueError:
+        pass
 
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=422, detail="Only image files are allowed.")
@@ -1883,10 +1886,12 @@ async def upload_user_image(
         raise HTTPException(status_code=422, detail=f"Unsupported image format: {ext}")
         
     image_id = f"ui_{uuid.uuid4().hex[:8]}"
-    file_name = f"{image_id}.{ext}"
     sanitized_user = sanitize_uuid(jwt_user_id)
+    file_name = f"{sanitized_user}/{image_id}.{ext}"
     
     file_content = await file.read()
+    if len(file_content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds 10MB limit.")
         
     try:
         supabase.storage.from_("assets").upload(
@@ -1915,7 +1920,18 @@ async def upload_user_image(
     }
 
 @app.post("/api/user-videos")
-async def upload_user_video(file: UploadFile = File(...), jwt_user_id: str = Depends(get_jwt_user_id)):
+async def upload_user_video(
+    request: Request,
+    file: UploadFile = File(...), 
+    jwt_user_id: str = Depends(get_jwt_user_id)
+):
+    content_length = request.headers.get("content-length")
+    try:
+        if content_length and int(content_length) > 500 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Video file size exceeds 500MB limit.")
+    except ValueError:
+        pass
+
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=422, detail="Only video files are allowed.")
         
@@ -1925,13 +1941,16 @@ async def upload_user_video(file: UploadFile = File(...), jwt_user_id: str = Dep
     
     # Save file locally for test runner and worker access
     file_content = await file.read()
+    if len(file_content) > 500 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Video file size exceeds 500MB limit.")
+
     with open(file_path, "wb") as buffer:
         buffer.write(file_content)
         
     # Upload to Supabase Storage (assets bucket)
     try:
         supabase.storage.from_("assets").upload(
-            path=f"{video_id}.mp4",
+            path=f"{sanitized_user}/{video_id}.mp4",
             file=file_content,
             file_options={"content-type": "video/mp4"}
         )
