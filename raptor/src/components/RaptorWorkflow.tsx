@@ -1474,11 +1474,17 @@ export default function RaptorWorkflow() {
                                   formData.append('file', file);
                                   setLoading(true, "이미지 업로드 중...");
                                   try {
-                                    const res = await api.post('/api/user-images', formData, {
-                                      headers: { 'Content-Type': 'multipart/form-data' }
+                                    const { data: sessionData } = await supabase.auth.getSession();
+                                    const token = sessionData?.session?.access_token;
+                                    const res = await fetch(`${BACKEND_URL}/api/user-images`, {
+                                      method: 'POST',
+                                      body: formData,
+                                      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                                     });
-                                    if (res.data && res.data.url) {
-                                      updateSceneScript(i, 'image_url', res.data.url);
+                                    if (!res.ok) throw new Error("업로드 에러");
+                                    const data = await res.json();
+                                    if (data && data.url) {
+                                      updateSceneScript(i, 'image_url', data.url);
                                       updateSceneScript(i, 'image_source', 'manual');
                                       updateSceneScript(i, 'video_url', null);
                                       updateSceneScript(i, 'status', 'ready');
@@ -1511,12 +1517,18 @@ export default function RaptorWorkflow() {
                                     formData.append('file', file);
                                     setLoading(true, "비디오 업로드 및 정밀 분석 중...");
                                     try {
-                                    const res = await api.post('/api/user-videos', formData, {
-                                      headers: { 'Content-Type': 'multipart/form-data' }
+                                    const { data: sessionData } = await supabase.auth.getSession();
+                                    const token = sessionData?.session?.access_token;
+                                    const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
+                                      method: 'POST',
+                                      body: formData,
+                                      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                                     });
-                                    if (res.data && res.data.id) {
-                                      updateSceneScript(i, 'user_video_id', res.data.id);
-                                      updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${res.data.id}.mp4`);
+                                    if (!res.ok) throw new Error("업로드 에러");
+                                    const data = await res.json();
+                                    if (data && data.id) {
+                                      updateSceneScript(i, 'user_video_id', data.id);
+                                      updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${data.id}.mp4`);
                                       updateSceneScript(i, 'image_source', 'manual');
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
@@ -1556,11 +1568,17 @@ export default function RaptorWorkflow() {
                                 formData.append('file', file);
                                 setLoading(true, "이미지 업로드 중...");
                                 try {
-                                  const res = await api.post('/api/user-images', formData, {
-                                    headers: { 'Content-Type': 'multipart/form-data' }
+                                  const { data: sessionData } = await supabase.auth.getSession();
+                                  const token = sessionData?.session?.access_token;
+                                  const res = await fetch(`${BACKEND_URL}/api/user-images`, {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                                   });
-                                  if (res.data && res.data.url) {
-                                    updateSceneScript(i, 'image_url', res.data.url);
+                                  if (!res.ok) throw new Error("업로드 에러");
+                                  const data = await res.json();
+                                  if (data && data.url) {
+                                    updateSceneScript(i, 'image_url', data.url);
                                     updateSceneScript(i, 'image_source', 'manual');
                                     updateSceneScript(i, 'user_video_id', null);
                                     updateSceneScript(i, 'video_url', null);

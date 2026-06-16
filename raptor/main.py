@@ -2325,12 +2325,10 @@ async def generate_video_clips_stream(
                 msg = res.get("_fallback_msg") or f"장면 {idx + 1} 동영상 완료 ({completed_count}/{N}), 나머지 대기 중..."
                 yield f"data: {json.dumps({'message': msg, 'scene_update': res})}\n\n"
             except Exception as e:
-                
-            if "veo" in str(e).lower():
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
-            else:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-
+                if "veo" in str(e).lower():
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 return
 
         ordered_scenes = [{k: v for k, v in scene.items() if k != "_index"} for scene in results]
