@@ -1863,6 +1863,9 @@ async def get_archive(jwt_user_id: str = Depends(get_jwt_user_id)):
     items = items[:50]
     return {"items": items, "total": len(items)}
 
+MAX_IMAGE_SIZE = 10 * 1024 * 1024
+MAX_VIDEO_SIZE = 500 * 1024 * 1024
+
 @app.post("/api/user-images")
 async def upload_user_image(
     request: Request,
@@ -1871,7 +1874,7 @@ async def upload_user_image(
 ):
     content_length = request.headers.get("content-length")
     try:
-        if content_length and int(content_length) > 10 * 1024 * 1024:
+        if content_length and int(content_length) > MAX_IMAGE_SIZE:
             raise HTTPException(status_code=413, detail="File size exceeds 10MB limit.")
     except ValueError:
         pass
@@ -1890,7 +1893,7 @@ async def upload_user_image(
     file_name = f"{sanitized_user}/{image_id}.{ext}"
     
     file_content = await file.read()
-    if len(file_content) > 10 * 1024 * 1024:
+    if len(file_content) > MAX_IMAGE_SIZE:
         raise HTTPException(status_code=413, detail="File size exceeds 10MB limit.")
         
     try:
@@ -1927,7 +1930,7 @@ async def upload_user_video(
 ):
     content_length = request.headers.get("content-length")
     try:
-        if content_length and int(content_length) > 500 * 1024 * 1024:
+        if content_length and int(content_length) > MAX_VIDEO_SIZE:
             raise HTTPException(status_code=413, detail="Video file size exceeds 500MB limit.")
     except ValueError:
         pass
@@ -1935,47 +1938,60 @@ async def upload_user_video(
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=422, detail="Only video files are allowed.")
         
+    filename = file.filename or 'upload.mp4'
+    ext = filename.split('.')[-1].lower() if '.' in filename else 'mp4'
+    if ext not in ['mp4', 'mov', 'webm']:
+        raise HTTPException(status_code=422, detail=f"Unsupported video format: {ext}")
+        
     video_id = f"uv_{uuid.uuid4().hex[:8]}"
     file_path = f"outputs/{video_id}.mp4"
     sanitized_user = sanitize_uuid(jwt_user_id)
     
     # Save file locally for test runner and worker access
     file_content = await file.read()
-    if len(file_content) > 500 * 1024 * 1024:
+    if len(file_content) > MAX_VIDEO_SIZE:
         raise HTTPException(status_code=413, detail="Video file size exceeds 500MB limit.")
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(file_content)
-        
-    # Upload to Supabase Storage (assets bucket)
     try:
-        supabase.storage.from_("assets").upload(
-            path=f"{sanitized_user}/{video_id}.mp4",
-            file=file_content,
-            file_options={"content-type": "video/mp4"}
-        )
-    except Exception as e:
-        print(f"[Supabase Storage Upload Warning] {e}")
+        with open(file_path, "wb") as buffer:
+            buffer.write(file_content)
+            
+        # Upload to Supabase Storage (assets bucket)
+        try:
+            supabase.storage.from_("assets").upload(
+                path=f"{sanitized_user}/{video_id}.mp4",
+                file=file_content,
+                file_options={"content-type": "video/mp4"}
+            )
+        except Exception as e:
+            print(f"[Supabase Storage Upload Error] {e}")
+            raise HTTPException(status_code=500, detail="비디오 스토리지 업로드 실패")
+            
+        duration_seconds = 5.0
+        asset_data = {
+            "id": video_id,
+            "filename": filename,
+            "duration_seconds": duration_seconds,
+            "uploaded_at": datetime.utcnow().isoformat(),
+            "user_id": sanitized_user
+        }
         
-    duration_seconds = 5.0
-    asset_data = {
-        "id": video_id,
-        "filename": file.filename,
-        "duration_seconds": duration_seconds,
-        "uploaded_at": datetime.utcnow().isoformat(),
-        "user_id": sanitized_user
-    }
-    
-    res = supabase.table("user_video_assets").insert(asset_data).execute()
-    if not res.data:
-        raise HTTPException(status_code=500, detail="Failed to insert video asset metadata in database")
-        
-    return {
-        "id": video_id,
-        "filename": file.filename,
-        "duration_seconds": duration_seconds,
-        "uploaded_at": asset_data["uploaded_at"]
-    }
+        res = supabase.table("user_video_assets").insert(asset_data).execute()
+        if not res.data:
+            raise HTTPException(status_code=500, detail="Failed to insert video asset metadata in database")
+            
+        return {
+            "id": video_id,
+            "filename": filename,
+            "duration_seconds": duration_seconds,
+            "uploaded_at": asset_data["uploaded_at"]
+        }
+    finally:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"[Cleanup Error] Failed to remove {file_path}: {e}")
 
 
 
