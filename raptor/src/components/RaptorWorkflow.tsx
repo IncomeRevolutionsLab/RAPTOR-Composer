@@ -1474,22 +1474,19 @@ export default function RaptorWorkflow() {
                                   formData.append('file', file);
                                   setLoading(true, "이미지 업로드 중...");
                                   try {
-                                    const res = await fetch(`${BACKEND_URL}/api/user-images`, {
-                                      method: 'POST',
-                                      body: formData
+                                    const res = await api.post('/api/user-images', formData, {
+                                      headers: { 'Content-Type': 'multipart/form-data' }
                                     });
-                                    if (res.ok) {
-                                      const data = await res.json();
-                                      updateSceneScript(i, 'image_url', data.url);
+                                    if (res.data && res.data.url) {
+                                      updateSceneScript(i, 'image_url', res.data.url);
                                       updateSceneScript(i, 'image_source', 'manual');
                                       updateSceneScript(i, 'video_url', null);
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
-                                    } else {
-                                      alert("이미지 업로드 실패");
                                     }
                                   } catch (err) {
                                     console.error(err);
+                                    alert("이미지 업로드 실패: 파일 형식을 확인해주세요 (최대 10MB).");
                                   } finally {
                                     setLoading(false);
                                   }
@@ -1506,7 +1503,6 @@ export default function RaptorWorkflow() {
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    // [FIX] MP4 업로드 JS 락 해제 (video/* 전면 허용)
                                     if (!file.type.startsWith('video/')) {
                                       alert("비디오 파일만 업로드 가능합니다.");
                                       return;
@@ -1515,14 +1511,12 @@ export default function RaptorWorkflow() {
                                     formData.append('file', file);
                                     setLoading(true, "비디오 업로드 및 정밀 분석 중...");
                                     try {
-                                    const res = await fetch(`${BACKEND_URL}/api/user-videos`, {
-                                      method: 'POST',
-                                      body: formData
+                                    const res = await api.post('/api/user-videos', formData, {
+                                      headers: { 'Content-Type': 'multipart/form-data' }
                                     });
-                                    if (res.ok) {
-                                      const data = await res.json();
-                                      updateSceneScript(i, 'user_video_id', data.id);
-                                      updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${data.id}.mp4`);
+                                    if (res.data && res.data.id) {
+                                      updateSceneScript(i, 'user_video_id', res.data.id);
+                                      updateSceneScript(i, 'video_url', `${BACKEND_URL}/outputs/${res.data.id}.mp4`);
                                       updateSceneScript(i, 'image_source', 'manual');
                                       updateSceneScript(i, 'status', 'ready');
                                       updateSceneScript(i, 'error', null);
@@ -1562,23 +1556,20 @@ export default function RaptorWorkflow() {
                                 formData.append('file', file);
                                 setLoading(true, "이미지 업로드 중...");
                                 try {
-                                  const res = await fetch(`${BACKEND_URL}/api/user-images`, {
-                                    method: 'POST',
-                                    body: formData
+                                  const res = await api.post('/api/user-images', formData, {
+                                    headers: { 'Content-Type': 'multipart/form-data' }
                                   });
-                                  if (res.ok) {
-                                    const data = await res.json();
-                                    updateSceneScript(i, 'image_url', data.url);
+                                  if (res.data && res.data.url) {
+                                    updateSceneScript(i, 'image_url', res.data.url);
                                     updateSceneScript(i, 'image_source', 'manual');
                                     updateSceneScript(i, 'user_video_id', null);
                                     updateSceneScript(i, 'video_url', null);
                                     updateSceneScript(i, 'status', 'ready');
                                     updateSceneScript(i, 'error', null);
-                                  } else {
-                                    alert("이미지 업로드 실패");
                                   }
                                 } catch (err) {
                                   console.error(err);
+                                  alert("이미지 업로드 실패: 파일 형식을 확인해주세요 (최대 10MB).");
                                 } finally {
                                   setLoading(false);
                                 }

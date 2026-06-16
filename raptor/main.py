@@ -1868,13 +1868,16 @@ async def upload_user_image(file: UploadFile = File(...), jwt_user_id: str = Dep
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=422, detail="Only image files are allowed.")
         
+    filename = file.filename or 'upload.png'
     image_id = f"ui_{uuid.uuid4().hex[:8]}"
-    ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+    ext = filename.split('.')[-1] if '.' in filename else 'png'
     file_name = f"{image_id}.{ext}"
     sanitized_user = sanitize_uuid(jwt_user_id)
     
     file_content = await file.read()
-    
+    if len(file_content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds 10MB limit.")
+        
     try:
         supabase.storage.from_("assets").upload(
             path=file_name,
@@ -1885,10 +1888,18 @@ async def upload_user_image(file: UploadFile = File(...), jwt_user_id: str = Dep
         print(f"[Supabase Storage Upload Warning] {e}")
         raise HTTPException(status_code=500, detail="Failed to upload image to storage")
         
-    public_url = supabase.storage.from_("assets").get_public_url(file_name)
+    signed_res = supabase.storage.from_("assets").create_signed_url(file_name, 1800)
+    signed_url = None
+    if isinstance(signed_res, dict):
+        signed_url = signed_res.get("signedURL") or signed_res.get("signedUrl")
+    elif isinstance(signed_res, str):
+        signed_url = signed_res
+        
+    if not signed_url:
+        raise HTTPException(status_code=500, detail="Failed to generate signed URL.")
     
     return {
-        "url": public_url,
+        "url": signed_url,
         "id": image_id,
         "filename": file_name
     }
