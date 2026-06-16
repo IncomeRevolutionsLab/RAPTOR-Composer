@@ -420,3 +420,6 @@ class FFmpegWorker:
                     raise Exception("Physical MP4 creation failed.")
             finally:
                 shutil.rmtree(temp_dir, ignore_errors=True)
+
+ffmpeg_worker = FFmpegWorker()
+

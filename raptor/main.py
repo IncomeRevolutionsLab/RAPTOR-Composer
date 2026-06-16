@@ -5,7 +5,7 @@ import re
 import traceback
 import httpx
 from typing import List, Optional, Literal
-from fastapi import FastAPI, Header, HTTPException, Request, Depends, Cookie, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, Header, HTTPException, Request, Depends, Cookie, UploadFile, File, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from fastapi.middleware.cors import CORSMiddleware
@@ -335,7 +335,15 @@ class ImageGenRequest(BaseModel):
     aspect_ratio: Literal["9:16", "1:1", "16:9"] = "9:16"
     model: Optional[str] = "gpt-image-2-text-to-image"
 
+class RefinePromptRequest(BaseModel):
+    product_name: str
+    current_scene: dict
+    user_feedback: str
+    aspect_ratio: Literal["9:16", "1:1", "16:9"] = "9:16"
+    model: Optional[str] = "gpt-image-2-text-to-image"
+
 class VideoGenRequest(BaseModel):
+
     product_name: str
     scenes: List[dict]
     engine: str = "grok"
@@ -1198,12 +1206,19 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                         "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
                     }
                     
+                    # [P0] KIE 422 에러 원천 해결: GPT-Image-2 및 Grok 모델의 해상도 필수 규격 대응
+                    # request.aspect_ratio가 "auto"가 아니거나 GPT-Image-2, Grok, Nano Banana 모델의 경우 강제 주입
+                    if input_payload["aspect_ratio"] != "auto" or model_val in ["gpt-image-2-text-to-image", "grok-imagine/text-to-image", "nano-banana-2"]:
+                        input_payload["resolution"] = "1K"
+                    
                     if model_val == "nano-banana-2":
                         input_payload.update({
                             "image_input": [],
-                            "resolution": "1K",
                             "output_format": "png"
                         })
+                    
+                    # [P0] 디버그 로깅 강화: createTask 호출 직전 Payload 출력
+                    print(f"KIE Payload: {input_payload}")
                     
                     create_res = await client.post(
                         "https://api.kie.ai/api/v1/jobs/createTask",
@@ -1219,10 +1234,17 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                         timeout=60.0
                     )
                     
+                    # [P0] KIE 422 에러 래핑 예외 처리 보강
+                    if create_res.status_code == 422:
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
+                    
                     if create_res.status_code != 200:
                         raise Exception(f"Failed to create image task ({create_res.status_code}): {create_res.text}")
                     
                     resp_data = create_res.json()
+                    if resp_data.get('code') == 422:
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
+                        
                     data_dict = resp_data.get('data') or {}
                     task_id = resp_data.get('taskId') or data_dict.get('taskId') or resp_data.get('id') or data_dict.get('id')
                     
@@ -1611,12 +1633,19 @@ JSON Structure:
                         "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
                     }
                     
+                    # [P0] KIE 422 에러 원천 해결: GPT-Image-2 및 Grok 모델의 해상도 필수 규격 대응
+                    # request.aspect_ratio가 "auto"가 아니거나 GPT-Image-2, Grok, Nano Banana 모델의 경우 강제 주입
+                    if input_payload["aspect_ratio"] != "auto" or model_val in ["gpt-image-2-text-to-image", "grok-imagine/text-to-image", "nano-banana-2"]:
+                        input_payload["resolution"] = "1K"
+                    
                     if model_val == "nano-banana-2":
                         input_payload.update({
                             "image_input": [],
-                            "resolution": "1K",
                             "output_format": "png"
                         })
+                    
+                    # [P0] 디버그 로깅 강화: createTask 호출 직전 Payload 출력
+                    print(f"KIE Payload: {input_payload}")
                     
                     dalle_res = await http_client.post(
                         "https://api.kie.ai/api/v1/jobs/createTask",
@@ -1632,10 +1661,17 @@ JSON Structure:
                         timeout=60.0
                     )
                     
+                    # [P0] KIE 422 에러 래핑 예외 처리 보강
+                    if dalle_res.status_code == 422:
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
+                    
                     if dalle_res.status_code != 200:
                         raise Exception(f"Failed to create image task ({dalle_res.status_code}): {dalle_res.text}")
                     
                     resp_data = dalle_res.json()
+                    if resp_data.get('code') == 422:
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
+                        
                     data_dict = resp_data.get('data') or {}
                     task_id = resp_data.get('taskId') or data_dict.get('taskId') or resp_data.get('id') or data_dict.get('id')
                     
