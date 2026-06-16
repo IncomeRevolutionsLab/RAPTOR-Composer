@@ -1210,6 +1210,7 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                         },
                         json={
                             "model": model_val,
+                            "callBackUrl": "https://raptor-composer.onrender.com/api/webhook/kie",
                             "input": input_payload
                         },
                         timeout=60.0
