@@ -664,9 +664,9 @@ export default function RaptorWorkflow() {
                     // 클립 생성 완료 표시
                 }
               } catch (e: any) {
-                          const msg = extractErrorMessage(e);
-                          if (!msg.includes("Unexpected end of JSON input") && !msg.includes("Unexpected token")) throw e;
-                        }
+                const msg = extractErrorMessage(e);
+                if (!msg.includes("Unexpected end of JSON input") && !msg.includes("Unexpected token")) throw e;
+              }
             }
           }
         }
@@ -790,9 +790,9 @@ export default function RaptorWorkflow() {
                   finalUrl = `${BACKEND_URL}${data.output_url}`;
                 }
               } catch (e: any) {
-                          const msg = extractErrorMessage(e);
-                          if (!msg.includes("Unexpected end of JSON input") && !msg.includes("Unexpected token")) throw e;
-                        }
+                const msg = extractErrorMessage(e);
+                if (!msg.includes("Unexpected end of JSON input") && !msg.includes("Unexpected token")) throw e;
+              }
             }
           }
         }
