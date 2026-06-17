@@ -138,7 +138,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       finalAssets: null,
       manualAdditions: initialManualAdditions,
       aspectRatio: '9:16',
-      voiceType: '여성-발랄한',
+      voiceType: 'ko-KR-SunHiNeural',
       subtitlePosition: '하',
       renderDuration: '자막 맞춤 길이 (Dynamic Sync)',
       isKeyConfigured: false,

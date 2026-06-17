@@ -31,42 +31,11 @@ class FFmpegWorker:
         return await loop.run_in_executor(None, lambda: subprocess.check_output(cmd, **kwargs))
 
     async def generate_tts(self, text: str, voice: str, output_path: str, openai_key: str):
-        """Generates high-quality TTS using OpenAI API."""
-        if not openai_key:
-            raise Exception("OpenAI API Key is required for TTS generation.")
-
-        # OpenAI Voice Mapping
-        voice_map = {
-            "여성-발랄한": "nova",
-            "여성-차분한": "shimmer",
-            "남성-신뢰감": "echo",
-            "남성-차분한": "onyx"
-        }
-        selected_voice = voice_map.get(voice, "nova")
-
+        """Generates high-quality TTS using MS Edge-TTS."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.kie.ai/v1/audio/speech",
-                    headers={
-                        "Authorization": f"Bearer {openai_key}",
-                        "X-BYOK-KIE": openai_key
-                    },
-                    json={
-                        "model": "tts-1",
-                        "input": text,
-                        "voice": selected_voice
-                    },
-                    timeout=30.0
-                )
-                
-                if response.status_code == 200:
-                    with open(output_path, "wb") as f:
-                        f.write(response.content)
-                    return output_path
-                else:
-                    error_detail = response.text
-                    raise Exception(f"OpenAI TTS API Error ({response.status_code}): {error_detail}")
+            cmd = ['edge-tts', '--voice', voice, '--text', text, '--write-media', output_path]
+            await self._run_subprocess(cmd, check=True)
+            return output_path
         except Exception as e:
             print(f"[TTS ERROR] {str(e)}")
             raise e

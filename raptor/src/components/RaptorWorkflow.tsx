@@ -1069,7 +1069,7 @@ export default function RaptorWorkflow() {
                 <option value="한국어">🇰🇷 한국어</option><option value="English">🇺🇸 English</option><option value="日本語">🇯🇵 日本語</option>
               </select>
               <select className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-blue-500" value={voiceType} onChange={(e) => setVoiceType(e.target.value)}>
-                <option value="여성-발랄한">👩 여성 - 발랄한</option><option value="여성-차분한">👩 여성 - 차분한</option><option value="남성-신뢰감">👨 남성 - 신뢰감</option><option value="남성-차분한">👨 남성 - 차분한</option>
+                <option value="ko-KR-SunHiNeural">여성 - 선히 (SunHi)</option><option value="ko-KR-InJoonNeural">남성 - 인준 (InJoon)</option><option value="ko-KR-BongJinNeural">남성 - 봉진 (BongJin)</option>
               </select>
               <select className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-pink-500" value={subtitlePosition} onChange={(e) => setSubtitlePosition(e.target.value)}>
                 <option value="상">💬 자막: 상단</option><option value="중">💬 자막: 중앙</option><option value="하">💬 자막: 하단 (쇼츠 권장)</option>
@@ -1959,10 +1959,9 @@ export default function RaptorWorkflow() {
                       onChange={(e) => setVoiceType(e.target.value)}
                       className="w-full bg-black/60 border border-white/20 p-2.5 rounded-xl text-xs font-bold text-white outline-none focus:border-emerald-500 shadow-inner"
                     >
-                      <option value="여성-발랄한">여성 - 발랄한 (Nova)</option>
-                      <option value="여성-차분한">여성 - 차분한 (Shimmer)</option>
-                      <option value="남성-신뢰감">남성 - 신뢰감 (Echo)</option>
-                      <option value="남성-차분한">남성 - 차분한 (Onyx)</option>
+                      <option value="ko-KR-SunHiNeural">여성 - 선히 (SunHi)</option>
+                      <option value="ko-KR-InJoonNeural">남성 - 인준 (InJoon)</option>
+                      <option value="ko-KR-BongJinNeural">남성 - 봉진 (BongJin)</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
