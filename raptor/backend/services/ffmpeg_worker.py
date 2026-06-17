@@ -51,8 +51,8 @@ class FFmpegWorker:
                 os.remove(font_path)
             else:
                 with open(font_path, "rb") as f:
-                    magic = f.read(4)
-                if magic not in [b'\x00\x01\x00\x00', b'OTTO', b'wOFF', b'ttcf']:
+                    header = f.read(4)
+                if header not in [b'\x00\x01\x00\x00', b'OTTO', b'wOFF', b'ttcf']:
                     print(f"[FONT HEALING] Removing corrupted font cache (Invalid Magic Bytes): {font_path}")
                     os.remove(font_path)
                 
