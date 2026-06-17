@@ -8,6 +8,7 @@ import time
 import imageio_ffmpeg
 import shutil
 import platform
+from PIL import Image
 
 class FFmpegWorker:
     def __init__(self, output_dir: str = "outputs"):
@@ -337,12 +338,35 @@ class FFmpegWorker:
                     # Base video filter
                     is_hybrid_image = not use_video
                     if is_hybrid_image:
-                        # 메모리 안전형 scale/crop 애니메이션 (OOM 원천 차단 + Out of Bounds 방지 n 기반 연산)
-                        total_frames = max(1, int(duration * 30) - 1)
+                        # 1. 원본 이미지 실제 해상도 추출
+                        with Image.open(local_img) as img:
+                            image_w, image_h = img.size
+                        
+                        # 2. 타겟 해상도 설정 (9:16 숏폼)
+                        target_w, target_h = w, h
+                        
+                        # 3. Scale Factor 및 가변 해상도 계산 (짝수 보정 필수)
+                        ratio_w = target_w / image_w
+                        ratio_h = target_h / image_h
+                        scale_factor = max(ratio_w, ratio_h)
+                        
+                        # 애니메이션(Ken Burns)을 위한 1.3배 여백 확보 (기존 force_original_aspect_ratio=increase 효과)
+                        scale_factor *= 1.3
+                        
+                        scale_w = int(image_w * scale_factor) // 2 * 2
+                        scale_h = int(image_h * scale_factor) // 2 * 2
+                        
+                        # 4. 최대 이동 가능 픽셀 절대값 계산 (이전 iw-ow, ih-oh 역할)
+                        max_x = scale_w - target_w
+                        max_y = scale_h - target_h
+                        
+                        # 5. 프레임 계산 (오차 범위 고려 2프레임 차감)
+                        total_frames = max(1, int(duration * 30) - 2)
+                        
                         if i % 2 == 0:
-                            filter_str = f"[0:v]fps=fps=30,scale={int(w*1.3)}:{int(h*1.3)}:force_original_aspect_ratio=increase,crop={w}:{h}:x='min((iw-ow)*n/{total_frames},iw-ow)':y='min((ih-oh)*n/{total_frames},ih-oh)',setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='min({max_x}*n/{total_frames}\\,{max_x})':y='min({max_y}*n/{total_frames}\\,{max_y})',setsar=1"
                         else:
-                            filter_str = f"[0:v]fps=fps=30,scale={int(w*1.3)}:{int(h*1.3)}:force_original_aspect_ratio=increase,crop={w}:{h}:x='max((iw-ow)*(1-n/{total_frames}),0)':y='max((ih-oh)*(1-n/{total_frames}),0)',setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='max({max_x}*(1-n/{total_frames})\\,0)':y='max({max_y}*(1-n/{total_frames})\\,0)',setsar=1"
                     else:
                         filter_str = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
                         # 비디오보다 오디오가 길면 마지막 프레임을 정지(Freeze)하여 연장 (CORS/FFmpeg 예외 대응)
