@@ -337,11 +337,12 @@ class FFmpegWorker:
                     # Base video filter
                     is_hybrid_image = not use_video
                     if is_hybrid_image:
-                        # 메모리 안전형 scale/crop 애니메이션 (OOM 원천 차단)
+                        # 메모리 안전형 scale/crop 애니메이션 (OOM 원천 차단 + Out of Bounds 방지 n 기반 연산)
+                        total_frames = max(1, int(duration * 30) - 1)
                         if i % 2 == 0:
-                            filter_str = f"[0:v]fps=fps=30,scale={int(w*1.3)}:{int(h*1.3)}:force_original_aspect_ratio=increase,crop={w}:{h}:x='(iw-ow)*t/{duration}':y='(ih-oh)*t/{duration}',setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={int(w*1.3)}:{int(h*1.3)}:force_original_aspect_ratio=increase,crop={w}:{h}:x='min((iw-ow)*n/{total_frames},iw-ow)':y='min((ih-oh)*n/{total_frames},ih-oh)',setsar=1"
                         else:
-                            filter_str = f"[0:v]fps=fps=30,scale={int(w*1.3)}:{int(h*1.3)}:force_original_aspect_ratio=increase,crop={w}:{h}:x='(iw-ow)*(1-t/{duration})':y='(ih-oh)*(1-t/{duration})',setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={int(w*1.3)}:{int(h*1.3)}:force_original_aspect_ratio=increase,crop={w}:{h}:x='max((iw-ow)*(1-n/{total_frames}),0)':y='max((ih-oh)*(1-n/{total_frames}),0)',setsar=1"
                     else:
                         filter_str = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
                         # 비디오보다 오디오가 길면 마지막 프레임을 정지(Freeze)하여 연장 (CORS/FFmpeg 예외 대응)
