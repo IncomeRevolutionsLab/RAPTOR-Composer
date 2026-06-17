@@ -328,7 +328,7 @@ class FFmpegWorker:
                     text_file_basename = f"scene_{i}_text.txt"
                     text_file_path = os.path.join(temp_dir, text_file_basename)
                     with open(text_file_path, "w", encoding="utf-8") as f:
-                        f.write(wrapped_caption)
+                        f.write(wrapped_caption.strip())
                 
                     # Dynamic OFL Font Download & Cache
                     font_path = await self._ensure_font(subtitle_font)
