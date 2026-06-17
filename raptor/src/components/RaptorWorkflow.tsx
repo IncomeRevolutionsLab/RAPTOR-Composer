@@ -93,6 +93,7 @@ export default function RaptorWorkflow() {
     aspectRatio, setAspectRatio,
     voiceType, setVoiceType,
     subtitlePosition, setSubtitlePosition, // Added
+    subtitleFont, setSubtitleFont,
     renderDuration, setRenderDuration,
     productData, setProductData,
     analysis, setAnalysis,
@@ -738,6 +739,7 @@ export default function RaptorWorkflow() {
         voice_type: voiceType,
         aspect_ratio: aspectRatio,
         subtitle_position: subtitlePosition,
+        subtitle_font: subtitleFont,
         render_duration: renderDuration,
         quality: "export",
         watermark_enabled: store.watermarkEnabled,
@@ -991,10 +993,10 @@ export default function RaptorWorkflow() {
       {/* Step Indicator & Global Reset */}
       <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xl">
         <div className="flex gap-8">
-          {[0, 1, 2, 3, 4].map((s) => (
+          {[0, 1, 2, 3, 4, 5].map((s) => (
             <div key={s} className={`flex items-center gap-2 ${step >= s ? 'text-purple-400' : 'text-gray-600'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border ${step >= s ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700'}`}>{s}</div>
-              <span className="text-[10px] font-bold uppercase tracking-widest">{s === 0 ? '시작 모드' : s === 1 ? '기본 설정' : s === 2 ? '분석 리포트' : s === 3 ? '에셋 확정' : '렌더링'}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">{s === 0 ? '시작 모드' : s === 1 ? '기본 설정' : s === 2 ? '분석 리포트' : s === 3 ? '이미지 생성' : s === 4 ? '비디오 생성' : '최종 렌더링'}</span>
             </div>
           ))}
         </div>
@@ -1073,6 +1075,11 @@ export default function RaptorWorkflow() {
               </select>
               <select className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-pink-500" value={subtitlePosition} onChange={(e) => setSubtitlePosition(e.target.value)}>
                 <option value="상">💬 자막: 상단</option><option value="중">💬 자막: 중앙</option><option value="하">💬 자막: 하단 (쇼츠 권장)</option>
+              </select>
+              <select className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-teal-500" value={subtitleFont} onChange={(e) => setSubtitleFont(e.target.value)}>
+                <option value="BlackHanSans">✒️ 폰트: 강렬한 강조체 (Black Han Sans)</option>
+                <option value="NotoSansKR">✒️ 폰트: 깔끔한 고딕체 (Noto Sans KR)</option>
+                <option value="NanumGothic">✒️ 폰트: 부드러운 고딕체 (Nanum Gothic)</option>
               </select>
               <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
                 <button onClick={() => setInputMode('auto')} className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all ${inputMode === 'auto' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>자동 추출</button>

@@ -26,6 +26,49 @@ class FFmpegWorker:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, lambda: subprocess.run(cmd, **kwargs))
 
+    
+    async def _ensure_font(self, font_id: str):
+        font_map = {
+            "BlackHanSans": "https://github.com/google/fonts/raw/main/ofl/blackhansans/BlackHanSans-Regular.ttf",
+            "NotoSansKR": "https://github.com/google/fonts/raw/main/ofl/notosanskr/NotoSansKR-Bold.ttf",
+            "NanumGothic": "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Bold.ttf"
+        }
+        url = font_map.get(font_id, font_map["BlackHanSans"])
+        filename = url.split("/")[-1]
+        
+        # Save fonts in a stable cache directory
+        import os
+        cache_dir = os.path.join(os.getcwd(), "fonts_cache")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+            
+        font_path = os.path.join(cache_dir, filename)
+        if not os.path.exists(font_path) or os.path.getsize(font_path) < 1000:
+            import httpx
+            try:
+                print(f"[FONT] Downloading {filename} from {url}...")
+                async with httpx.AsyncClient() as client:
+                    res = await client.get(url, timeout=30.0, follow_redirects=True)
+                    if res.status_code == 200:
+                        with open(font_path, "wb") as f:
+                            f.write(res.content)
+                        print(f"[FONT] Downloaded {filename} successfully.")
+                    else:
+                        print(f"[FONT] Download failed with status {res.status_code}")
+            except Exception as e:
+                print(f"[FONT ERROR] Failed to download {font_id}: {e}")
+                
+        # Fallback
+        if not os.path.exists(font_path) or os.path.getsize(font_path) < 1000:
+            import platform
+            system_name = platform.system().lower()
+            if os.name == 'nt' or 'windows' in system_name:
+                return "C:/Windows/Fonts/malgun.ttf".replace(":", "\\:")
+            else:
+                return "DejaVu Sans"
+                
+        return os.path.abspath(font_path).replace("\\", "/").replace(":", "\\:")
+
     async def _check_output(self, cmd, **kwargs):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, lambda: subprocess.check_output(cmd, **kwargs))
@@ -105,7 +148,7 @@ class FFmpegWorker:
             
         return "\n".join(lines)
 
-    async def render_video(self, task_id: str, scenes: list, voice_type: str = "여성-발랄한", aspect_ratio: str = "9:16", subtitle_position: str = "하", render_duration: str = "자막 맞춤 길이 (Dynamic Sync)", openai_key: str = None, watermark_enabled: bool = False, watermark_logo: str = None, watermark_position: str = "top-right", rendering_mode: str = "full"):
+    async def render_video(self, task_id: str, scenes: list, voice_type: str = "여성-발랄한", aspect_ratio: str = "9:16", subtitle_position: str = "하", render_duration: str = "자막 맞춤 길이 (Dynamic Sync)", openai_key: str = None, watermark_enabled: bool = False, watermark_logo: str = None, watermark_position: str = "top-right", rendering_mode: str = "full", subtitle_font: str = "BlackHanSans"):
         ratio_map = {
             "9:16": (720, 1280),
             "1:1": (720, 720),
@@ -254,10 +297,8 @@ class FFmpegWorker:
                     with open(text_file_path, "w", encoding="utf-8") as f:
                         f.write(wrapped_caption)
                 
-                    # RISK-003: 크로스 플랫폼 폰트 경로 동적 매핑 (리눅스 크래시 및 CJK 깨짐 방어)
-                    system_name = platform.system().lower()
-                    if os.name == 'nt' or 'windows' in system_name:
-                        font_path = "C:/Windows/Fonts/malgun.ttf".replace(":", "\\:")
+                    # Dynamic OFL Font Download & Cache
+                    font_path = await self._ensure_font(subtitle_font)
                     else:
                         font_candidates = [
                             # 1. Nanum Gothic

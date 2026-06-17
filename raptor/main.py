@@ -363,6 +363,7 @@ class RenderStreamRequest(BaseModel):
     aspect_ratio: Literal["9:16", "1:1", "16:9"] = "9:16"
     quality: str = "export"
     subtitle_position: str = "하"
+    subtitle_font: str = "BlackHanSans"
     render_duration: str = "자막 맞춤 길이 (Dynamic Sync)"
     watermark_enabled: bool = False
     watermark_logo: Optional[str] = None
@@ -2420,6 +2421,7 @@ async def render_final_stream(
                 voice_type=request.voice_type,
                 aspect_ratio=request.aspect_ratio,
                 subtitle_position=request.subtitle_position,
+                subtitle_font=request.subtitle_font,
                 render_duration=request.render_duration,
                 openai_key=decrypted_key,
                 watermark_enabled=request.watermark_enabled,

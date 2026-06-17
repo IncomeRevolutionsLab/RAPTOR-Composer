@@ -39,7 +39,8 @@ interface WorkflowState {
   manualAdditions: ManualAdditions;
   aspectRatio: string;
   voiceType: string;
-  subtitlePosition: string; // Added for subtitle position control
+  subtitlePosition: string;
+  subtitleFont: string; // Added for subtitle position control
   renderDuration: string;
 
   // Auth State (Persisted)
@@ -81,6 +82,7 @@ interface WorkflowState {
   setAspectRatio: (ratio: string) => void;
   setVoiceType: (voice: string) => void;
   setSubtitlePosition: (position: string) => void;
+  setSubtitleFont: (font: string) => void;
   setRenderDuration: (duration: string) => void;
   setWatermarkSettings: (settings: Partial<{ watermarkEnabled: boolean; watermarkLogo: string | null; watermarkPosition: 'top-right' | 'bottom-right' }>) => void;
   setRenderStatus: (isRendering: boolean, progress: number, url?: string | null) => void;
@@ -140,6 +142,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       aspectRatio: '9:16',
       voiceType: 'ko-KR-SunHiNeural',
       subtitlePosition: '하',
+      subtitleFont: 'BlackHanSans',
       renderDuration: '자막 맞춤 길이 (Dynamic Sync)',
       isKeyConfigured: false,
       kieKey: '',
@@ -189,6 +192,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       setAspectRatio: (aspectRatio) => set({ aspectRatio }),
       setVoiceType: (voiceType) => set({ voiceType }),
       setSubtitlePosition: (subtitlePosition) => set({ subtitlePosition }),
+      setSubtitleFont: (subtitleFont) => set({ subtitleFont }),
       setRenderDuration: (renderDuration) => set({ renderDuration }),
       setWatermarkSettings: (settings) => set((state) => ({ ...state, ...settings })),
       setRenderStatus: (isRendering, renderProgress, renderedVideoUrl = null) => 
@@ -300,6 +304,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           voiceType: state.voiceType,
           aspectRatio: state.aspectRatio,
           subtitlePosition: state.subtitlePosition,
+          subtitleFont: state.subtitleFont,
           renderDuration: state.renderDuration,
           analysis: state.analysis,
           recommendedPatterns: state.recommendedPatterns,
