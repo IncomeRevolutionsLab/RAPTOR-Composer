@@ -40,7 +40,7 @@ interface WorkflowState {
   aspectRatio: string;
   voiceType: string;
   subtitlePosition: string;
-  subtitleFont: string; // Added for subtitle position control
+  subtitleFont: string; // Subtitle font selection for OFL pipeline
   renderDuration: string;
 
   // Auth State (Persisted)

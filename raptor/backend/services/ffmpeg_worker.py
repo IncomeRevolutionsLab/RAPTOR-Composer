@@ -299,35 +299,7 @@ class FFmpegWorker:
                 
                     # Dynamic OFL Font Download & Cache
                     font_path = await self._ensure_font(subtitle_font)
-                    else:
-                        font_candidates = [
-                            # 1. Nanum Gothic
-                            "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
-                            "/usr/share/fonts/nanum/NanumGothic.ttf",
-                            "/usr/share/fonts/NanumGothic.ttf",
-                            # 2. Noto Sans CJK
-                            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-                            "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
-                            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-                            "/usr/share/fonts/NotoSansCJK-Regular.ttc",
-                            # 3. Un Dotum
-                            "/usr/share/fonts/truetype/unfonts-core/UnDotum.ttf",
-                            "/usr/share/fonts/unfonts-core/UnDotum.ttf",
-                            "/usr/share/fonts/UnDotum.ttf",
-                            # 4. DejaVu Sans (Latin fallback)
-                            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                            # 5. Liberation Sans (Latin fallback)
-                            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-                        ]
-                        selected_font = None
-                        for candidate in font_candidates:
-                            if os.path.exists(candidate):
-                                selected_font = candidate.replace(":", "\\:")
-                                break
-                        if selected_font:
-                            font_path = selected_font
-                        else:
-                            font_path = "DejaVu Sans"
+
                     safe_text_file_path = os.path.abspath(text_file_path).replace("\\", "/").replace(":", "\\:")
                 
                     # Base video filter
