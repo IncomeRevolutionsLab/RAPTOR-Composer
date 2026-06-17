@@ -350,55 +350,68 @@ class FFmpegWorker:
                         ratio_h = target_h / image_h
                         scale_factor = max(ratio_w, ratio_h)
                         
-                        # 애니메이션(Ken Burns)을 위한 1.3배 여백 확보 (기존 force_original_aspect_ratio=increase 효과)
+                        # 애니메이션(Ken Burns)을 위한 1.3배 여백 확보
                         scale_factor *= 1.3
                         
                         scale_w = int(image_w * scale_factor) // 2 * 2
                         scale_h = int(image_h * scale_factor) // 2 * 2
                         
-                        # 4. 최대 이동 가능 픽셀 절대값 계산 (이전 iw-ow, ih-oh 역할)
+                        # 4. 최대 이동 가능 픽셀 절대값 계산
                         max_x = scale_w - target_w
                         max_y = scale_h - target_h
                         
                         # 5. 프레임 계산 (오차 범위 고려 2프레임 차감)
                         total_frames = max(1, int(duration * 30) - 2)
                         
+                        # [P0 최적화] FFmpeg 정수 나눗셈 에러 차단을 위한 실수형 문자열 주입 (Gemini 반영)
+                        tf_float = f"{total_frames}.0"
+                        
                         if i % 2 == 0:
-                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='min({max_x}*n/{total_frames},{max_x})':y='min({max_y}*n/{total_frames},{max_y})',setsar=1"
+                            filter_str = (
+                                f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},"
+                                f"crop={target_w}:{target_h}:"
+                                f"x='min({max_x}*n/{tf_float},{max_x})':"
+                                f"y='min({max_y}*n/{tf_float},{max_y})',setsar=1"
+                            )
                         else:
-                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='max({max_x}*(1-n/{total_frames}),0)':y='max({max_y}*(1-n/{total_frames}),0)',setsar=1"
+                            # [P0 최적화] 괄호 묶음으로 연산 우선순위 고정 및 쉼표 파싱 오류 원천 격리
+                            filter_str = (
+                                f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},"
+                                f"crop={target_w}:{target_h}:"
+                                f"x='max({max_x}*(1-(n/{tf_float})),0)':"
+                                f"y='max({max_y}*(1-(n/{tf_float})),0)',setsar=1"
+                            )
                     else:
                         filter_str = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
-                        # 비디오보다 오디오가 길면 마지막 프레임을 정지(Freeze)하여 연장 (CORS/FFmpeg 예외 대응)
                         if video_duration > 0.0 and duration > video_duration:
                             freeze_dur = duration - video_duration
                             filter_str += f",tpad=stop_mode=clone:stop_duration={freeze_dur}"
                 
-                    # Subtitle overlay (tpad 필터 뒤에 위치하여 늘어난 프레임에도 자막 온전 노출)
+                    # Subtitle overlay
                     if wrapped_caption.strip():
+                        # [P1 해결] FFmpeg 필터 내부 경로 오류(Exit 8) 방지를 위한 윈도우 백슬래시 정규화
+                        safe_font_path = str(font_path).replace('\\', '/')
+                        safe_txt_path = str(safe_text_file_path).replace('\\', '/')
+                        
                         filter_str += (
-                            f",drawtext=fontfile='{font_path}':textfile='{safe_text_file_path}':"
+                            f",drawtext=fontfile='{safe_font_path}':textfile='{safe_txt_path}':"
                             f"fontcolor=white:fontsize=40:x=(w-text_w)/2:y={y_coord}:"
                             f"box=1:boxcolor=black@0.6:boxborderw=10"
                         )
                 
                     filter_str += "[bg];"
-
+                    
                     # Watermark Overlay logic
                     if local_watermark:
-                        # scale watermark to reasonable width, e.g. 150px
                         if watermark_position == "top-right":
                             overlay_pos = "W-w-30:30"
                         else:
-                            # bottom-right avoiding subtitle. H * 5/8 = 1280 * 5/8 = 800. So we put it at H*(5/8)
                             overlay_pos = "W-w-30:H*(5/8)"
                         filter_str += f"[2:v]scale=150:-1[wm];[bg][wm]overlay={overlay_pos}[v]"
                     else:
                         filter_str += "[bg]copy[v]"
-
-                    cmd_scene = [
-                        self.ffmpeg_path, "-y"
-                    ]
+                        
+                    cmd_scene = [self.ffmpeg_path, "-y"]
                 
                     abs_local_img = os.path.abspath(local_img)
                     abs_local_audio = os.path.abspath(local_audio)
@@ -409,7 +422,6 @@ class FFmpegWorker:
                     if use_video:
                         cmd_scene.extend(["-i", abs_local_video])
                     else:
-                        # 하이브리드 이미지 슬라이드: zoompan이 동작하도록 loop를 주고 프레임 수를 제한
                         cmd_scene.extend(["-loop", "1", "-t", str(duration), "-i", abs_local_img])
                     
                     cmd_scene.extend(["-i", abs_local_audio])
@@ -420,12 +432,10 @@ class FFmpegWorker:
                     cmd_scene.extend([
                         "-filter_complex", filter_str,
                         "-map", "[v]", "-map", "1:a",
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac"
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                        "-shortest",  # [P0 해결] 렌더링 무한 루프 차단용 -shortest 옵션 복구
+                        abs_scene_mp4 
                     ])
-                
-                    cmd_scene.append("-shortest")
-                    
-                    cmd_scene.append(abs_scene_mp4)
 
                     try:
                         await self._run_subprocess(cmd_scene, check=True, capture_output=True, text=True, cwd=temp_dir)
