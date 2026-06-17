@@ -30,11 +30,18 @@ class FFmpegWorker:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, lambda: subprocess.check_output(cmd, **kwargs))
 
-    async def generate_tts(self, text: str, voice: str, output_path: str, openai_key: str):
-        """Generates high-quality TTS using MS Edge-TTS."""
+    async def generate_tts(self, text: str, voice: str, output_path: str):
+        """Generates high-quality TTS using MS Edge-TTS via Native API."""
+        allowed_voices = {"ko-KR-SunHiNeural", "ko-KR-InJoonNeural", "ko-KR-BongJinNeural"}
+        if voice not in allowed_voices:
+            voice = "ko-KR-SunHiNeural"
+            
         try:
-            cmd = ['edge-tts', '--voice', voice, '--text', text, '--write-media', output_path]
-            await self._run_subprocess(cmd, check=True)
+            communicate = edge_tts.Communicate(text, voice)
+            await communicate.save(output_path)
+            
+            if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
+                raise Exception(f"Edge-TTS output empty or missing: {output_path}")
             return output_path
         except Exception as e:
             print(f"[TTS ERROR] {str(e)}")
@@ -142,7 +149,7 @@ class FFmpegWorker:
                         await self._run_subprocess(cmd_bg, check=True, capture_output=True)
 
                     local_audio = os.path.join(temp_dir, f"audio_{i}.mp3")
-                    await self.generate_tts(dialogue, voice_type, local_audio, openai_key)
+                    await self.generate_tts(dialogue, voice_type, local_audio)
                 
                     for fpath, label in [(local_img, "Image"), (local_audio, "Audio")]:
                         if not os.path.exists(fpath) or os.path.getsize(fpath) < 1000:

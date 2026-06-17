@@ -243,6 +243,10 @@ export const useWorkflowStore = create<WorkflowState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          const allowedVoices = ["ko-KR-SunHiNeural", "ko-KR-InJoonNeural", "ko-KR-BongJinNeural"];
+          if (!allowedVoices.includes(state.voiceType)) {
+            state.setVoiceType("ko-KR-SunHiNeural");
+          }
           state.setHasHydrated(true);
           state.setErrorMessage(null);
           state.setRenderStatus(false, 0, null);
