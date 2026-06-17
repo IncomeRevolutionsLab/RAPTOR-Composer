@@ -42,7 +42,7 @@ const compressImage = (base64: string): Promise<string> => {
 };
 
 // --- Helper: File Upload with JWT Check ---
-const extractErrorMessage = (e: any): string => e instanceof Error ? e.message : String(e);
+const extractErrorMessage = (e: any): string => e instanceof Error ? e.message : (typeof e === 'object' && e !== null ? JSON.stringify(e) : String(e));
 
 const uploadFile = async (endpoint: string, file: File) => {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -408,11 +408,7 @@ export default function RaptorWorkflow() {
             throw new Error("이미지 URL을 추출할 수 없습니다.");
           }
         } catch (error: any) {
-          let displayError = extractErrorMessage(error);
-          // 에러 마스킹 해제 조건 (필요 시 로직 유지)
-          if (displayError.includes('401') || displayError.includes('403') || displayError.includes('Tier') || displayError.includes('model_not_found') || displayError.includes('not exist')) {
-            displayError = displayError;
-          }
+          const displayError = extractErrorMessage(error);
 
           setFinalAssets((prev: any) => {
             if (!prev || !prev.script) return prev;
@@ -668,8 +664,9 @@ export default function RaptorWorkflow() {
                     // 클립 생성 완료 표시
                 }
               } catch (e: any) {
-                if (e.message !== "Unexpected end of JSON input" && !e.message.includes("Unexpected token")) throw e;
-              }
+                          const msg = extractErrorMessage(e);
+                          if (!msg.includes("Unexpected end of JSON input") && !msg.includes("Unexpected token")) throw e;
+                        }
             }
           }
         }
@@ -793,8 +790,9 @@ export default function RaptorWorkflow() {
                   finalUrl = `${BACKEND_URL}${data.output_url}`;
                 }
               } catch (e: any) {
-                if (e.message !== "Unexpected end of JSON input" && !e.message.includes("Unexpected token")) throw e;
-              }
+                          const msg = extractErrorMessage(e);
+                          if (!msg.includes("Unexpected end of JSON input") && !msg.includes("Unexpected token")) throw e;
+                        }
             }
           }
         }
