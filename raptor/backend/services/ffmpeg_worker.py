@@ -49,26 +49,38 @@ class FFmpegWorker:
             if os.path.getsize(font_path) < 20000:
                 print(f"[FONT HEALING] Removing corrupted font cache: {font_path}")
                 os.remove(font_path)
+            else:
+                with open(font_path, "rb") as f:
+                    magic = f.read(4)
+                if magic not in [b'\x00\x01\x00\x00', b'OTTO', b'wOFF', b'ttcf']:
+                    print(f"[FONT HEALING] Removing corrupted font cache (Invalid Magic Bytes): {font_path}")
+                    os.remove(font_path)
                 
         if not os.path.exists(font_path):
-            import httpx
+            import urllib.request
             try:
                 print(f"[FONT] Downloading {filename} from {url}...")
-                async with httpx.AsyncClient() as client:
-                    res = await client.get(url, timeout=30.0, follow_redirects=True)
-                    if res.status_code == 200:
-                        with open(font_path, "wb") as f:
-                            f.write(res.content)
-                        print(f"[FONT] Downloaded {filename} successfully.")
-                    else:
-                        print(f"[FONT] Download failed with status {res.status_code}")
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                loop = asyncio.get_event_loop()
+                def download_font():
+                    with urllib.request.urlopen(req) as response:
+                        with open(font_path, "wb") as out_file:
+                            out_file.write(response.read())
+                await loop.run_in_executor(None, download_font)
+                print(f"[FONT] Downloaded {filename} successfully.")
             except Exception as e:
                 print(f"[FONT ERROR] Failed to download {font_id}: {e}")
                 
             # 무결성 재검증 및 강제 중단
-            if os.path.exists(font_path) and os.path.getsize(font_path) < 20000:
-                os.remove(font_path)
-                raise Exception("Font download failed or corrupted")
+            if os.path.exists(font_path):
+                if os.path.getsize(font_path) < 20000:
+                    os.remove(font_path)
+                    raise Exception("Font download failed or corrupted (size < 20KB)")
+                with open(font_path, "rb") as f:
+                    magic = f.read(4)
+                if magic not in [b'\x00\x01\x00\x00', b'OTTO', b'wOFF', b'ttcf']:
+                    os.remove(font_path)
+                    raise Exception(f"Font download failed or corrupted (Invalid Magic Bytes: {magic})")
                 
         # Fallback
         if not os.path.exists(font_path) or os.path.getsize(font_path) < 20000:
