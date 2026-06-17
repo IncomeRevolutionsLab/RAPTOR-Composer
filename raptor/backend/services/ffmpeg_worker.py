@@ -433,7 +433,7 @@ class FFmpegWorker:
                         "-filter_complex", filter_str,
                         "-map", "[v]", "-map", "1:a",
                         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
-                        "-shortest",  # [P0 해결] 렌더링 무한 루프 차단용 -shortest 옵션 복구
+                        "-t", str(duration),
                         abs_scene_mp4 
                     ])
 
