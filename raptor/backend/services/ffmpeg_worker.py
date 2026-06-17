@@ -364,9 +364,9 @@ class FFmpegWorker:
                         total_frames = max(1, int(duration * 30) - 2)
                         
                         if i % 2 == 0:
-                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='min({max_x}*n/{total_frames}\\,{max_x})':y='min({max_y}*n/{total_frames}\\,{max_y})',setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='min({max_x}*n/{total_frames},{max_x})':y='min({max_y}*n/{total_frames},{max_y})',setsar=1"
                         else:
-                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='max({max_x}*(1-n/{total_frames})\\,0)':y='max({max_y}*(1-n/{total_frames})\\,0)',setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},crop={target_w}:{target_h}:x='max({max_x}*(1-n/{total_frames}),0)':y='max({max_y}*(1-n/{total_frames}),0)',setsar=1"
                     else:
                         filter_str = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
                         # 비디오보다 오디오가 길면 마지막 프레임을 정지(Freeze)하여 연장 (CORS/FFmpeg 예외 대응)
