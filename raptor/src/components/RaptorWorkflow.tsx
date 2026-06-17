@@ -170,7 +170,7 @@ export default function RaptorWorkflow() {
     setMounted(true);
     setErrorMessage(null);
     // 새로고침 시 렌더링 진행 상태 깔끔하게 초기화
-    useWorkflowStore.getState().setRenderStatus(false, 0);
+    setRenderStatus(false, 0);
   }, [setErrorMessage]);
 
   if (!mounted) return null; // Prevent Hydration Mismatch
@@ -299,7 +299,7 @@ export default function RaptorWorkflow() {
 
     } catch (e: any) {
       console.error('Pipeline Error:', e);
-      setErrorMessage(`기획/분석 오류: ${e.message}`);
+      setErrorMessage(`기획/분석 오류: ${e instanceof Error ? e.message : String(e)}`);
     }
     finally {
       setLoading(false);
@@ -343,7 +343,7 @@ export default function RaptorWorkflow() {
 
     } catch (e: any) {
       console.error('Asset Generation Error:', e);
-      setErrorMessage(`시나리오 생성 오류: ${e.message}`);
+      setErrorMessage(`시나리오 생성 오류: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -384,6 +384,7 @@ export default function RaptorWorkflow() {
           });
 
           const item = res?.data?.[0];
+          if (!item) throw new Error("서버로부터 유효한 이미지 데이터를 받지 못했습니다.");
           const extractedUrl = item?.url || (item?.b64_json ? `data:image/png;base64,${item.b64_json}` : null);
 
           if (extractedUrl) {
@@ -428,7 +429,7 @@ export default function RaptorWorkflow() {
 
       await Promise.all(promises);
     } catch (e: any) {
-      setErrorMessage(`이미지 일괄 생성 실패: ${e.message}`);
+      setErrorMessage(`이미지 일괄 생성 실패: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -508,7 +509,7 @@ export default function RaptorWorkflow() {
       extractedUrl = refineRes?.image_url;
       if (refineRes?.image_prompt) newPrompt = refineRes.image_prompt;
 
-      if (!extractedUrl) throw new Error("이미지 데이터가 없습니다. 다시 시도해주세요.");
+      if (!extractedUrl) throw new Error("서버로부터 유효한 이미지 데이터를 받지 못했습니다.");
 
       setFinalAssets((prev: any) => {
         if (!prev || !prev.script) return prev;
@@ -534,7 +535,7 @@ export default function RaptorWorkflow() {
         return { ...prev, script: newScript };
       });
 
-      setErrorMessage(`이미지 재생성 오류: ${e.message}`);
+      setErrorMessage(`이미지 재생성 오류: ${e instanceof Error ? e.message : String(e)}`);
     }
     finally { 
       setLoading(false); 
@@ -554,7 +555,7 @@ export default function RaptorWorkflow() {
       }
     } catch (e: any) {
       console.error('Image Regeneration Error:', e);
-      setErrorMessage(`이미지 재생성 오류: ${e.message}`);
+      setErrorMessage(`이미지 재생성 오류: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -674,7 +675,9 @@ export default function RaptorWorkflow() {
       console.error('Clip Generation Error:', e);
       let errorMsg = e.message;
       if (e.name === 'AbortError' || e.message?.includes('aborted')) errorMsg = '응답 시간 초과입니다.';
-      setErrorMessage(`비디오 클립 생성 오류: ${errorMsg}`);
+      setErrorMessage(`비디오 클립 생성 오류: ${errorMsg instanceof Error ? errorMsg.message : String(errorMsg)}`);
+      setLoading(false);
+      setRenderStatus(false, 0);
       const latestAssets = useWorkflowStore.getState().finalAssets;
       if (latestAssets && latestAssets.script) {
         const rolledBackScript = latestAssets.script.map((scene: any) => {
@@ -803,7 +806,7 @@ export default function RaptorWorkflow() {
       }
     } catch (e: any) {
       console.error('Final Render Error:', e);
-      setErrorMessage(`렌더링 중단 안내: ${e.message}`);
+      setErrorMessage(`렌더링 중단 안내: ${e instanceof Error ? e.message : String(e)}`);
       setRenderStatus(false, 0);
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
@@ -936,7 +939,7 @@ export default function RaptorWorkflow() {
 
     } catch (e: any) {
       console.error("Package download failed", e);
-      setErrorMessage(`패키지 다운로드 실패: ${e.message}`);
+      setErrorMessage(`패키지 다운로드 실패: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
