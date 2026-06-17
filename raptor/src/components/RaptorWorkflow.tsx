@@ -802,6 +802,7 @@ export default function RaptorWorkflow() {
 
       if (finalUrl) {
         setRenderStatus(false, 100, finalUrl);
+        setStep(5);
         store.setLastRenderTimestamp(Date.now());
       } else {
         throw new Error("결과 URL을 서버로부터 받지 못했습니다.");

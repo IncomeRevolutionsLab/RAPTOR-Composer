@@ -38,12 +38,12 @@ class FFmpegWorker:
         
         # Save fonts in a stable cache directory
         import os
-        cache_dir = os.path.join(os.getcwd(), "fonts_cache")
+        cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts_cache")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
             
         font_path = os.path.join(cache_dir, filename)
-        if not os.path.exists(font_path) or os.path.getsize(font_path) < 1000:
+        if not os.path.exists(font_path) or os.path.getsize(font_path) < 20000:
             import httpx
             try:
                 print(f"[FONT] Downloading {filename} from {url}...")
@@ -59,12 +59,20 @@ class FFmpegWorker:
                 print(f"[FONT ERROR] Failed to download {font_id}: {e}")
                 
         # Fallback
-        if not os.path.exists(font_path) or os.path.getsize(font_path) < 1000:
+        if not os.path.exists(font_path) or os.path.getsize(font_path) < 20000:
             import platform
             system_name = platform.system().lower()
             if os.name == 'nt' or 'windows' in system_name:
                 return "C:/Windows/Fonts/malgun.ttf".replace(":", "\\:")
             else:
+                linux_fonts = [
+                    "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+                    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+                ]
+                for lf in linux_fonts:
+                    if os.path.exists(lf):
+                        return lf
                 return "DejaVu Sans"
                 
         return os.path.abspath(font_path).replace("\\", "/").replace(":", "\\:")
