@@ -43,7 +43,14 @@ class FFmpegWorker:
             os.makedirs(cache_dir)
             
         font_path = os.path.join(cache_dir, filename)
-        if not os.path.exists(font_path) or os.path.getsize(font_path) < 20000:
+        
+        # Self-healing logic for corrupted font cache
+        if os.path.exists(font_path):
+            if os.path.getsize(font_path) < 20000:
+                print(f"[FONT HEALING] Removing corrupted font cache: {font_path}")
+                os.remove(font_path)
+                
+        if not os.path.exists(font_path):
             import httpx
             try:
                 print(f"[FONT] Downloading {filename} from {url}...")
@@ -57,6 +64,11 @@ class FFmpegWorker:
                         print(f"[FONT] Download failed with status {res.status_code}")
             except Exception as e:
                 print(f"[FONT ERROR] Failed to download {font_id}: {e}")
+                
+            # 무결성 재검증 및 강제 중단
+            if os.path.exists(font_path) and os.path.getsize(font_path) < 20000:
+                os.remove(font_path)
+                raise Exception("Font download failed or corrupted")
                 
         # Fallback
         if not os.path.exists(font_path) or os.path.getsize(font_path) < 20000:
