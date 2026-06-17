@@ -339,9 +339,9 @@ class FFmpegWorker:
                     if is_hybrid_image:
                         # 30fps 고정 및 절대 프레임 번호(on) 기반 줌팬 공식 (줌인/줌아웃 교사 적용)
                         if i % 2 == 0:
-                            filter_str = f"[0:v]zoompan=z='1+0.0015*on':d={int(duration*30)}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h}:fps=30,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},zoompan=z='1+0.0015*on':d={int(duration*30)}:s={w}x{h}:fps=30,setsar=1"
                         else:
-                            filter_str = f"[0:v]zoompan=z='1.5-0.0015*on':d={int(duration*30)}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h}:fps=30,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
+                            filter_str = f"[0:v]fps=fps=30,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},zoompan=z='1.5-0.0015*on':d={int(duration*30)}:s={w}x{h}:fps=30,setsar=1"
                     else:
                         filter_str = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
                         # 비디오보다 오디오가 길면 마지막 프레임을 정지(Freeze)하여 연장 (CORS/FFmpeg 예외 대응)
@@ -385,7 +385,7 @@ class FFmpegWorker:
                         cmd_scene.extend(["-i", abs_local_video])
                     else:
                         # 하이브리드 이미지 슬라이드: zoompan이 동작하도록 loop를 주고 프레임 수를 제한
-                        cmd_scene.extend(["-loop", "1", "-i", abs_local_img])
+                        cmd_scene.extend(["-loop", "1", "-t", str(duration), "-i", abs_local_img])
                     
                     cmd_scene.extend(["-i", abs_local_audio])
                 
@@ -395,11 +395,10 @@ class FFmpegWorker:
                     cmd_scene.extend([
                         "-filter_complex", filter_str,
                         "-map", "[v]", "-map", "1:a",
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-t", str(duration)
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac"
                     ])
                 
-                    if not use_video:
-                        cmd_scene.extend(["-frames:v", str(int(duration * 30))])
+                    cmd_scene.append("-shortest")
                     
                     cmd_scene.append(abs_scene_mp4)
 
