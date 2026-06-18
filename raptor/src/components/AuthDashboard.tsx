@@ -43,6 +43,7 @@ interface ProjectRow {
   description: string;
   status: 'success' | 'failed' | 'pending' | string;
   result_url?: string;
+  intermediate_assets?: string;
 }
 
 // ============================================================
@@ -1138,6 +1139,19 @@ export default function AuthDashboard() {
                                       </span>
                                     </td>
                                     <td className="py-4 text-right flex items-center justify-end gap-1.5">
+                                      {row.intermediate_assets && (row.intermediate_assets.startsWith('http://') || row.intermediate_assets.startsWith('https://')) && (
+                                        <div className="flex flex-col items-end gap-1 mr-2">
+                                          <a
+                                            href={row.intermediate_assets}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-2 py-1 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-white border border-yellow-500/20 rounded text-[9px] font-bold transition-all"
+                                          >
+                                            [중간 에셋 보기]
+                                          </a>
+                                          <span className="text-[8px] text-red-500 font-bold">⚠️ KIE 정책에 따라 중간 에셋 링크는 14일 후 자동 만료됩니다</span>
+                                        </div>
+                                      )}
                                       {row.result_url && (
                                         <>
                                           <button

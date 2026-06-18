@@ -42,7 +42,17 @@ const compressImage = (base64: string): Promise<string> => {
 };
 
 // --- Helper: File Upload with JWT Check ---
-const extractErrorMessage = (e: any): string => e instanceof Error ? e.message : (typeof e === 'object' && e !== null ? JSON.stringify(e) : String(e));
+const extractErrorMessage = (e: any): string => {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'object' && e !== null) {
+    try {
+      return JSON.stringify(e, Object.getOwnPropertyNames(e));
+    } catch {
+      return String(e);
+    }
+  }
+  return String(e);
+};
 
 const uploadFile = async (endpoint: string, file: File) => {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();

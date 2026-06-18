@@ -471,6 +471,8 @@ async def enforce_user_fifo_limit(user_id: str, limit: int):
         # CASCADE delete: Supabase will delete tasks automatically
         res_tasks = _supabase_retry(lambda: supabase.table("tasks").select("task_id").in_("project_id", to_delete_ids).execute())
         tasks_to_delete = res_tasks.data or []
+        # Collect assets to delete from Supabase storage
+        assets_to_delete = []
         for t in tasks_to_delete:
             t_id = t.get("task_id")
             # Delete physical storage (.mp4)
@@ -482,12 +484,22 @@ async def enforce_user_fifo_limit(user_id: str, limit: int):
             temp_dir = f"outputs/temp_{t_id}"
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir, ignore_errors=True)
+            assets_to_delete.append(f"raptor_{t_id}.mp4")
                 
+        # 1. 스토리지 파일 삭제 분리 (Atomicity & Error Logging)
+        if assets_to_delete:
+            try:
+                _supabase_retry(lambda: supabase.storage.from_("assets").remove(assets_to_delete))
+                print(f"[CASCADE FIFO] Storage assets removed: {assets_to_delete}")
+            except Exception as e:
+                print(f"[CASCADE FIFO] Warning: Storage deletion failed for {assets_to_delete}: {str(e)}")
+
+        # 2. DB 레코드 삭제 분리
         try:
             _supabase_retry(lambda: supabase.table("projects").delete().in_("project_id", to_delete_ids).execute())
             print(f"[CASCADE FIFO] Cleaned up oldest projects: {to_delete_ids} to enforce limit {limit}")
         except Exception as e:
-            print(f"[CASCADE FIFO] Warning: FIFO enforcement failed (non-critical, skipped): {str(e)}")
+            print(f"[CASCADE FIFO] Error: DB FIFO enforcement failed: {str(e)}")
 
 async def check_and_enforce_user_limits(user_id: str = "beta_tester"):
     sanitized_user = sanitize_uuid(user_id)
@@ -502,7 +514,7 @@ async def check_and_enforce_user_limits(user_id: str = "beta_tester"):
         raise HTTPException(status_code=403, detail="월간 프로젝트 생성 한도(1000개)를 초과했습니다. 비정상적인 접근 방지를 위해 제한됩니다.")
         
     # 2. Project FIFO Storage Limit (Max 10 projects)
-    await enforce_user_fifo_limit(sanitized_user, 9)
+    await enforce_user_fifo_limit(sanitized_user, 10)
 
 async def record_user_asset(user_id: str, task_id: str, output_url: str, product_name: str = "", title: str = "", thumbnail_url: str = "", upload_package: dict = None):
     project_id = f"proj_{task_id}"
@@ -638,6 +650,7 @@ async def get_dashboard_projects(user_id: str, jwt_user_id: str = Depends(get_jw
         p_id = task.get("project_id")
         if p_id in proj_map:
             proj = proj_map[p_id]
+            plan_snapshot = proj.get("plan_snapshot") or {}
             rows.append({
                 "product_name": proj.get("product_name"),
                 "project_id": p_id,
@@ -645,7 +658,8 @@ async def get_dashboard_projects(user_id: str, jwt_user_id: str = Depends(get_jw
                 "description": task.get("description"),
                 "status": task.get("status"),
                 "result_url": task.get("result_url"),
-                "created_at": task.get("created_at")
+                "created_at": task.get("created_at"),
+                "intermediate_assets": plan_snapshot.get("intermediate_assets")
             })
             
     rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
