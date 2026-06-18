@@ -389,9 +389,10 @@ class FFmpegWorker:
                 
                     # Subtitle overlay
                     if wrapped_caption.strip():
-                        # [P1 해결] FFmpeg 필터 내부 경로 오류(Exit 8) 방지를 위한 윈도우 백슬래시 정규화
-                        safe_font_path = str(font_path).replace('\\', '/')
-                        safe_txt_path = str(safe_text_file_path).replace('\\', '/')
+                        # [P0 픽스] 이중 치환(C/:/)으로 인한 Exit 8 파싱 에러 방지를 위해, 
+                        # 이미 이스케이프 처리된 원본 경로를 그대로 직접 할당합니다.
+                        safe_font_path = str(font_path)
+                        safe_txt_path = str(safe_text_file_path)
                         
                         filter_str += (
                             f",drawtext=fontfile='{safe_font_path}':textfile='{safe_txt_path}':"
