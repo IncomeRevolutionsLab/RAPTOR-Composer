@@ -409,7 +409,7 @@ async def create_project_in_db(product_name: str, user_id: str) -> dict:
     
     res = supabase.table("projects").insert(new_project).execute()
     if not res.data:
-        raise Exception("Failed to insert project into Supabase database")
+        raise HTTPException(status_code=500, detail="Failed to insert project into Supabase database")
     return res.data[0]
 
 async def create_task_in_db(project_id: str, task_id: str, task_type: str, description: str) -> dict:
