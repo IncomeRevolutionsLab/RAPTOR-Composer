@@ -1138,7 +1138,10 @@ Output MUST be a valid JSON matching this schema exactly, and nothing else:
                     except Exception as e:
                         print(f"[JSON SANITIZE ERROR] {e}")
 
-                    return json.loads(clean_json)
+                    data = json.loads(clean_json)
+                    if isinstance(data, dict) and "error" in data:
+                        raise RuntimeError(f"KIE API Error: {data['error']}")
+                    return data
                     
                 except Exception as e:
                     status_code = getattr(e, 'status_code', None)

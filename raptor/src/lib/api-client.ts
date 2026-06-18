@@ -84,7 +84,29 @@ export const api = {
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api${path}`, fetchOptions);
+      let response = await fetch(`${BACKEND_URL}/api${path}`, fetchOptions);
+
+      // [P1 FIX] 중앙 통신 모듈 403 자동 재시도 무중단 로직 이식
+      if (response.status === 403 && path !== '/auth/csrf-token') {
+        console.warn("[api-client] 403 Forbidden received. Attempting to refresh CSRF token and retry...");
+        try {
+          const csrfRes = await fetch(`${BACKEND_URL}/api/auth/csrf-token`, {
+            method: 'GET',
+            credentials: 'include',
+          });
+          if (csrfRes.ok) {
+            const data = await csrfRes.json();
+            if (data.csrf_token) {
+              store.setCsrfToken(data.csrf_token);
+              const retryHeaders = { ...headers, 'X-CSRF-Token': data.csrf_token };
+              const retryOptions = { ...fetchOptions, headers: retryHeaders };
+              response = await fetch(`${BACKEND_URL}/api${path}`, retryOptions);
+            }
+          }
+        } catch (retryErr) {
+          console.error("[api-client] CSRF refresh retry failed", retryErr);
+        }
+      }
 
       clearTimeout(timeoutId);
 
