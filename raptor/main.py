@@ -496,10 +496,10 @@ async def check_and_enforce_user_limits(user_id: str = "beta_tester"):
     res_projects = supabase.table("projects").select("*").eq("user_id", sanitized_user).execute()
     user_projects = res_projects.data or []
     
-    # 1. Monthly Limit Check (10 projects per month)
+    # 1. Monthly Limit Check (1000 projects per month)
     monthly_count = len([p for p in user_projects if p.get("created_at", "").startswith(current_month)])
-    if monthly_count >= 10:
-        raise Exception("베타 테스트 월간 프로젝트 생성 한도(10개)를 초과했습니다. 다음 달에 다시 이용해 주세요.")
+    if monthly_count >= 1000:
+        raise HTTPException(status_code=403, detail="월간 프로젝트 생성 한도(1000개)를 초과했습니다. 비정상적인 접근 방지를 위해 제한됩니다.")
         
     # 2. Project FIFO Storage Limit (Max 10 projects)
     await enforce_user_fifo_limit(sanitized_user, 9)
