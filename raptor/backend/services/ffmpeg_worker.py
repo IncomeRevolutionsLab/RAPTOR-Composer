@@ -439,11 +439,26 @@ class FFmpegWorker:
                     ])
 
                     try:
-                        await self._run_subprocess(cmd_scene, check=True, capture_output=True, text=True, cwd=temp_dir)
-                    except subprocess.CalledProcessError as e:
-                        print(f"\n[FFMPEG CRITICAL ERROR] Scene {i} Rendering Failed")
-                        print(f"[STDERR]: {e.stderr}")
-                        raise e
+                        # [P0 픽스] 맹목적인 check=True를 제거하고 stderr를 강제 캡처합니다.
+                        result = subprocess.run(
+                            cmd_scene,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            cwd=temp_dir
+                        )
+
+                        if result.returncode != 0:
+                            error_message = (
+                                f"FFmpeg failed with code {result.returncode}\n\n"
+                                f"Command:\n{' '.join(cmd_scene)}\n\n"
+                                f"STDERR:\n{result.stderr}"
+                            )
+                            # FFmpeg가 뱉어낸 진짜 에러 로그를 그대로 위로 던집니다.
+                            raise RuntimeError(error_message)
+
+                    except Exception as e:
+                        raise RuntimeError(f"렌더링 중단 안내:\n{e}") from e
                     scene_files.append(abs_scene_mp4)
 
                 # Phase 3: Concatenate
