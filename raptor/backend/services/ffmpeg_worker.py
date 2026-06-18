@@ -387,8 +387,8 @@ class FFmpegWorker:
                             freeze_dur = duration - video_duration
                             filter_str += f",tpad=stop_mode=clone:stop_duration={freeze_dur}"
                 
-                    # Subtitle overlay
-                    if wrapped_caption.strip():
+                    # Subtitle overlay (임시 비활성화 테스트)
+                    if False and wrapped_caption.strip():
                         # [P0 픽스] 이중 치환(C/:/)으로 인한 Exit 8 파싱 에러 방지를 위해, 
                         # 이미 이스케이프 처리된 원본 경로를 그대로 직접 할당합니다.
                         safe_font_path = str(font_path)
