@@ -270,6 +270,19 @@ export default function RaptorWorkflow() {
     setFinalAssets(null);
 
     try {
+      let activeCsrfToken = store.csrfToken;
+      if (!activeCsrfToken) {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/auth/csrf-token`, { method: 'GET', credentials: 'include' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.csrf_token) {
+              store.setCsrfToken(data.csrf_token);
+            }
+          }
+        } catch (err) {}
+      }
+
       const projRes = await api.post('/projects', {
         product_name: productData.name,
         user_id: store.userId
