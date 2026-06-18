@@ -1,0 +1,1 @@
+C:/Antigravity Work/RAPTOR\fix_p0_fonts.js:43: /s === 0 \? '시작 모드' : s === 1 \? '기본 설정' : s === 2 \? '분석 리포트' : s === 3 \? '에셋 확정' : '렌더링'/g,

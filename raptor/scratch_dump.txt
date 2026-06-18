@@ -1,0 +1,5 @@
+1000:               <span className="text-[10px] font-bold uppercase tracking-widest">{s === 0 ? '시작 모드' : s === 1 ? '기본 설정' : s === 2 ? '분석 리포트' : s === 3 ? '이미지 생성' : s === 4 ? '비디오 생성' : '최종 렌더링'}</span>
+1220:             <h3 className="text-xl font-bold text-purple-400">AI Global 분석 리포트</h3>
+1346:                     <h2 className="text-3xl font-black text-white whitespace-nowrap">3단계: 에셋(이미지/시나리오) 확정 및 매칭</h2>
+1498:                           <p className="text-[9px] text-gray-500">실사 에셋을 직접 등록하거나 AI로 생성</p>
+2048:                     <Download className="w-4 h-4" /> CapCut 폴백용 에셋 원본 ZIP 다운로드 (즉시)

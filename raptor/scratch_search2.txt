@@ -1,0 +1,17 @@
+C:/Antigravity Work/RAPTOR/src\components\AuthDashboard.tsx:916: : '대시보드와 클라우드 렌더링 내역 저장을 제공합니다.'}
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:125: // [NEW] 렌더링 큐 상태 폴링
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:160: setErrorMessage("사용자에 의해 렌더링이 취소되었습니다.");
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:175: // 새로고침 시 렌더링 진행 상태 깔끔하게 초기화
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:708: setLoading(true, '최종 영상 조립(렌더링) 직행 중...');
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:812: setErrorMessage(`렌더링 중단 안내: ${extractErrorMessage(e)}`);
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:1000: <span className="text-[10px] font-bold uppercase tracking-widest">{s === 0 ? '시작 모드' : s === 1 ? '기본 설정' : s === 2 ? '분석 리포트' : s === 3 ? '이미지 생성' : s === 4 ? '비디오 생성' : '최종 렌더링'}</span>
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:1732: <span className="text-[10px] text-gray-300 font-bold">🖼️ 스틸컷으로 렌더링 (비디오 생성 안 함)</span>
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:1812: {/* Step 4: Final Video Render (최종 렌더링 및 완성) */}
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:1860: { id: 5, name: '최종 렌더링', status: stage5Status, desc: renderedVideoUrl ? '최종 MP4 완성' : isRendering ? `렌더링 진행 중 (${renderProgress}%)` : '대기 중', action: undefined, actionLabel: '' },
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:1947: <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> 비디오 생성 엔진 &amp; 렌더링 옵션
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:1991: {/* [FIX] 물리적 완전 분리: Step 4 (비디오 생성) 버튼은 아직 생성되지 않은 비디오가 있을 때만 렌더링 */}
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:2006: {/* [FIX] 물리적 완전 분리: Step 5 (최종 렌더링) 버튼은 모든 비디오(스틸컷 포함) 생성이 완료되었을 때만 렌더링 */}
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:2014: <><Loader2 className="w-4 h-4 animate-spin text-emerald-300" /> <span>최종 렌더링 진행 중 {renderProgress}%</span></>
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:2018: <><Upload className="w-5 h-5" /> <span>최종 렌더링 시작 (Step 5)</span></>
+C:/Antigravity Work/RAPTOR/src\components\RaptorWorkflow.tsx:2065: <span>🛑 렌더링 취소</span>
+C:/Antigravity Work/RAPTOR/src\components\forms\BYOKSettingsForm.tsx:184: * KIE API Key 1개만 입력하면 모든 AI 렌더링 파이프라인(Claude 기획, DALL-E 이미지, Grok/Veo 비디오)이 자동 통합 매핑됩니다.

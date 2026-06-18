@@ -1,0 +1,8 @@
+클로드, 방금 내가 `backend/services/ffmpeg_worker.py`에 적용한 FFmpeg 필터 체인 메모리 누수(OOM) 원천 차단 및 명령어 최적화 패치 내역을 리뷰해줘. 
+
+주요 변경점은 다음과 같아:
+1. `-t str(duration)` 옵션을 이미지 스트림의 입력단(`-i`) 앞단으로 이동하여 무한 루프 메모리 폭주를 차단
+2. `filter_complex` 내에서 `fps=fps=30,scale,crop`을 `zoompan`보다 먼저 배치하도록 순서 교체 (연산 부하 최적화)
+3. 출력단에 있던 `-t`와 `-frames:v` 옵션을 제거하고 모든 스트림 동기화를 위해 `-shortest` 추가
+
+VIBE 프레임워크 관점에서 이 변경사항들이 클라우드 컨테이너(Render.com 등)의 메모리 안정성에 미치는 영향과 렌더링 무결성에 추가적인 사이드 이펙트(Side Effect)나 OOM 위협이 남아있지 않은지 Post-Review를 작성해줘.
