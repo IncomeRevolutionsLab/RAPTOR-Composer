@@ -23,7 +23,7 @@ from backend.services.ffmpeg_worker import ffmpeg_worker
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 import secrets
-# [v2.15.0] import jwt (PyJWT) ?�거 ??Supabase SDK get_user()�??�환
+# [v2.15.0] import jwt (PyJWT) 제거 — Supabase SDK get_user()로 전환
 import asyncio
 import zipstream
 
@@ -43,7 +43,7 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 if not WEBHOOK_SECRET:
     raise RuntimeError("WEBHOOK_SECRET must be set in .env")
 
-# [v2.15.0] SUPABASE_JWT_SECRET ?�존???�전 ?�거 ??ECC(P-256) ?�?�으�?SDK ?�임 ?�환
+# [v2.15.0] SUPABASE_JWT_SECRET 의존성 완전 제거 — ECC(P-256) 대응으로 SDK 위임 전환
 
 IS_PROD = os.getenv("ENV", "development").lower() in ["production", "prod"]
 
@@ -71,7 +71,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("\n" + "="*60)
-    print("경고: .env ?�일??SUPABASE_URL�?SUPABASE_KEY�??�정?�주?�요.")
+    print("경고: .env 파일에 SUPABASE_URL과 SUPABASE_KEY를 설정해주세요.")
     print("="*60 + "\n")
 
 # --- System Prompt Caching ---
@@ -94,7 +94,7 @@ def load_raptor_prompts():
         path = os.path.join(base_dir, f)
         if os.path.exists(path):
             try:
-                # ?�도???�경 ?��? 깨짐 �?UnicodeDecodeError ?�천 차단
+                # 윈도우 환경 한글 깨짐 및 UnicodeDecodeError 원천 차단
                 with open(path, "r", encoding="utf-8", errors="replace") as file:
                     content = file.read()
                     combined_text += f"\n\n--- FILE: {f} ---\n"
@@ -146,31 +146,31 @@ async def verify_csrf(
 
 def get_decrypted_key(x_byok_kie: Optional[str] = Header(None)) -> str:
     if not x_byok_kie or not x_byok_kie.strip():
-        raise HTTPException(status_code=401, detail="API Key가 ?�정?��? ?�았?�니?? Global Settings?�서 KIE API Key�??�력??주세??")
+        raise HTTPException(status_code=401, detail="API Key가 설정되지 않았습니다. Global Settings에서 KIE API Key를 입력해 주세요.")
     return x_byok_kie.strip()
 
 def get_jwt_user_id(authorization: Optional[str] = Header(None)) -> str:
     """
-    [v2.15.0] ECC(P-256) ?�????PyJWT ?�동 검�?철거, Supabase SDK ?�임 방식?�로 ?�환
-    - supabase.auth.get_user(token): SDK ?�벨?�서 JWKS ?�동 처리 (HS256/ES256 모두 지??
-    - sync def ?��?: FastAPI가 ?�레?��??�서 ?�행 ???�벤??루프 차단 ?�음
-    - Claude Code Pre-Review 권고 반영: ?�외 메시지 ?�??+ ?�바�??�외 ?�파
+    [v2.15.0] ECC(P-256) 대응 — PyJWT 수동 검증 철거, Supabase SDK 위임 방식으로 전환
+    - supabase.auth.get_user(token): SDK 레벨에서 JWKS 자동 처리 (HS256/ES256 모두 지원)
+    - sync def 유지: FastAPI가 스레드풀에서 실행 → 이벤트 루프 차단 없음
+    - Claude Code Pre-Review 권고 반영: 예외 메시지 은닉 + 올바른 예외 전파
     """
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="?�증 ?�더가 ?�락?�었거나 ?�식???�바르�? ?�습?�다.")
+        raise HTTPException(status_code=401, detail="인증 헤더가 누락되었거나 형식이 올바르지 않습니다.")
     token = authorization.split(" ", 1)[1]
     try:
         response = supabase.auth.get_user(token)
         user = response.user
         if not user or not user.id:
-            raise HTTPException(status_code=401, detail="?�효?��? ?��? ?�큰?�니??")
+            raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
         return user.id
     except HTTPException:
         raise
     except Exception as e:
-        # [SECURITY] ?��? ?�러 메시지 ?�라?�언???�출 방�? ???�버 로그?�만 ?�세 기록
+        # [SECURITY] 내부 에러 메시지 클라이언트 노출 방지 — 서버 로그에만 상세 기록
         print(f"[AUTH ERROR] get_user failed: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=401, detail="?�효?��? ?��? ?�큰?�니??")
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
 
 def map_image_model(model_name: Optional[str]) -> str:
     if not model_name:
@@ -190,8 +190,8 @@ def map_image_model(model_name: Optional[str]) -> str:
 from supabase import create_client, Client
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mock-project.supabase.co")
-# S-004: 백엔???��? DB ?�동?� RLS ?�회 �??�이??직접 ?�어가 ?�요?��?�?SUPABASE_SERVICE_ROLE_KEY ?�용
-# 만약 ?�경변??SUPABASE_SERVICE_ROLE_KEY가 ?�의?�어 ?��? ?�으�?기존 SUPABASE_KEY�??�백?�로 ?�용
+# S-004: 백엔드 내부 DB 연동은 RLS 우회 및 데이터 직접 제어가 필요하므로 SUPABASE_SERVICE_ROLE_KEY 사용
+# 만약 환경변수 SUPABASE_SERVICE_ROLE_KEY가 정의되어 있지 않으면 기존 SUPABASE_KEY를 폴백으로 사용
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_KEY", "mock-service-role-key-123456789"))
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -203,8 +203,8 @@ def sanitize_uuid(user_id_str: str) -> str:
 
 async def upload_image_to_supabase(image_url: str, scene_id: int) -> tuple[str, str]:
     """
-    [A-005] ?��?지 ?�운로드 �?Supabase ?�토리�? ?�로??로직???�일??
-    [S-006] Supabase Storage assets 버킷??Private?�로 ?�환?�고, 30�?만료(TTL) ?�명??URL 발급
+    [A-005] 이미지 다운로드 및 Supabase 스토리지 업로드 로직의 단일화
+    [S-006] Supabase Storage assets 버킷을 Private으로 전환하고, 30분 만료(TTL) 서명된 URL 발급
     """
     import base64
     import time
@@ -227,7 +227,7 @@ async def upload_image_to_supabase(image_url: str, scene_id: int) -> tuple[str, 
             file=img_bytes,
             file_options={"content-type": "image/png"}
         )
-        # 30�?1800�? ?�효??Signed URL 발급
+        # 30분(1800초) 유효한 Signed URL 발급
         signed_res = supabase.storage.from_("assets").create_signed_url(file_name, 1800)
         signed_url = None
         if isinstance(signed_res, dict):
@@ -320,7 +320,7 @@ class PlanRequest(BaseModel):
     description: str
     images: List[str] = []
     duration: int = 15
-    target_language: str = "?�국??
+    target_language: str = "한국어"
     mode: str = "auto"
     model: Optional[str] = None
     selected_pattern: Optional[str] = None # Added HIL Pattern Support
@@ -353,18 +353,18 @@ class VideoGenRequest(BaseModel):
 class RenderRequest(BaseModel):
     product_name: str
     scenes: List[dict]
-    voice_type: str = "?�성-발랄??
+    voice_type: str = "여성-발랄한"
     status: str
 
 class RenderStreamRequest(BaseModel):
     product_name: str
     scenes: List[dict]
-    voice_type: str = "?�성-발랄??
+    voice_type: str = "여성-발랄한"
     aspect_ratio: Literal["9:16", "1:1", "16:9"] = "9:16"
     quality: str = "export"
-    subtitle_position: str = "??
+    subtitle_position: str = "하"
     subtitle_font: str = "BlackHanSans"
-    render_duration: str = "?�막 맞춤 길이 (Dynamic Sync)"
+    render_duration: str = "자막 맞춤 길이 (Dynamic Sync)"
     watermark_enabled: bool = False
     watermark_logo: Optional[str] = None
     watermark_position: str = "top-right"
@@ -456,7 +456,7 @@ def _supabase_retry(operation, max_retries: int = 2, delay: float = 0.5):
 
 async def enforce_user_fifo_limit(user_id: str, limit: int):
     """
-    [P-006] FIFO ?�도 ?�리 로직??공통 ?�수�??�일??
+    [P-006] FIFO 한도 정리 로직을 공통 함수로 단일화
     """
     sanitized_user = sanitize_uuid(user_id)
     res_projects = _supabase_retry(lambda: supabase.table("projects").select("project_id, created_at").eq("user_id", sanitized_user).execute())
@@ -499,7 +499,7 @@ async def check_and_enforce_user_limits(user_id: str = "beta_tester"):
     # 1. Monthly Limit Check (10 projects per month)
     monthly_count = len([p for p in user_projects if p.get("created_at", "").startswith(current_month)])
     if monthly_count >= 10:
-        raise Exception("베�? ?�스???�간 ?�로?�트 ?�성 ?�도(10�?�?초과?�습?�다. ?�음 ?�에 ?�시 ?�용??주세??")
+        raise Exception("베타 테스트 월간 프로젝트 생성 한도(10개)를 초과했습니다. 다음 달에 다시 이용해 주세요.")
         
     # 2. Project FIFO Storage Limit (Max 10 projects)
     await enforce_user_fifo_limit(sanitized_user, 9)
@@ -525,7 +525,7 @@ async def record_user_asset(user_id: str, task_id: str, output_url: str, product
             "task_id": task_id,
             "project_id": project_id,
             "task_type": "final_render",
-            "description": title or "최종 ?�더�??�료",
+            "description": title or "최종 렌더링 완료",
             "status": "success",
             "result_url": output_url,
             "error": None,
@@ -536,7 +536,7 @@ async def record_user_asset(user_id: str, task_id: str, output_url: str, product
 @app.get("/api/user-videos")
 async def get_user_videos(user_id: str, jwt_user_id: str = Depends(get_jwt_user_id)):
     if user_id != jwt_user_id:
-        raise HTTPException(status_code=403, detail="?�?�의 비디??목록??조회??권한???�습?�다.")
+        raise HTTPException(status_code=403, detail="타인의 비디오 목록을 조회할 권한이 없습니다.")
         
     sanitized_user = sanitize_uuid(user_id)
     res_proj = supabase.table("projects").select("*").eq("user_id", sanitized_user).execute()
@@ -570,20 +570,20 @@ async def get_user_videos(user_id: str, jwt_user_id: str = Depends(get_jwt_user_
 
 TASK_EVENTS = {}
 
-# ?�로?�트 ?�유�?검�??�퍼 (IDOR 방어)
+# 프로젝트 소유권 검증 헬퍼 (IDOR 방어)
 def verify_project_owner(project_id: str, user_id: str):
     sanitized_user = sanitize_uuid(user_id)
     res = supabase.table("projects").select("user_id").eq("project_id", project_id).execute()
     if not res.data:
-        raise HTTPException(status_code=404, detail="?�로?�트�?찾을 ???�습?�다.")
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
     if res.data[0].get("user_id") != sanitized_user:
-        raise HTTPException(status_code=403, detail="?�로?�트???�근??권한???�습?�다.")
+        raise HTTPException(status_code=403, detail="프로젝트에 접근할 권한이 없습니다.")
 
-# ?�스???�유�?검�??�퍼 (IDOR 방어)
+# 태스크 소유권 검증 헬퍼 (IDOR 방어)
 def verify_task_owner(task_id: str, user_id: str):
     res = supabase.table("tasks").select("project_id").eq("task_id", task_id).execute()
     if not res.data:
-        raise HTTPException(status_code=404, detail="?�스?��? 찾을 ???�습?�다.")
+        raise HTTPException(status_code=404, detail="태스크를 찾을 수 없습니다.")
     proj_id = res.data[0].get("project_id")
     verify_project_owner(proj_id, user_id)
 
@@ -613,13 +613,13 @@ async def update_task_endpoint(
     verify_task_owner(task_id, jwt_user_id)
     task = await update_task_in_db(task_id, req.status, req.result_url, req.error)
     if not task:
-        raise HTTPException(status_code=404, detail="?�스?��? 찾을 ???�습?�다.")
+        raise HTTPException(status_code=404, detail="태스크를 찾을 수 없습니다.")
     return task
 
 @app.get("/api/dashboard/projects")
 async def get_dashboard_projects(user_id: str, jwt_user_id: str = Depends(get_jwt_user_id)):
     if user_id != jwt_user_id:
-        raise HTTPException(status_code=403, detail="?�?�의 ?�로?�트 목록??조회??권한???�습?�다.")
+        raise HTTPException(status_code=403, detail="타인의 프로젝트 목록을 조회할 권한이 없습니다.")
         
     sanitized_user = sanitize_uuid(user_id)
     res_proj = supabase.table("projects").select("*").eq("user_id", sanitized_user).execute()
@@ -654,7 +654,7 @@ async def get_dashboard_projects(user_id: str, jwt_user_id: str = Depends(get_jw
 @app.get("/api/status/render")
 async def get_render_status():
     """
-    ?�재 DB?�서 ?�더�?final_render) 중인(pending ?�는 processing) ?�스??개수�?반환?�니??
+    현재 DB에서 렌더링(final_render) 중인(pending 또는 processing) 태스크 개수를 반환합니다.
     """
     res = supabase.table("tasks").select("task_id", count="exact").eq("task_type", "final_render").in_("status", ["pending", "processing"]).execute()
     count = res.count if hasattr(res, "count") and res.count is not None else len(res.data)
@@ -663,8 +663,8 @@ async def get_render_status():
 @app.get("/api/projects/{project_id}/download-assets")
 async def download_assets(project_id: str, token: str = Query(..., description="JWT access token from frontend for window.open bypass")):
     """
-    주어�??�로?�트??모든 ?�본 ?�셋(?��?지/비디???�막 ?????�트리밍 ZIP?�로 묶어 반환?�니??
-    (?�버 메모�?초과 방어 - OOM 방�? �?보안 가??
+    주어진 프로젝트의 모든 원본 에셋(이미지/비디오/자막 등)을 스트리밍 ZIP으로 묶어 반환합니다.
+    (서버 메모리 초과 방어 - OOM 방지 및 보안 가드)
     """
     try:
         response = supabase.auth.get_user(token)
@@ -672,14 +672,14 @@ async def download_assets(project_id: str, token: str = Query(..., description="
         if not jwt_user_id:
             raise ValueError("No user id")
     except Exception as e:
-        raise HTTPException(status_code=401, detail="?�효?��? ?��? ?�큰?�니??")
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
 
-    # 1. ?�로?�트 ?�냅??�??�유??조회
+    # 1. 프로젝트 스냅샷 및 소유자 조회
     res_proj = supabase.table("projects").select("plan_snapshot, user_id").eq("project_id", project_id).execute()
     if not res_proj.data:
         raise HTTPException(status_code=404, detail="Project not found")
         
-    # 2. ?�유�?검�?(IDOR 방어)
+    # 2. 소유권 검증 (IDOR 방어)
     project_owner_id = res_proj.data[0].get("user_id")
     if project_owner_id != jwt_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: You do not have permission to access this project's assets.")
@@ -687,11 +687,11 @@ async def download_assets(project_id: str, token: str = Query(..., description="
     plan_snapshot = res_proj.data[0].get("plan_snapshot") or {}
     scenes = plan_snapshot.get("scenes", [])
     
-    # ?�너?�이?��? ?�용??비동�??�운로드 �??�트리밍
+    # 제너레이터를 활용한 비동기 다운로드 및 스트리밍
     def iter_zip():
         z = zipstream.ZipFile(mode='w', compression=zipstream.ZIP_DEFLATED)
         
-        # ???�이???�리 �??�카?�빙 (?�순 ?�스???�함)
+        # 씬 데이터 정리 및 아카이빙 (단순 텍스트 포함)
         script_text = ""
         for i, scene in enumerate(scenes):
             scene_num = i + 1
@@ -700,9 +700,9 @@ async def download_assets(project_id: str, token: str = Query(..., description="
             script_text += f"Prompt: {scene.get('prompt', '')}\n"
             script_text += f"Subtitle: {scene.get('subtitle', '')}\n\n"
             
-            # ?�기???��? URL ?�트리밍 ?�운로드 로직?� ?�간/복잡???�약??httpx???�기 ?�너?�이???�핑???�요?�데,
-            # zipstream?� ?�기 ?�너?�이?��? ?�구?�니?? 
-            # ?�라??URL 목록???�스?�에 ?�함?�키??방식?�로 ?�플??MVP ?�셋 번들??구성?�니??
+            # 여기서 외부 URL 스트리밍 다운로드 로직은 시간/복잡성 제약상 httpx의 동기 제너레이터 래핑이 필요한데,
+            # zipstream은 동기 제너레이터를 요구합니다. 
+            # 따라서 URL 목록을 텍스트에 포함시키는 방식으로 심플한 MVP 에셋 번들을 구성합니다.
             image_url = scene.get('image_url')
             video_url = scene.get('video_url')
             user_video_id = scene.get('user_video_id')
@@ -729,9 +729,9 @@ class AuthRequest(BaseModel):
 @app.post("/api/auth/signup")
 async def auth_signup(req: AuthRequest):
     if not SUPABASE_URL or not SUPABASE_KEY:
-        raise HTTPException(status_code=500, detail="Supabase ?�정??구성?��? ?�았?�니??")
+        raise HTTPException(status_code=500, detail="Supabase 설정이 구성되지 않았습니다.")
     
-    # S-001: ?�반 signup API (/auth/v1/signup) ?�용?�로 ?�환. anon key ?�용 가??
+    # S-001: 일반 signup API (/auth/v1/signup) 사용으로 전환. anon key 사용 가능.
     url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/signup"
     headers = {
         "apikey": SUPABASE_KEY,
@@ -747,16 +747,16 @@ async def auth_signup(req: AuthRequest):
             resp = await client.post(url, headers=headers, json=data, timeout=10.0)
             resp_data = resp.json()
             if resp.status_code != 200 and resp.status_code != 201:
-                error_msg = resp_data.get("msg") or resp_data.get("error_description") or resp_data.get("error", {}).get("message") or "?�원가???�패"
+                error_msg = resp_data.get("msg") or resp_data.get("error_description") or resp_data.get("error", {}).get("message") or "회원가입 실패"
                 raise HTTPException(status_code=resp.status_code, detail=error_msg)
             return {"user": resp_data}
         except httpx.RequestError as e:
-            raise HTTPException(status_code=500, detail=f"?�증 ?�버 ?�신 ?�패: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"인증 서버 통신 실패: {str(e)}")
 
 @app.post("/api/auth/signin")
 async def auth_signin(req: AuthRequest):
     if not SUPABASE_URL or not SUPABASE_KEY:
-        raise HTTPException(status_code=500, detail="Supabase ?�정??구성?��? ?�았?�니??")
+        raise HTTPException(status_code=500, detail="Supabase 설정이 구성되지 않았습니다.")
     
     url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/token?grant_type=password"
     headers = {
@@ -773,11 +773,11 @@ async def auth_signin(req: AuthRequest):
             resp = await client.post(url, headers=headers, json=data, timeout=10.0)
             resp_data = resp.json()
             if resp.status_code != 200:
-                error_msg = resp_data.get("error_description") or resp_data.get("msg") or "로그???�패"
+                error_msg = resp_data.get("error_description") or resp_data.get("msg") or "로그인 실패"
                 raise HTTPException(status_code=resp.status_code, detail=error_msg)
             return resp_data
         except httpx.RequestError as e:
-            raise HTTPException(status_code=500, detail=f"?�증 ?�버 ?�신 ?�패: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"인증 서버 통신 실패: {str(e)}")
 
 class KeyConfigRequest(BaseModel):
     kie_key: str
@@ -838,7 +838,7 @@ async def check_key(x_byok_kie: Optional[str] = Header(None)):
 
 @app.post("/api/auth/review-plan")
 async def review_plan(decrypted_key: str = Depends(get_decrypted_key)):
-    # ?�적?�로 가??최신??implementation_plan.md가 ?�치??brain ?�더 경로�?감�??�니??
+    # 동적으로 가장 최신의 implementation_plan.md가 위치한 brain 폴더 경로를 감지합니다.
     user_home = os.path.expanduser("~")
     brain_base_dir = os.getenv("BRAIN_DIR", os.path.join(user_home, ".gemini", "antigravity-ide", "brain"))
     plan_path = "implementation_plan.md"  # Fallback
@@ -855,11 +855,11 @@ async def review_plan(decrypted_key: str = Depends(get_decrypted_key)):
             plan_path = candidates[0][0]
             target_brain_dir = candidates[0][2]
             
-    # Risk_Tracker.md??workspace root??존재?�는 것을 ?�습?�다.
+    # Risk_Tracker.md는 workspace root에 존재하는 것을 읽습니다.
     tracker_path = "Risk_Tracker.md"
     
     if not os.path.exists(plan_path):
-        raise HTTPException(status_code=404, detail="?�행 계획??implementation_plan.md)�?찾을 ???�습?�다.")
+        raise HTTPException(status_code=404, detail="실행 계획서(implementation_plan.md)를 찾을 수 없습니다.")
     
     with open(plan_path, "r", encoding="utf-8") as f:
         plan_content = f.read()
@@ -876,26 +876,25 @@ async def review_plan(decrypted_key: str = Depends(get_decrypted_key)):
         http_client=KIEHTTPClient(decrypted_key_clean)
     )
 
-    prompt = f"""?�래??RAPTOR V2.5 ?�터 ?�크?�로???�면 분리 �?UX ?�개편 ?�술 계획??implementation_plan.md)?� 기존???�적 리스??추적 문서(Risk_Tracker.md)?�니??
-?�재 ?�제 ?�스 코드 ?�태?� ??문서�?교차 검증하???�국?�로 꼼꼼?�게 ?�키?�처 ?�전 리뷰(Pre-Review) 보고?��? ?�성?�줘.
+    prompt = f"""아래는 RAPTOR V2.5 랩터 워크플로우 전면 분리 및 UX 대개편 수술 계획서(implementation_plan.md)와 기존의 누적 리스크 추적 문서(Risk_Tracker.md)입니다.
+현재 실제 소스 코드 상태와 두 문서를 교차 검증하여 한국어로 꼼꼼하게 아키텍처 사전 리뷰(Pre-Review) 보고서를 작성해줘.
 
-리뷰 보고?�는 반드???�음 3가지 카테고리로만 ?�격?�게 분류?�여 ?�성?�야 ??
-1. [Resolved]: ?�전 지???�항(Risk_Tracker.md??리스??목록) �??�번 계획??implementation_plan.md)�??�해 ?�벽???�결?�는 ??���?�??�명
-2. [Pending]: ?�전 지???�항 �??�번 계획?�에?�도 ?�직 ?�전???�결책이 ?�시?��? ?�고 ?�험 ?�소�??��? ??���?�??�유
-3. [New]: ?�번 코드 개편 계획?�나 ?�재 ?�태?�서 ?�롭�??�별???�재??취약???�는 개선??
+리뷰 보고서는 반드시 다음 3가지 카테고리로만 엄격하게 분류하여 작성해야 해:
+1. [Resolved]: 이전 지적 사항(Risk_Tracker.md의 리스크 목록) 중 이번 계획서(implementation_plan.md)를 통해 완벽히 해결되는 항목과 그 설명
+2. [Pending]: 이전 지적 사항 중 이번 계획서에서도 아직 완전한 해결책이 제시되지 않고 위험 요소로 남은 항목과 그 이유
+3. [New]: 이번 코드 개편 계획이나 현재 상태에서 새롭게 식별된 잠재적 취약점 또는 개선점
 
-[?�적 리스??추적??(Risk_Tracker.md)]
+[누적 리스크 추적서 (Risk_Tracker.md)]
 {tracker_content}
 
-[?�행 계획??(implementation_plan.md)]
+[실행 계획서 (implementation_plan.md)]
 {plan_content}
 """
     try:
         response = client.messages.create(
             model=DEFAULT_CLAUDE_MODEL,
             max_tokens=4096,
-            messages=[{"role": "user", "content": [{"type": "text", "text": prompt}]}],
-            extra_body={"thinkingFlag": True}
+            messages=[{"role": "user", "content": [{"type": "text", "text": prompt}]}]
         )
         review_result = response.content[0].text
         
@@ -906,14 +905,14 @@ async def review_plan(decrypted_key: str = Depends(get_decrypted_key)):
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(review_result)
             
-        # ?�위 ?�환?�을 ?�해 legacy review_report.md??최신 ?�용?�로 백업 갱신
+        # 하위 호환성을 위해 legacy review_report.md도 최신 내용으로 백업 갱신
         legacy_report_path = os.path.join(target_brain_dir, "review_report.md")
         with open(legacy_report_path, "w", encoding="utf-8") as f:
             f.write(review_result)
             
-        return {"status": "success", "message": "?�전 리뷰 보고?��? ?�상?�으�?갱신?�었?�니??", "filename": report_filename}
+        return {"status": "success", "message": "사전 리뷰 보고서가 정상적으로 갱신되었습니다.", "filename": report_filename}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"KIE Claude ?�출 ?�패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"KIE Claude 호출 실패: {str(e)}")
 
 
 
@@ -943,7 +942,7 @@ async def proxy_image(url: str):
                 break
         
         if not is_allowed:
-            raise HTTPException(status_code=403, detail="SSRF 방어: ?�용?��? ?��? ?�메?�의 ?��?지 ?�록?�는 금�??�니??")
+            raise HTTPException(status_code=403, detail="SSRF 방어: 허용되지 않은 도메인의 이미지 프록시는 금지됩니다.")
 
         async with httpx.AsyncClient() as client:
             res = await client.get(url, timeout=30.0)
@@ -957,7 +956,7 @@ async def proxy_image(url: str):
 
 @app.post("/api/scrape")
 async def scrape_product(request: ScrapeRequest, verify: None = Depends(verify_csrf)):
-    raise HTTPException(status_code=503, detail="?�크?�핑 기능?� ?�재 ?��? 중입?�다.")
+    raise HTTPException(status_code=503, detail="스크래핑 기능은 현재 점검 중입니다.")
 
 @app.post("/api/generate-plan")
 async def generate_plan(request: PlanRequest, decrypted_key: str = Depends(get_decrypted_key), verify: None = Depends(verify_csrf)):
@@ -970,12 +969,12 @@ async def generate_plan(request: PlanRequest, decrypted_key: str = Depends(get_d
         api_key=decrypted_key_clean,
         http_client=KIEHTTPClient(decrypted_key_clean)
     )
-    p_name = request.product_name or request.name or "?�품"
+    p_name = request.product_name or request.name or "상품"
     
     # --- Dynamic HIL Pattern Instruction ---
     hil_instruction = ""
     if request.selected_pattern:
-        hil_instruction = f"\n[CRITICAL HIL RULE]: ?�용?��? [{request.selected_pattern}] ?�턴??강제 지?�했?? AI ?�체 ?�단??무시?�고 ?�크립트 ?�성 ??무조�????�턴??최우?�으�??�용?�라."
+        hil_instruction = f"\n[CRITICAL HIL RULE]: 사용자가 [{request.selected_pattern}] 패턴을 강제 지정했다. AI 자체 판단을 무시하고 스크립트 작성 시 무조건 이 패턴을 최우선으로 적용하라."
 
     # --- Dynamic Manual Additions (HIL) ---
     manual_instruction = ""
@@ -983,11 +982,11 @@ async def generate_plan(request: PlanRequest, decrypted_key: str = Depends(get_d
         pains = request.manual_additions.get("pain_points", [])
         strens = request.manual_additions.get("strengths", [])
         if pains or strens:
-            manual_instruction = "\n[USER INPUT HIL DATA]: ?�용?��? 직접 분석???�동 ?�드�??�보가 존재?�니?? ???�용???�나리오?� 기획???�극 반영?�여 ?�크립트�??�성?�십?�오."
+            manual_instruction = "\n[USER INPUT HIL DATA]: 사용자가 직접 분석한 수동 피드백 정보가 존재합니다. 이 내용을 시나리오와 기획에 적극 반영하여 스크립트를 생성하십시오."
             if pains:
-                manual_instruction += f"\n- ?�용??지??불편??Pain Points): {', '.join(pains)}"
+                manual_instruction += f"\n- 사용자 지정 불편함(Pain Points): {', '.join(pains)}"
             if strens:
-                manual_instruction += f"\n- ?�용??지???�점(Strengths): {', '.join(strens)}"
+                manual_instruction += f"\n- 사용자 지정 장점(Strengths): {', '.join(strens)}"
 
     content = []
     if request.images:
@@ -1013,38 +1012,38 @@ Create a professional product analysis and pattern recommendation based on the f
 Product Name: {p_name}
 User Description: {request.description}
 Target Language: {request.target_language}
-Marketing Purpose (?�폼 목적): {request.purpose or "?�핑 ?�환"}
-Target Audience (?�깃층): {request.target_audience or "?�체"}
-Video Tone (?�상 ??: {request.tone or "리뷰??}
+Marketing Purpose (숏폼 목적): {request.purpose or "쇼핑 전환"}
+Target Audience (타깃층): {request.target_audience or "전체"}
+Video Tone (영상 톤): {request.tone or "리뷰형"}
 {manual_instruction}
 
 Please analyze the product and recommend the top 2 patterns from the following 7 short-form patterns:
-1. 문제 ?�결??
-2. ?�후 비교??
-3. ?��? 기능 발견??
-4. ?�간 ?�약??
-5. ?�활 개선??
-6. 공감??
-7. ?�사???�기??
+1. 문제 해결형
+2. 전후 비교형
+3. 숨은 기능 발견형
+4. 시간 절약형
+5. 생활 개선형
+6. 공감형
+7. 실사용 후기형
 
 Output MUST be a valid JSON matching this schema exactly, and nothing else:
 {{
   "product_analysis": {{
-    "pain_point": "분석???�용??고통 (?�깃층�?목적??반영)",
-    "core_benefit": "?�심 ?�점",
-    "purchase_trigger": "?�택??구매 ?�리�?,
-    "product_ref": ["?�징1", "?�징2", "?�징3"]
+    "pain_point": "분석된 사용자 고통 (타깃층과 목적을 반영)",
+    "core_benefit": "핵심 장점",
+    "purchase_trigger": "선택된 구매 트리거",
+    "product_ref": ["특징1", "특징2", "특징3"]
   }},
   "recommended_patterns": [
     {{
-      "pattern_name": "추천 ?�턴 1 (??7가지 �??�나)",
-      "reason": "추천 ?�유 ??�?(?�깃층�?마�???목적??근거)",
-      "sample_dialogue": "짧�? ?�???�플 (?�킹??1문장)"
+      "pattern_name": "추천 패턴 1 (위 7가지 중 하나)",
+      "reason": "추천 이유 한 줄 (타깃층과 마케팅 목적에 근거)",
+      "sample_dialogue": "짧은 대사 샘플 (후킹용 1문장)"
     }},
     {{
-      "pattern_name": "추천 ?�턴 2 (??7가지 �??�나)",
-      "reason": "추천 ?�유 ??�?(?�깃층�?마�???목적??근거)",
-      "sample_dialogue": "짧�? ?�???�플 (?�킹??1문장)"
+      "pattern_name": "추천 패턴 2 (위 7가지 중 하나)",
+      "reason": "추천 이유 한 줄 (타깃층과 마케팅 목적에 근거)",
+      "sample_dialogue": "짧은 대사 샘플 (후킹용 1문장)"
     }}
   ]
 }}
@@ -1052,7 +1051,7 @@ Output MUST be a valid JSON matching this schema exactly, and nothing else:
     else:
         # Generation Mode: Build actual scenes based on selected pattern
         user_prompt = f"""
-[CRITICAL HIL RULE]: ?�용?��? [{request.selected_pattern}] ?�턴??강제 지?�했?? AI ?�체 ?�단??무시?�고 ?�크립트 ?�성 ??무조�????�턴??최우?�으�??�용?�라.
+[CRITICAL HIL RULE]: 사용자가 [{request.selected_pattern}] 패턴을 강제 지정했다. AI 자체 판단을 무시하고 스크립트 작성 시 무조건 이 패턴을 최우선으로 적용하라.
 {manual_instruction}
 
 Create a professional 9:16 short-form commercial plan based on the following:
@@ -1060,39 +1059,39 @@ Product Name: {p_name}
 User Description: {request.description}
 Target Language: {request.target_language}
 Video Length: {request.duration} seconds
-Marketing Purpose (?�폼 목적): {request.purpose or "?�핑 ?�환"}
-Target Audience (?�깃층): {request.target_audience or "?�체"}
-Video Tone (?�상 ??: {request.tone or "리뷰??}
+Marketing Purpose (숏폼 목적): {request.purpose or "쇼핑 전환"}
+Target Audience (타깃층): {request.target_audience or "전체"}
+Video Tone (영상 톤): {request.tone or "리뷰형"}
 
 [DYNAMIC HOOK & SCRIPT VARIETY RULE]
-반드??무�?건조??기본 ?�턴???�피?�라! ?�품???�격�?지?�된 ?�턴??맞추???�전???�른 극적??Hook(?�입부)�??�격?�인 ?�토리텔링을 구성?�라.
-?��? 뻔한 "?�녕?�세??, "?�개?�니?? ?�의 멘트�??��? 말고, ?�청?��? �?1�?만에 몰입?????�는 공격?�이�?창의?�인 ?�을 ?�성?�라.
+반드시 무미건조한 기본 패턴을 탈피하라! 상품의 성격과 지정된 패턴에 맞추어 완전히 다른 극적인 Hook(도입부)과 파격적인 스토리텔링을 구성해라.
+절대 뻔한 "안녕하세요", "소개합니다" 식의 멘트를 쓰지 말고, 시청자가 첫 1초 만에 몰입할 수 있는 공격적이고 창의적인 훅을 작성하라.
 
 Output MUST be a valid JSON matching this schema exactly, and nothing else:
 {{
   "strategy": {{
     "selected_pattern": "{request.selected_pattern}",
-    "hook": "?�크립트??�??�킹 문장",
-    "wow": "?�킹 직후???�??문장",
-    "cta": "?�동 ?�도 문장"
+    "hook": "스크립트의 첫 후킹 문장",
+    "wow": "후킹 직후의 놀람 문장",
+    "cta": "행동 유도 문장"
   }},
   "scenes": [
     {{
       "scene_number": 1,
       "duration_seconds": 2,
-      "role": "문제 ?�황 ?�면",
-      "dialogue": "?�상???�어�??�제 ?�??,
-      "visual_description": "?�면???�각???�명",
-      "image_prompt": "DALL-E 3??고품�??�문 ?�롬?�트"
+      "role": "문제 상황 장면",
+      "dialogue": "영상에 들어갈 실제 대사",
+      "visual_description": "장면의 시각적 설명",
+      "image_prompt": "DALL-E 3용 고품질 영문 프롬프트"
     }}
-    // ??많�? Scene 객체??..
+    // 더 많은 Scene 객체들...
   ],
   "upload_package": {{
-    "titles": ["?�목1", "?�목2", "?�목3", "?�목4", "?�목5"],
-    "description": "?�명�?,
-    "hashtags": ["#?�그1", "#?�그2"],
-    "keywords": ["?�워??", "?�워??"],
-    "thumbnail_texts": ["?�네?�문�?", "?�네?�문�?", "?�네?�문�?"]
+    "titles": ["제목1", "제목2", "제목3", "제목4", "제목5"],
+    "description": "설명문",
+    "hashtags": ["#태그1", "#태그2"],
+    "keywords": ["키워드1", "키워드2"],
+    "thumbnail_texts": ["썸네일문구1", "썸네일문구2", "썸네일문구3"]
   }}
 }}
 """
@@ -1120,8 +1119,7 @@ Output MUST be a valid JSON matching this schema exactly, and nothing else:
                         model=model_name,
                         system=COMBINED_SYSTEM_PROMPT, # Injecting combined PLM/Guidelines
                         max_tokens=8192,
-                        messages=[{"role": "user", "content": content}],
-                        extra_body={"thinkingFlag": True}
+                        messages=[{"role": "user", "content": content}]
                     )
                     
                     raw_text = response.content[0].text
@@ -1203,17 +1201,17 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
             
             for attempt in range(max_retries + 1):
                 try:
-                    # 1. createTask ?�출
+                    # 1. createTask 호출
                     model_val = map_image_model(request.model)
                     
-                    # 베이???�이로드 구성 (KIE 기술지?��? 공식 ?�펙 ?�전 ?�치??
+                    # 베이스 페이로드 구성 (KIE 기술지원팀 공식 스펙 완전 일치화)
                     input_payload = {
                         "prompt": full_prompt,
                         "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
                     }
                     
-                    # [P0] KIE 422 ?�러 ?�천 ?�결: GPT-Image-2 �?Grok 모델???�상???�수 규격 ?�??
-                    # request.aspect_ratio가 "auto"가 ?�니거나 GPT-Image-2, Grok, Nano Banana 모델??경우 강제 주입
+                    # [P0] KIE 422 에러 원천 해결: GPT-Image-2 및 Grok 모델의 해상도 필수 규격 대응
+                    # request.aspect_ratio가 "auto"가 아니거나 GPT-Image-2, Grok, Nano Banana 모델의 경우 강제 주입
                     if input_payload["aspect_ratio"] != "auto" or model_val in ["gpt-image-2-text-to-image", "grok-imagine/text-to-image", "nano-banana-2"]:
                         input_payload["resolution"] = "1K"
                     
@@ -1223,7 +1221,7 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                             "output_format": "png"
                         })
                     
-                    # [P0] ?�버�?로깅 강화: createTask ?�출 직전 Payload 출력
+                    # [P0] 디버그 로깅 강화: createTask 호출 직전 Payload 출력
                     print(f"KIE Payload: {input_payload}")
                     
                     create_res = await client.post(
@@ -1240,16 +1238,16 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                         timeout=60.0
                     )
                     
-                    # [P0] KIE 422 ?�러 ?�핑 ?�외 처리 보강
+                    # [P0] KIE 422 에러 래핑 예외 처리 보강
                     if create_res.status_code == 422:
-                        raise Exception("API ?�라미터 규격 ?�류(?�상???�는 종횡�?미�???")
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
                     
                     if create_res.status_code != 200:
                         raise Exception(f"Failed to create image task ({create_res.status_code}): {create_res.text}")
                     
                     resp_data = create_res.json()
                     if resp_data.get('code') == 422:
-                        raise Exception("API ?�라미터 규격 ?�류(?�상???�는 종횡�?미�???")
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
                         
                     data_dict = resp_data.get('data') or {}
                     task_id = resp_data.get('taskId') or data_dict.get('taskId') or resp_data.get('id') or data_dict.get('id')
@@ -1257,7 +1255,7 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                     if not task_id:
                         raise Exception(f"Failed to get taskId from create image task. Response: {create_res.text}")
                     
-                    # 2. recordInfo ?�링
+                    # 2. recordInfo 폴링
                     polling_timeout = 180
                     start_poll_time = time.time()
                     image_url = None
@@ -1266,7 +1264,7 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                         await asyncio.sleep(3)
                         elapsed = time.time() - start_poll_time
                         if elapsed >= polling_timeout:
-                            raise Exception("?��?지 ?�성 ?�버 ?�답 지??3�?초과)?�니??")
+                            raise Exception("이미지 생성 서버 응답 지연(3분 초과)입니다.")
                         
                         poll_res = await client.get(
                             f"https://api.kie.ai/api/v1/jobs/recordInfo?taskId={task_id}",
@@ -1285,7 +1283,7 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                         poll_dict = poll_data.get('data') or {}
                         
                         if poll_code and (poll_code >= 500 or poll_code == -1):
-                            raise Exception("?��?지 ?�성???�패?�습?�다 (KIE ?�버 ?�더�??�류).")
+                            raise Exception("이미지 생성에 실패했습니다 (KIE 서버 렌더링 오류).")
                             
                         status_raw = poll_dict.get('state') or poll_dict.get('status') or poll_data.get('state') or poll_data.get('status')
                         status = str(status_raw).lower() if status_raw else "waiting"
@@ -1310,12 +1308,12 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
                                 image_url = poll_dict.get('image_url') or poll_dict.get('file_url') or poll_dict.get('url') or poll_data.get('image_url')
                             break
                         elif status == 'fail':
-                            raise Exception("?��?지 ?�성???�패?�습?�다 (KIE ?�버 ?�업 ?�패).")
+                            raise Exception("이미지 생성에 실패했습니다 (KIE 서버 작업 실패).")
                     
                     if image_url:
                         return {"data": [{"url": image_url}]}
                     else:
-                        raise Exception("?��?지 URL??찾을 ???�습?�다.")
+                        raise Exception("이미지 URL을 찾을 수 없습니다.")
                         
                 except Exception as e:
                     last_exception = e
@@ -1342,22 +1340,22 @@ async def generate_videos(
     supabase_key = os.getenv("SUPABASE_KEY")
     
     if not supabase_url or not supabase_key:
-        raise HTTPException(status_code=500, detail="?�버 ?�정 ?�류: .env ?�일??SUPABASE_URL�?SUPABASE_KEY�??�정?�주?�요.")
+        raise HTTPException(status_code=500, detail="서버 설정 오류: .env 파일에 SUPABASE_URL과 SUPABASE_KEY를 설정해주세요.")
 
     results = []
-    uploaded_files = [] # ?�로?�된 ?�시 ?��?지 ?�일�?추적??(P-002)
+    uploaded_files = [] # 업로드된 임시 이미지 파일명 추적용 (P-002)
     
     try:
         async with httpx.AsyncClient() as client:
             for index, scene in enumerate(request.scenes):
-                # 1. ?�레??방어: 기존 비디?��? ?�효?�면 KIE API ?�킵
+                # 1. 크레딧 방어: 기존 비디오가 유효하면 KIE API 스킵
                 existing_video_url = scene.get('video_url')
                 if existing_video_url and existing_video_url.startswith("http"):
                     print(f"[SKIP] Scene {index+1} already has a valid video URL: {existing_video_url}")
                     results.append(scene)
                     continue
 
-                # 2. ?�이브리??모드 ???�정 ???�킵 (?�론?�엔???�어)
+                # 2. 하이브리드 모드 시 특정 씬 스킵 (프론트엔드 제어)
                 is_hybrid_skip = scene.get('use_image_only', False)
                 if is_hybrid_skip:
                     print(f"[HYBRID SKIP] Scene {index+1} text-heavy scene skipped for video generation (Hybrid Mode)")
@@ -1392,13 +1390,13 @@ async def generate_videos(
                 else:
                     scene_duration = "15"
                     
-                # engine 분기 ?�용
+                # engine 분기 적용
                 is_veo = (request.engine in ["veo", "veo_lite", "veo_fast"])
                 
                 if is_veo:
                     url = "https://api.kie.ai/api/v1/veo/generate"
                     
-                    # Veo 모델 �?generationType 분기 처리
+                    # Veo 모델 및 generationType 분기 처리
                     model_name = "veo3_fast" if request.engine == "veo_fast" else "veo3_lite"
                     gen_type = "REFERENCE_2_VIDEO" if request.engine == "veo_fast" else "FIRST_AND_LAST_FRAMES_2_VIDEO"
                     
@@ -1459,9 +1457,9 @@ async def generate_videos(
                     await asyncio.sleep(5)
                     elapsed = time.time() - start_poll_time
                     if elapsed >= 1800:
-                        raise Exception("?�버 ?�답 지???��? ?�간 30�?초과)?�니??")
+                        raise Exception("서버 응답 지연(절대 시간 30분 초과)입니다.")
                     elif elapsed >= polling_timeout and last_status not in ['WAITING', 'IN_PROGRESS', 'PENDING', 'PROCESSING', 'QUEUE']:
-                        raise Exception("?�버 ?�답 지???�간 초과)?�니?? ?�패???��????�어???�더�?버튼???�러주세??")
+                        raise Exception("서버 응답 지연(시간 초과)입니다. 실패한 씬부터 이어서 렌더링 버튼을 눌러주세요.")
                     
                     poll_res = await client.get(
                         f"https://api.kie.ai/api/v1/jobs/recordInfo?taskId={task_id}",
@@ -1470,7 +1468,7 @@ async def generate_videos(
                     )
 
                     if poll_res.status_code >= 500:
-                        raise Exception("비디???�성???�패?�습?�다 (KIE ?�버 ?�더�??�류). ?�시 ?�도??주세??")
+                        raise Exception("비디오 생성에 실패했습니다 (KIE 서버 렌더링 오류). 다시 시도해 주세요.")
 
                     if poll_res.status_code != 200:
                         break
@@ -1479,7 +1477,7 @@ async def generate_videos(
                     poll_data_dict = poll_data.get('data') or {}
                     poll_code = poll_data.get('code')
                     if poll_code and (poll_code >= 500 or poll_code == -1):
-                        raise Exception("비디???�성???�패?�습?�다 (KIE ?�버 ?�더�??�류). ?�시 ?�도??주세??")
+                        raise Exception("비디오 생성에 실패했습니다 (KIE 서버 렌더링 오류). 다시 시도해 주세요.")
 
                     state_raw = poll_data_dict.get('state')
                     if not state_raw:
@@ -1510,8 +1508,8 @@ async def generate_videos(
                         
                         break
                     elif state == 'fail':
-                        fail_msg = poll_data_dict.get('failMsg') or poll_data.get('failMsg') or poll_data_dict.get('reason') or poll_data.get('reason') or "KIE AI 비디???�성 ?�진 ?�패"
-                        raise HTTPException(status_code=500, detail=f"비디???�성 ?�패: {fail_msg}")
+                        fail_msg = poll_data_dict.get('failMsg') or poll_data.get('failMsg') or poll_data_dict.get('reason') or poll_data.get('reason') or "KIE AI 비디오 생성 엔진 실패"
+                        raise HTTPException(status_code=500, detail=f"비디오 생성 실패: {fail_msg}")
                     elif state == 'waiting':
                         print(f"[KIE Polling] Task {task_id} is waiting for completion...")
 
@@ -1520,7 +1518,7 @@ async def generate_videos(
 
                 results.append({**scene, "video_url": video_url})
     finally:
-        # P-002: ?�로?�된 ?�시 ?��?지 ?�괄 ??��
+        # P-002: 업로드된 임시 이미지 일괄 삭제
         if uploaded_files:
             loop = asyncio.get_event_loop()
             def _cleanup():
@@ -1577,8 +1575,7 @@ JSON Structure:
                 response = client.messages.create(
                     model=DEFAULT_CLAUDE_MODEL,
                     max_tokens=1024,
-                    messages=[{"role": "user", "content": [{"type": "text", "text": refine_prompt_text}]}],
-                    extra_body={"thinkingFlag": True}
+                    messages=[{"role": "user", "content": [{"type": "text", "text": refine_prompt_text}]}]
                 )
                 raw_text = response.content[0].text
                 break
@@ -1634,14 +1631,14 @@ JSON Structure:
             for attempt in range(max_retries + 1):
                 try:
                     model_val = map_image_model(request.model)
-                    # 베이???�이로드 구성 (KIE 기술지?��? 공식 ?�펙 ?�전 ?�치??
+                    # 베이스 페이로드 구성 (KIE 기술지원팀 공식 스펙 완전 일치화)
                     input_payload = {
                         "prompt": full_prompt,
                         "aspect_ratio": request.aspect_ratio if hasattr(request, 'aspect_ratio') and request.aspect_ratio else "auto"
                     }
                     
-                    # [P0] KIE 422 ?�러 ?�천 ?�결: GPT-Image-2 �?Grok 모델???�상???�수 규격 ?�??
-                    # request.aspect_ratio가 "auto"가 ?�니거나 GPT-Image-2, Grok, Nano Banana 모델??경우 강제 주입
+                    # [P0] KIE 422 에러 원천 해결: GPT-Image-2 및 Grok 모델의 해상도 필수 규격 대응
+                    # request.aspect_ratio가 "auto"가 아니거나 GPT-Image-2, Grok, Nano Banana 모델의 경우 강제 주입
                     if input_payload["aspect_ratio"] != "auto" or model_val in ["gpt-image-2-text-to-image", "grok-imagine/text-to-image", "nano-banana-2"]:
                         input_payload["resolution"] = "1K"
                     
@@ -1651,7 +1648,7 @@ JSON Structure:
                             "output_format": "png"
                         })
                     
-                    # [P0] ?�버�?로깅 강화: createTask ?�출 직전 Payload 출력
+                    # [P0] 디버그 로깅 강화: createTask 호출 직전 Payload 출력
                     print(f"KIE Payload: {input_payload}")
                     
                     dalle_res = await http_client.post(
@@ -1668,16 +1665,16 @@ JSON Structure:
                         timeout=60.0
                     )
                     
-                    # [P0] KIE 422 ?�러 ?�핑 ?�외 처리 보강
+                    # [P0] KIE 422 에러 래핑 예외 처리 보강
                     if dalle_res.status_code == 422:
-                        raise Exception("API ?�라미터 규격 ?�류(?�상???�는 종횡�?미�???")
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
                     
                     if dalle_res.status_code != 200:
                         raise Exception(f"Failed to create image task ({dalle_res.status_code}): {dalle_res.text}")
                     
                     resp_data = dalle_res.json()
                     if resp_data.get('code') == 422:
-                        raise Exception("API ?�라미터 규격 ?�류(?�상???�는 종횡�?미�???")
+                        raise Exception("API 파라미터 규격 오류(해상도 또는 종횡비 미지원)")
                         
                     data_dict = resp_data.get('data') or {}
                     task_id = resp_data.get('taskId') or data_dict.get('taskId') or resp_data.get('id') or data_dict.get('id')
@@ -1693,7 +1690,7 @@ JSON Structure:
                         await asyncio.sleep(3)
                         elapsed = time.time() - start_poll_time
                         if elapsed >= polling_timeout:
-                            raise Exception("?��?지 ?�성 ?�버 ?�답 지??3�?초과)?�니??")
+                            raise Exception("이미지 생성 서버 응답 지연(3분 초과)입니다.")
                             
                         poll_res = await http_client.get(
                             f"https://api.kie.ai/api/v1/jobs/recordInfo?taskId={task_id}",
@@ -1705,7 +1702,7 @@ JSON Structure:
                         )
                         
                         if poll_res.status_code >= 500:
-                            raise Exception("?��?지 ?�성???�패?�습?�다 (KIE ?�버 ?�더�??�류).")
+                            raise Exception("이미지 생성에 실패했습니다 (KIE 서버 렌더링 오류).")
                             
                         if poll_res.status_code != 200:
                             raise Exception(f"Failed to poll image status ({poll_res.status_code})")
@@ -1715,7 +1712,7 @@ JSON Structure:
                         poll_dict = poll_data.get('data') or {}
                         
                         if poll_code and (poll_code >= 500 or poll_code == -1):
-                            raise Exception("?��?지 ?�성???�패?�습?�다 (KIE ?�버 ?�더�??�류).")
+                            raise Exception("이미지 생성에 실패했습니다 (KIE 서버 렌더링 오류).")
                             
                         status_raw = poll_dict.get('state') or poll_dict.get('status') or poll_data.get('state') or poll_data.get('status')
                         status = str(status_raw).lower() if status_raw else "waiting"
@@ -1740,7 +1737,7 @@ JSON Structure:
                                 new_image_url = poll_dict.get('image_url') or poll_dict.get('file_url') or poll_dict.get('url') or poll_data.get('image_url')
                             break
                         elif status == 'fail':
-                            raise Exception("?��?지 ?�성???�패?�습?�다 (KIE ?�버 ?�업 ?�패).")
+                            raise Exception("이미지 생성에 실패했습니다 (KIE 서버 작업 실패).")
                             
                     if new_image_url:
                         return {
@@ -1748,7 +1745,7 @@ JSON Structure:
                             "image_prompt": new_prompt
                         }
                     else:
-                        raise Exception("?��?지 URL??찾을 ???�습?�다.")
+                        raise Exception("이미지 URL을 찾을 수 없습니다.")
                 except HTTPException as he:
                     raise he
                 except Exception as e:
@@ -1790,7 +1787,7 @@ async def render_task(
         "task_id": task_id,
         "project_id": project_id,
         "task_type": "final_render",
-        "description": request.plan.title or "비디???�성 ?��?�?,
+        "description": request.plan.title or "비디오 생성 대기 중",
         "status": "pending",
         "result_url": None,
         "error": None,
@@ -1804,13 +1801,13 @@ async def render_task(
 async def webhook_kie(request: Request):
     webhook_secret = os.getenv("WEBHOOK_SECRET")
     if not webhook_secret:
-        raise HTTPException(status_code=500, detail="?�버 ?�정 ?�류: WEBHOOK_SECRET ?�경 변?��? ?�정?��? ?�았?�니??")
+        raise HTTPException(status_code=500, detail="서버 설정 오류: WEBHOOK_SECRET 환경 변수가 설정되지 않았습니다.")
         
     signature = request.headers.get("X-KIE-Signature")
     if not signature:
-        raise HTTPException(status_code=401, detail="X-KIE-Signature ?�더가 ?�락?�었?�니??")
+        raise HTTPException(status_code=401, detail="X-KIE-Signature 헤더가 누락되었습니다.")
         
-    # A-003: "sha256=" ?�리?�스 ?�외 처리
+    # A-003: "sha256=" 프리픽스 예외 처리
     if signature.startswith("sha256="):
         signature = signature[7:]
         
@@ -1825,7 +1822,7 @@ async def webhook_kie(request: Request):
     ).hexdigest()
     
     if not hmac.compare_digest(signature, expected_signature):
-        raise HTTPException(status_code=401, detail="?�훅 ?�명???�효?��? ?�습?�다.")
+        raise HTTPException(status_code=401, detail="웹훅 서명이 유효하지 않습니다.")
         
     try:
         payload = KieWebhookPayload.model_validate_json(raw_body)
@@ -1846,7 +1843,7 @@ async def webhook_kie(request: Request):
         
     supabase.table("tasks").update(update_data).eq("task_id", payload.task_id).execute()
 
-    # A-002: ?��?중인 SSE ?�트림에�??�료 ?�림 trigger
+    # A-002: 대기 중인 SSE 스트림에게 완료 알림 trigger
     if payload.task_id in TASK_EVENTS:
         TASK_EVENTS[payload.task_id].set()
     
@@ -2055,7 +2052,7 @@ async def generate_video_clips_stream(
     supabase_key = os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        raise HTTPException(status_code=500, detail="?�버 ?�정 ?�류: .env ?�일??SUPABASE_URL�?SUPABASE_KEY�??�정?�주?�요.")
+        raise HTTPException(status_code=500, detail="서버 설정 오류: .env 파일에 SUPABASE_URL과 SUPABASE_KEY를 설정해주세요.")
 
     N = len(request.scenes)
 
@@ -2065,13 +2062,13 @@ async def generate_video_clips_stream(
         except Exception as e:
             
             if "veo" in str(e).lower():
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디???�성 ?�패. ?�팁 참조.'})}\n\n"
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
             else:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
             return
             
-        yield f"data: {json.dumps({'message': 'KIE AI 비디???�성 ?�진(Grok-imagine) 초기??�?..'})}\n\n"
+        yield f"data: {json.dumps({'message': 'KIE AI 비디오 생성 엔진(Grok-imagine) 초기화 중...'})}\n\n"
 
         async def process_scene_inner(scene, index):
             if request.project_id:
@@ -2080,7 +2077,7 @@ async def generate_video_clips_stream(
                         .eq("project_id", request.project_id)\
                         .eq("status", "success")\
                         .eq("task_type", "video_generation")\
-                        .like("description", f"%?�면 {index+1}%")\
+                        .like("description", f"%장면 {index+1}%")\
                         .order("created_at", desc=True)\
                         .limit(1)\
                         .execute()
@@ -2108,7 +2105,7 @@ async def generate_video_clips_stream(
 
             scene_task_id = f"task_{request.project_id or 'render'}_{index+1}_{int(time.time())}"
             if request.project_id:
-                await create_task_in_db(request.project_id, scene_task_id, "video_generation", f"?�면 {index+1} 비디???�성 ?�도")
+                await create_task_in_db(request.project_id, scene_task_id, "video_generation", f"장면 {index+1} 비디오 생성 시도")
 
             is_success = False
             uploaded_files_scene = [] 
@@ -2231,9 +2228,9 @@ async def generate_video_clips_stream(
                             poll_attempts += 1
                             elapsed = time.time() - start_poll_time
                             if elapsed >= 1800:
-                                raise Exception("?�버 ?�답 지???��? ?�간 30�?초과)?�니??")
+                                raise Exception("서버 응답 지연(절대 시간 30분 초과)입니다.")
                             elif elapsed >= polling_timeout and last_status not in ['WAITING', 'IN_PROGRESS', 'PENDING', 'PROCESSING', 'QUEUE']:
-                                raise Exception("?�버 ?�답 지???�간 초과)?�니?? ?�패???��????�어???�더�?버튼???�러주세??")
+                                raise Exception("서버 응답 지연(시간 초과)입니다. 실패한 씬부터 이어서 렌더링 버튼을 눌러주세요.")
                             
                             res_task = supabase.table("tasks").select("status, result_url, error").eq("task_id", task_id).execute()
                             if res_task.data:
@@ -2245,12 +2242,12 @@ async def generate_video_clips_stream(
                                     vid_url = task_data.get("result_url")
                                     break
                                 elif state == 'fail' or state == 'failed':
-                                    raise Exception(f"비디???�성 ?�패: {task_data.get('error') or 'KIE AI 비디???�성 ?�진 ?�패'}")
+                                    raise Exception(f"비디오 생성 실패: {task_data.get('error') or 'KIE AI 비디오 생성 엔진 실패'}")
                             
                             poll_res = await client.get(f"https://api.kie.ai/api/v1/jobs/recordInfo?taskId={task_id}", headers={"Authorization": f"Bearer {decrypted_key}"}, timeout=30.0)
                             
                             if poll_res.status_code >= 500:
-                                raise Exception("비디???�성???�패?�습?�다 (KIE ?�버 ?�더�??�류). ?�시 ?�도??주세??")
+                                raise Exception("비디오 생성에 실패했습니다 (KIE 서버 렌더링 오류). 다시 시도해 주세요.")
                                 
                             if poll_res.status_code == 200:
                                 poll_data = poll_res.json()
@@ -2258,7 +2255,7 @@ async def generate_video_clips_stream(
                                 poll_dict = poll_data.get('data') or {}
                                 
                                 if poll_code and (poll_code >= 500 or poll_code == -1):
-                                    raise Exception("비디???�성???�패?�습?�다 (KIE ?�버 ?�더�??�류). ?�시 ?�도??주세??")
+                                    raise Exception("비디오 생성에 실패했습니다 (KIE 서버 렌더링 오류). 다시 시도해 주세요.")
                                     
                                 if poll_code is not None and poll_code != 200:
                                     print(f"[KIE] Scene {index+1} Task {task_id} API returned error code {poll_code}: {poll_res.text}")
@@ -2297,9 +2294,9 @@ async def generate_video_clips_stream(
                                         credits_consumed = 0
                                     break
                                 elif status == 'fail':
-                                    fail_msg = poll_dict.get('failMsg') or poll_data.get('failMsg') or poll_dict.get('reason') or poll_data.get('reason') or "KIE AI 비디???�성 ?�진 ?�패"
+                                    fail_msg = poll_dict.get('failMsg') or poll_data.get('failMsg') or poll_dict.get('reason') or poll_data.get('reason') or "KIE AI 비디오 생성 엔진 실패"
                                     print(f"[KIE AI VIDEO ERROR] Task {task_id} failed. Status: {status}, failMsg: {fail_msg}")
-                                    raise Exception(f"비디???�성 ?�패: {fail_msg}")
+                                    raise Exception(f"비디오 생성 실패: {fail_msg}")
                                 elif status == 'waiting':
                                     print(f"[KIE Polling] Task {task_id} is waiting for completion...")
                             else:
@@ -2348,7 +2345,7 @@ async def generate_video_clips_stream(
             return await process_scene_inner(scene, index)
 
         tasks = [asyncio.create_task(process_scene(scene, i)) for i, scene in enumerate(request.scenes)]
-        yield f"data: {json.dumps({'message': f'�?{N}개의 ?�면 ?�영???�성 ?�시 ?�청 ?�료'})}\n\n"
+        yield f"data: {json.dumps({'message': f'총 {N}개의 장면 동영상 생성 동시 요청 완료'})}\n\n"
 
         results = [None] * N
         completed_count = 0
@@ -2365,17 +2362,17 @@ async def generate_video_clips_stream(
                 results[res["_index"]] = res
                 completed_count += 1
                 idx = res["_index"]
-                msg = res.get("_fallback_msg") or f"?�면 {idx + 1} ?�영???�료 ({completed_count}/{N}), ?�머지 ?��?�?.."
+                msg = res.get("_fallback_msg") or f"장면 {idx + 1} 동영상 완료 ({completed_count}/{N}), 나머지 대기 중..."
                 yield f"data: {json.dumps({'message': msg, 'scene_update': res})}\n\n"
             except Exception as e:
                 if "veo" in str(e).lower():
-                    yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디???�성 ?�패. ?�팁 참조.'})}\n\n"
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
                 else:
                     yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 return
 
         ordered_scenes = [{k: v for k, v in scene.items() if k != "_index"} for scene in results]
-        yield f"data: {json.dumps({'message': '비디???�립 ?�성 ?�료', 'clips_ready': True, 'scenes': ordered_scenes})}\n\n"
+        yield f"data: {json.dumps({'message': '비디오 클립 생성 완료', 'clips_ready': True, 'scenes': ordered_scenes})}\n\n"
             
     return StreamingResponse(generate_stream(), media_type="text/event-stream")
 
@@ -2397,7 +2394,7 @@ async def render_final_stream(
     supabase_key = os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        raise HTTPException(status_code=500, detail="?�버 ?�정 ?�류: .env ?�일??SUPABASE_URL�?SUPABASE_KEY�??�정?�주?�요.")
+        raise HTTPException(status_code=500, detail="서버 설정 오류: .env 파일에 SUPABASE_URL과 SUPABASE_KEY를 설정해주세요.")
 
     N = len(request.scenes)
 
@@ -2407,19 +2404,19 @@ async def render_final_stream(
         except Exception as e:
             
             if "veo" in str(e).lower():
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디???�성 ?�패. ?�팁 참조.'})}\n\n"
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Veo3.1 비디오 생성 실패. 툴팁 참조.'})}\n\n"
             else:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
             return
             
-        yield f"data: {json.dumps({'message': f'{N}개의 ?�영???�성�??�막???�쳐 FFmpeg 최종 ?�더�?�?..'})}\n\n"
+        yield f"data: {json.dumps({'message': f'{N}개의 동영상 음성과 자막을 합쳐 FFmpeg 최종 렌더링 중...'})}\n\n"
 
         task_id = None
         try:
             task_id = f"task_{int(time.time())}"
             if request.project_id:
-                await create_task_in_db(request.project_id, task_id, "final_render", "최종 ?�영??MP4 ?�더�??�도")
+                await create_task_in_db(request.project_id, task_id, "final_render", "최종 동영상 MP4 렌더링 시도")
             
             gen = ffmpeg_worker.render_video(
                 task_id=task_id,
@@ -2454,7 +2451,7 @@ async def render_final_stream(
                         await record_user_asset(user_id, task_id, item['output_url'], product_name, title, thumbnail_url, upload_package)
                         if request.project_id:
                             await update_task_in_db(task_id, "success", result_url=item['output_url'])
-                        yield f"data: {json.dumps({'message': '최종 ?�더�??�료!', 'output_url': item['output_url']})}\n\n"
+                        yield f"data: {json.dumps({'message': '최종 렌더링 완료!', 'output_url': item['output_url']})}\n\n"
             finally:
                 await gen.aclose()
         except Exception as e:
