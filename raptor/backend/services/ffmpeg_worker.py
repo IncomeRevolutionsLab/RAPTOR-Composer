@@ -369,7 +369,7 @@ class FFmpegWorker:
                         if i % 2 == 0:
                             filter_str = (
                                 f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},"
-                                f"crop={target_w}:{target_h}:"
+                                f"crop=w={target_w}:h={target_h}:"
                                 f"x='min({max_x}*n/{tf_float},{max_x})':"
                                 f"y='min({max_y}*n/{tf_float},{max_y})',setsar=1"
                             )
@@ -377,7 +377,7 @@ class FFmpegWorker:
                             # [P0 최적화] 괄호 묶음으로 연산 우선순위 고정 및 쉼표 파싱 오류 원천 격리
                             filter_str = (
                                 f"[0:v]fps=fps=30,scale={scale_w}:{scale_h},"
-                                f"crop={target_w}:{target_h}:"
+                                f"crop=w={target_w}:h={target_h}:"
                                 f"x='max({max_x}*(1-(n/{tf_float})),0)':"
                                 f"y='max({max_y}*(1-(n/{tf_float})),0)',setsar=1"
                             )
