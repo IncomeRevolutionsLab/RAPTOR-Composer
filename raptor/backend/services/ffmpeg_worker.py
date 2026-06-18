@@ -8,7 +8,7 @@ import time
 import imageio_ffmpeg
 import shutil
 import platform
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 class FFmpegWorker:
     def __init__(self, output_dir: str = "outputs"):
@@ -319,24 +319,58 @@ class FFmpegWorker:
                         except Exception as te:
                             print(f"[FFMPEG TRIM ERROR] {te}")
 
-                    y_coord = "h-200"
-                    if subtitle_position == "상": y_coord = f"{h}*(1.5/12.8)"
-                    elif subtitle_position == "중": y_coord = "(h-text_h)/2"
-                    elif subtitle_position == "하": y_coord = "h*(5/7)"
-
                     wrapped_caption = self.wrap_text(dialogue, aspect_ratio)
-                    text_file_basename = f"scene_{i}_text.txt"
-                    text_file_path = os.path.join(temp_dir, text_file_basename)
-                    with open(text_file_path, "w", encoding="utf-8") as f:
-                        f.write(wrapped_caption.strip())
-                
                     # Dynamic OFL Font Download & Cache
                     font_path = await self._ensure_font(subtitle_font)
 
-                    safe_text_file_path = os.path.abspath(text_file_path).replace("\\", "/").replace(":", "\\:")
+                    # [P0] Pillow 자막 번인 로직
+                    is_hybrid_image = not use_video
+                    if is_hybrid_image and wrapped_caption.strip():
+                        # FFmpeg용 이스케이프가 포함된 font_path에서 C\:를 순수 윈도우 경로 C:로 복원
+                        clean_font_path = font_path.replace("\\:", ":")
+                        with Image.open(local_img) as img:
+                            img_w, img_h = img.size
+                            # FFmpeg의 fontsize=40은 기준 해상도 720에 맞춰졌으므로, 실제 이미지 너비에 비례하게 폰트 크기 조정
+                            font_size = int(40 * (img_w / 720)) if w else 40
+                            try:
+                                font = ImageFont.truetype(clean_font_path, font_size)
+                            except Exception:
+                                font = ImageFont.load_default()
+                            
+                            img_rgba = img.convert("RGBA")
+                            draw = ImageDraw.Draw(img_rgba)
+                            
+                            text = wrapped_caption.strip()
+                            if hasattr(draw, 'multiline_textbbox'):
+                                bbox = draw.multiline_textbbox((0, 0), text, font=font, align="center")
+                                text_w = bbox[2] - bbox[0]
+                                text_h = bbox[3] - bbox[1]
+                            else:
+                                text_w, text_h = draw.textsize(text, font=font)
+                            
+                            x_coord = (img_w - text_w) / 2
+                            
+                            if subtitle_position == "상":
+                                y_coord_val = img_h * (1.5 / 12.8)
+                            elif subtitle_position == "중":
+                                y_coord_val = (img_h - text_h) / 2
+                            else: # "하" 및 기본값
+                                y_coord_val = img_h * (5 / 7)
+                                
+                            pad_x, pad_y = int(10 * (img_w / 720)), int(10 * (img_w / 720))
+                            box_x0 = x_coord - pad_x
+                            box_y0 = y_coord_val - pad_y
+                            box_x1 = x_coord + text_w + pad_x
+                            box_y1 = y_coord_val + text_h + pad_y
+                            
+                            draw.rectangle([box_x0, box_y0, box_x1, box_y1], fill=(0, 0, 0, int(255 * 0.6)))
+                            draw.multiline_text((x_coord, y_coord_val), text, font=font, fill=(255, 255, 255, 255), align="center")
+                            
+                            captioned_img_path = os.path.join(temp_dir, f"captioned_bg_{i}.jpg")
+                            img_rgba.convert("RGB").save(captioned_img_path, quality=95)
+                            local_img = captioned_img_path
                 
                     # Base video filter
-                    is_hybrid_image = not use_video
                     if is_hybrid_image:
                         # 1. 원본 이미지 실제 해상도 추출
                         with Image.open(local_img) as img:
@@ -386,19 +420,6 @@ class FFmpegWorker:
                         if video_duration > 0.0 and duration > video_duration:
                             freeze_dur = duration - video_duration
                             filter_str += f",tpad=stop_mode=clone:stop_duration={freeze_dur}"
-                
-                    # Subtitle overlay (임시 비활성화 테스트)
-                    if False and wrapped_caption.strip():
-                        # [P0 픽스] 이중 치환(C/:/)으로 인한 Exit 8 파싱 에러 방지를 위해, 
-                        # 이미 이스케이프 처리된 원본 경로를 그대로 직접 할당합니다.
-                        safe_font_path = str(font_path)
-                        safe_txt_path = str(safe_text_file_path)
-                        
-                        filter_str += (
-                            f",drawtext=fontfile='{safe_font_path}':textfile='{safe_txt_path}':"
-                            f"fontcolor=white:fontsize=40:x=(w-text_w)/2:y={y_coord}:"
-                            f"box=1:boxcolor=black@0.6:boxborderw=10"
-                        )
                 
                     filter_str += "[bg];"
                     
