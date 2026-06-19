@@ -18,9 +18,9 @@ class FFmpegWorker:
             os.makedirs(output_dir)
         
         # Determine FFmpeg path
-        self.ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        self.ffmpeg_path = shutil.which("ffmpeg") or "ffmpeg"
         # Determine ffprobe path (P-005)
-        self.ffprobe_path = shutil.which("ffprobe") or (os.path.join(os.getcwd(), "ffprobe.exe") if os.path.exists(os.path.join(os.getcwd(), "ffprobe.exe")) else "ffprobe")
+        self.ffprobe_path = shutil.which("ffprobe") or "ffprobe"
         # [NEW] 2슬롯 렌더링 큐 제한 (인프라 방어)
         self.render_semaphore = asyncio.Semaphore(2)
 
