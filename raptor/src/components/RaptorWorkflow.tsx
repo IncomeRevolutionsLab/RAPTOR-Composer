@@ -176,7 +176,7 @@ export default function RaptorWorkflow() {
      (s.user_video_id && s.user_video_id.trim() !== "") || 
      (s.video_url && s.video_url.trim() !== "")) &&
     s.status !== 'rendering' && 
-    s.status !== 'error'
+    (s.status !== 'error' || (s.image_url && s.image_url.trim() !== ""))
   ));
 
   useEffect(() => {
@@ -1458,11 +1458,6 @@ export default function RaptorWorkflow() {
                           <p className="text-xs text-gray-300 font-bold animate-pulse mt-1">AI 이미지 생성 중입니다...</p>
                         </div>
                       </div>
-                    ) : scene.status === 'error' ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-red-950/20 text-center">
-                        <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
-                        <p className="text-[10px] font-bold text-red-400 break-keep">{scene.error}</p>
-                      </div>
                     ) : (scene.user_video_id || (scene.video_url && scene.image_source === 'manual')) ? (
                       <div className="w-full h-full relative group animate-in fade-in duration-500">
                         <video 
@@ -1473,6 +1468,14 @@ export default function RaptorWorkflow() {
                           playsInline 
                           className="w-full h-full object-cover" 
                         />
+                        {scene.status === 'error' && (
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center px-4">
+                            <div className="bg-black/80 border border-red-500/50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xl">
+                              <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                              <span className="text-[10px] font-bold text-red-400">비디오 에러: {scene.error}</span>
+                            </div>
+                          </div>
+                        )}
                         <button 
                           onClick={() => {
                             updateSceneScript(i, 'user_video_id', null);
@@ -1488,6 +1491,14 @@ export default function RaptorWorkflow() {
                     ) : scene.image_url ? (
                       <div className="w-full h-full relative group">
                         <img src={scene.image_url} className="w-full h-full object-cover animate-in fade-in duration-1000" />
+                        {scene.status === 'error' && (
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center px-4">
+                            <div className="bg-black/80 border border-red-500/50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xl">
+                              <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                              <span className="text-[10px] font-bold text-red-400">에러: {scene.error}</span>
+                            </div>
+                          </div>
+                        )}
                         <button 
                           onClick={() => {
                             updateSceneScript(i, 'image_url', null);
@@ -1498,6 +1509,11 @@ export default function RaptorWorkflow() {
                         >
                           ✕ 제거
                         </button>
+                      </div>
+                    ) : scene.status === 'error' ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-red-950/20 text-center">
+                        <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
+                        <p className="text-[10px] font-bold text-red-400 break-keep">{scene.error}</p>
                       </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-neutral-900/60 border border-dashed border-white/10 rounded-2xl text-center space-y-3 relative group">
@@ -1843,7 +1859,7 @@ export default function RaptorWorkflow() {
             </div>
 
             {(() => {
-              const hasImageError = script.some((s: any) => s.status === 'error');
+              const hasImageError = script.some((s: any) => s.status === 'error' && !s.image_url && !s.user_video_id);
 
               const stage1Status = analysis ? 'success' : 'error';
               const stage2Status = totalScenes > 0 ? 'success' : 'error';
@@ -2131,15 +2147,27 @@ export default function RaptorWorkflow() {
                         </div>
                       </div>
                     ) : scene.status === 'error' ? (
-                      <div className="w-full h-full bg-red-950/20 flex flex-col items-center justify-center p-4 text-center space-y-3">
-                        <AlertCircle className="w-8 h-8 text-red-500" />
-                        <span className="text-[10px] font-bold text-red-400 break-keep">{scene.error || '비디오 생성 실패'}</span>
-                        <button
-                          onClick={() => handleFallbackToImage(i)}
-                          className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black rounded-xl shadow-lg transition-all"
-                        >
-                          🖼️ 비디오 포기하고 스틸컷 대체
-                        </button>
+                      <div className="w-full h-full relative group">
+                        {scene.image_url ? (
+                          <img src={scene.image_url} className="w-full h-full object-cover opacity-90 transition-all group-hover:opacity-75" />
+                        ) : (
+                          <div className="w-full h-full bg-neutral-800 flex items-center justify-center text-xs text-gray-500">이미지 없음</div>
+                        )}
+                        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center justify-center px-4 space-y-2">
+                          <div className="bg-black/80 border border-red-500/50 px-3 py-1.5 rounded-lg flex flex-col items-center gap-1 shadow-xl text-center">
+                            <div className="flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                              <span className="text-[10px] font-bold text-red-400">비디오 생성 실패</span>
+                            </div>
+                            <span className="text-[9px] text-red-300/80 line-clamp-1">{scene.error}</span>
+                          </div>
+                          <button
+                            onClick={() => handleFallbackToImage(i)}
+                            className="px-3 py-1.5 bg-red-600/90 hover:bg-red-500 text-white text-[10px] font-bold rounded-lg shadow-lg transition-transform active:scale-95"
+                          >
+                            🖼️ 스틸컷으로 대체
+                          </button>
+                        </div>
                       </div>
                     ) : scene.taskId && isRendering ? (
                       <div className="w-full h-full bg-purple-950/20 flex flex-col items-center justify-center space-y-3">
