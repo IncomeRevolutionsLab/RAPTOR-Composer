@@ -323,52 +323,7 @@ class FFmpegWorker:
                     # Dynamic OFL Font Download & Cache
                     font_path = await self._ensure_font(subtitle_font)
 
-                    # [P0] Pillow 자막 번인 로직
                     is_hybrid_image = not use_video
-                    if is_hybrid_image and wrapped_caption.strip():
-                        # FFmpeg용 이스케이프가 포함된 font_path에서 C\:를 순수 윈도우 경로 C:로 복원
-                        clean_font_path = font_path.replace("\\:", ":")
-                        with Image.open(local_img) as img:
-                            img_w, img_h = img.size
-                            # FFmpeg의 fontsize=40은 기준 해상도 720에 맞춰졌으므로, 실제 이미지 너비에 비례하게 폰트 크기 조정
-                            font_size = int(40 * (img_w / 720)) if w else 40
-                            try:
-                                font = ImageFont.truetype(clean_font_path, font_size)
-                            except Exception:
-                                font = ImageFont.load_default()
-                            
-                            img_rgba = img.convert("RGBA")
-                            draw = ImageDraw.Draw(img_rgba)
-                            
-                            text = wrapped_caption.strip()
-                            if hasattr(draw, 'multiline_textbbox'):
-                                bbox = draw.multiline_textbbox((0, 0), text, font=font, align="center")
-                                text_w = bbox[2] - bbox[0]
-                                text_h = bbox[3] - bbox[1]
-                            else:
-                                text_w, text_h = draw.textsize(text, font=font)
-                            
-                            x_coord = (img_w - text_w) / 2
-                            
-                            if subtitle_position == "상":
-                                y_coord_val = img_h * (1.5 / 12.8)
-                            elif subtitle_position == "중":
-                                y_coord_val = (img_h - text_h) / 2
-                            else: # "하" 및 기본값
-                                y_coord_val = img_h * (5 / 7)
-                                
-                            pad_x, pad_y = int(10 * (img_w / 720)), int(10 * (img_w / 720))
-                            box_x0 = x_coord - pad_x
-                            box_y0 = y_coord_val - pad_y
-                            box_x1 = x_coord + text_w + pad_x
-                            box_y1 = y_coord_val + text_h + pad_y
-                            
-                            draw.rectangle([box_x0, box_y0, box_x1, box_y1], fill=(0, 0, 0, int(255 * 0.6)))
-                            draw.multiline_text((x_coord, y_coord_val), text, font=font, fill=(255, 255, 255, 255), align="center")
-                            
-                            captioned_img_path = os.path.join(temp_dir, f"captioned_bg_{i}.jpg")
-                            img_rgba.convert("RGB").save(captioned_img_path, quality=95)
-                            local_img = captioned_img_path
                 
                     # Base video filter
                     if is_hybrid_image:
@@ -421,6 +376,26 @@ class FFmpegWorker:
                             freeze_dur = duration - video_duration
                             filter_str += f",tpad=stop_mode=clone:stop_duration={freeze_dur}"
                 
+                    if is_hybrid_image and wrapped_caption.strip():
+                        text_path_raw = os.path.abspath(os.path.join(temp_dir, f"scene_{i}_caption.txt")).replace("\\", "/")
+                        with open(text_path_raw, "w", encoding="utf-8") as f:
+                            f.write(wrapped_caption.strip())
+                        
+                        text_path = text_path_raw.replace(":", "\\:")
+                        
+                        clean_font = font_path.replace("\\:", ":")
+                        font_path_slash = os.path.abspath(clean_font).replace("\\", "/").replace(":", "\\:")
+                        
+                        f_size = int(40 * (w / 720)) if w else 40
+                        if subtitle_position == "상":
+                            y_pos = "(h-text_h)*(1.5/12.8)"
+                        elif subtitle_position == "중":
+                            y_pos = "(h-text_h)/2"
+                        else:
+                            y_pos = "(h-text_h)*(5/7)"
+                            
+                        filter_str += f",drawtext=fontfile='{font_path_slash}':textfile='{text_path}':fontsize={f_size}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=10:x=(w-text_w)/2:y={y_pos}"
+                        
                     filter_str += "[bg];"
                     
                     # Watermark Overlay logic
@@ -466,6 +441,7 @@ class FFmpegWorker:
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             text=True,
+                            encoding="utf-8",
                             cwd=temp_dir
                         )
 
