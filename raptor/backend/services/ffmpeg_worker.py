@@ -142,14 +142,21 @@ class FFmpegWorker:
         try:
             async with httpx.AsyncClient() as client:
                 res = await client.get(url, timeout=10.0)
-                if res.status_code == 200:
-                    with open(target_path, "wb") as f:
-                        f.write(res.content)
-                    if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
-                        return True
-        except Exception:
-            pass
-        return False
+                res.raise_for_status()
+                
+                with open(target_path, "wb") as f:
+                    f.write(res.content)
+                
+                if os.path.exists(target_path):
+                    if os.path.getsize(target_path) < 1000:
+                        os.remove(target_path)
+                        raise Exception(f"Media download corrupted or too small (size < 1KB) from {url}")
+                    return True
+                else:
+                    raise Exception(f"Failed to create file at {target_path}")
+        except Exception as e:
+            print(f"[DOWNLOAD ERROR] Failed to fetch {url}: {e}")
+            raise e
 
     def wrap_text(self, text, aspect_ratio="9:16"):
         """Raptor Optimization: Helper to wrap text for vertical video."""
