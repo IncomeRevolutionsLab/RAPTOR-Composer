@@ -910,7 +910,7 @@ async def review_plan(decrypted_key: str = Depends(get_decrypted_key)):
             max_tokens=4096,
             messages=[{"role": "user", "content": [{"type": "text", "text": prompt}]}]
         )
-        review_result = response.content[0].text
+        review_result = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
         
         today_str = date.today().strftime("%Y%m%d")
         report_filename = f"{today_str}_RAPTOR_Review_Report_v2.9.18_Pre.md"
@@ -1136,7 +1136,7 @@ Output MUST be a valid JSON matching this schema exactly, and nothing else:
                         messages=[{"role": "user", "content": content}]
                     )
                     
-                    raw_text = response.content[0].text
+                    raw_text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
                     
                     # --- Robust JSON Sanitize Logic ---
                     clean_json = raw_text.strip()
@@ -1591,7 +1591,7 @@ JSON Structure:
                     max_tokens=1024,
                     messages=[{"role": "user", "content": [{"type": "text", "text": refine_prompt_text}]}]
                 )
-                raw_text = response.content[0].text
+                raw_text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
                 break
             except Exception as e:
                 status_code = getattr(e, 'status_code', None)
