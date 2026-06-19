@@ -208,8 +208,12 @@ class FFmpegWorker:
                 local_watermark = None
                 if watermark_enabled and watermark_logo:
                     local_watermark = os.path.join(temp_dir, "watermark.png")
-                    success = await self.download_image(watermark_logo, local_watermark)
-                    if not success:
+                    try:
+                        success = await self.download_image(watermark_logo, local_watermark)
+                        if not success:
+                            local_watermark = None
+                    except Exception as e:
+                        print(f"[WATERMARK ERROR] Failed to download watermark: {e}")
                         local_watermark = None
             
                 # Phase 1: Prepare assets (Images + TTS)
