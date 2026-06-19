@@ -9,6 +9,7 @@ import imageio_ffmpeg
 import shutil
 import platform
 from PIL import Image, ImageDraw, ImageFont
+import logging
 
 class FFmpegWorker:
     def __init__(self, output_dir: str = "outputs"):
@@ -155,7 +156,6 @@ class FFmpegWorker:
                 else:
                     raise Exception(f"Failed to create file at {target_path}")
         except Exception as e:
-            print(f"[DOWNLOAD ERROR] Failed to fetch {url}: {e}")
             raise e
 
     def wrap_text(self, text, aspect_ratio="9:16"):
@@ -213,7 +213,7 @@ class FFmpegWorker:
                         if not success:
                             local_watermark = None
                     except Exception as e:
-                        print(f"[WATERMARK ERROR] Failed to download watermark: {e}")
+                        logging.warning(f"[WATERMARK ERROR] Failed to download watermark from {watermark_logo!r}: {e}")
                         local_watermark = None
             
                 # Phase 1: Prepare assets (Images + TTS)
