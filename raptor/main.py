@@ -1207,7 +1207,7 @@ async def generate_images(request: ImageGenRequest, decrypted_key: str = Depends
             prompt = scene.get('image_prompt', '')
             if not prompt: continue
             
-            full_prompt = f"{prompt}. {aspect_desc}, high-quality commercial photography style, Korean setting/models. NO text, NO letters, NO logos, NO watermarks, NO brand names. Clean visual only. ABSOLUTELY NO national flags (specifically NO Japanese, North Korean, or Chinese flags). NO red circles, NO shapes covering logos, NO censorship marks. Backgrounds and surfaces must be completely natural and clean. All humans in the image MUST be 100% fictitious, generic, and non-existent models. DO NOT generate anyone resembling real celebrities, public figures, or copyrighted characters."
+            full_prompt = f"{prompt}. {aspect_desc}, high-quality commercial photography style, Korean setting/models. NO text, NO letters, NO logos, NO watermarks, NO brand names. Clean visual only. NO flags of any kind, NO banners, NO symbols. NO artificial graphic overlays, NO pixelation, NO blurred areas, NO drawn shapes. Backgrounds and surfaces must be completely natural and clean. All humans in the image MUST be generic everyday models. DO NOT generate public figures or recognizable characters."
             
             max_retries = 3
             base_delay = 3
@@ -1634,7 +1634,7 @@ JSON Structure:
             img_size = "1536x1024"
             aspect_desc = "16:9 horizontal aspect ratio"
 
-        full_prompt = f"{new_prompt}. {aspect_desc}, high-quality commercial photography style, Korean setting/models. NO text, NO letters, NO logos, NO watermarks, NO brand names. Clean visual only. NO red circles, NO shapes covering logos, NO censorship marks. Backgrounds and surfaces must be completely natural and clean. ABSOLUTELY NO national flags (specifically NO Japanese, North Korean, or Chinese flags). All humans in the image MUST be 100% fictitious, generic, and non-existent models. DO NOT generate anyone resembling real celebrities, public figures, or copyrighted characters."
+        full_prompt = f"{new_prompt}. {aspect_desc}, high-quality commercial photography style, Korean setting/models. NO text, NO letters, NO logos, NO watermarks, NO brand names. Clean visual only. NO flags of any kind, NO banners, NO symbols. NO artificial graphic overlays, NO pixelation, NO blurred areas, NO drawn shapes. Backgrounds and surfaces must be completely natural and clean. All humans in the image MUST be generic everyday models. DO NOT generate public figures or recognizable characters."
         
         import asyncio
         async with httpx.AsyncClient() as http_client:

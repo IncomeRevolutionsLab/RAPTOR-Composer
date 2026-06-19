@@ -6,7 +6,7 @@
 
 ## 📊 리스크 현황 요약
 *   **[New] 신규 리스크:** 12건 (P1-B04, P1-B05, P1-SEC-01, P2-B01, P2-B02, P2-B03, N-PERF-001, N-MEM-001, R-01, P0-B01, P0-B02, P1-B03)
-*   **[Pending] 진행 중/보류 리스크:** 5건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010)
+*   **[Pending] 진행 중/보류 리스크:** 7건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010, PND-003, PND-004)
 *   **[Resolved] 해결된 리스크:** 63건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009, N-BUG-001, N-BUG-002, N-SEC-001, N-SEC-002)
 
 ---
@@ -86,6 +86,21 @@
 ---
 
 ## 2. 🟡 [Pending] 진행 중 / 보류 리스크
+
+### 🛠️ PND-003: user_video_id 에셋 오류 시 allImagesReady 블로킹 가능성 (P2 엣지 케이스)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 보통 (Medium / P2)
+*   **상태:** `[Pending]`
+*   **리스크 내용:** `user_video_id`가 있는 씬에서 에러가 날 경우 `allImagesReady`가 막힐 수 있음. 현재 비즈니스 로직상 드문 케이스지만 방어 로직 강화 필요.
+*   **대응 방안:** 추후 로직 리팩토링 시 `(s.status !== 'error' || (s.image_url?.trim() || s.user_video_id?.trim()))`로 상태 가드 강화 예정.
+
+### 🛠️ PND-004: 미디어 블록 간 에러 메시지 접두어 불일치 (P3 UX 디테일)
+*   **관련 컴포넌트:** `src/components/RaptorWorkflow.tsx`
+*   **영향도:** 낮음 (Low / P3)
+*   **상태:** `[Pending]`
+*   **리스크 내용:** 비디오 렌더링 블록 에러 오버레이는 `"비디오 에러: ..."`, 이미지 에러 오버레이는 `"에러: ..."`로 텍스트 접두어가 달라 디테일 일관성이 떨어짐.
+*   **대응 방안:** 추후 UI 텍스트 하드코딩 정리 작업 시 통일.
+
 
 ### 🛠️ RISK-010: Koyeb 백엔드 계정 결제 락(Billing Lock)에 의한 서비스 중단 결함
 *   **관련 컴포넌트:** Koyeb 클라우드 인프라 (`https://raptor-backend.koyeb.app`)
