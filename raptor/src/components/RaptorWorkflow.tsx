@@ -124,6 +124,15 @@ export default function RaptorWorkflow() {
   const [sceneFeedbacks, setSceneFeedbacks] = useState<Record<number, string>>({});
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  // [NEW] Safety Toast State
+  const [safetyToast, setSafetyToast] = useState<{ show: boolean, message: string }>({ show: false, message: "" });
+  const detectSensitiveKeywords = (text: string) => {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    const keywords = ["korean", "20s", "pain", "uncomfortable", "no text", "no logo", "taking a big bite", "thick", "overflowing", "holding product", "살결", "가슴", "노출"];
+    return keywords.some(k => lower.includes(k));
+  };
+
   // [FIX] P0: Step 4, 5 버튼 스코프 버그 수정을 위한 컴포넌트 최상위 호이스팅
   const script = finalAssets?.script || [];
   const totalScenes = script.length || 0;
@@ -325,6 +334,15 @@ export default function RaptorWorkflow() {
     setLoading(true, '선택한 패턴으로 스크립트 작성 중입니다...');
     setErrorMessage(null);
 
+    const combinedInput = `${productData.name} ${manualAdditions?.pain_points?.join(' ')} ${manualAdditions?.strengths?.join(' ')}`;
+    if (detectSensitiveKeywords(combinedInput)) {
+      setSafetyToast({
+        show: true,
+        message: "⚠️ 안전한 숏폼 유통 규격 준수를 위해, 입력하신 내용 중 일부 민감 표현을 랩터 엔진이 세련되고 안전한 구도로 자동 치환하여 최적화 중입니다."
+      });
+      setTimeout(() => setSafetyToast({ show: false, message: "" }), 8000);
+    }
+
     try {
       // 1. Generate Script with selected pattern
       const planRes = await api.post('/generate-plan', {
@@ -370,6 +388,15 @@ export default function RaptorWorkflow() {
 
     const script = [...finalAssets.script];
     
+    const hasSensitive = script.some(s => detectSensitiveKeywords(s.image_prompt || ""));
+    if (hasSensitive) {
+      setSafetyToast({
+        show: true,
+        message: "⚠️ 안전한 숏폼 유통 규격 준수를 위해, 입력하신 내용 중 일부 민감 표현을 랩터 엔진이 세련되고 안전한 구도로 자동 치환하여 최적화 중입니다."
+      });
+      setTimeout(() => setSafetyToast({ show: false, message: "" }), 8000);
+    }
+
     try {
       const promises = script.map(async (scene: any, index: number) => {
         // 이미 이미지가 있거나(수동 등록 포함) 스킵 조건에 맞는 경우 (토큰 방어 및 오버라이트 방지)
@@ -961,6 +988,17 @@ export default function RaptorWorkflow() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8 pb-20">
+      {/* Safety Toast Overlay */}
+      {safetyToast.show && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl p-4 shadow-2xl animate-in slide-in-from-top-4 duration-300">
+          <div className="flex gap-3 items-start">
+            <div className="text-orange-400 mt-0.5"><AlertCircle size={20} /></div>
+            <div className="text-sm leading-relaxed">{safetyToast.message}</div>
+            <button onClick={() => setSafetyToast({show: false, message: ""})} className="text-slate-400 hover:text-white">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Raw Error Overlay */}
       {errorMessage && (
         <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-6 text-red-400 animate-in slide-in-from-top-4 duration-300">

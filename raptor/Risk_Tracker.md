@@ -6,7 +6,7 @@
 
 ## 📊 리스크 현황 요약
 *   **[New] 신규 리스크:** 12건 (P1-B04, P1-B05, P1-SEC-01, P2-B01, P2-B02, P2-B03, N-PERF-001, N-MEM-001, R-01, P0-B01, P0-B02, P1-B03)
-*   **[Pending] 진행 중/보류 리스크:** 7건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010, PND-003, PND-004)
+*   **[Pending] 진행 중/보류 리스크:** 8건 (RISK-002, NEW-005, PND-001, PND-002, RISK-010, PND-003, PND-004, PND-005)
 *   **[Resolved] 해결된 리스크:** 63건 (RISK-001, RISK-004, NEW-002, NEW-003, NEW-004, NEW-006, HOT-001, N-01, HIL-01, HIL-02, HIL-03, HIL-04, HIL-05, HIL-06, HIL-07, HIL-08, RISK-003, NEW-F, N-02, N-06, NEW-001, N-10, N-12, N-13, N-14, N-15, N-03, N-04, N-05, N-07, N-08, N-09, N-11, N-16, N-17, N-18, N-19, N-20, N-21, N-22, N-23, N-24, N-25, N-26, N-27, N-28, N-29, N-30, N-31, N-32, N-33, N-34, N-35, N-36, RISK-005, RISK-006, RISK-007, RISK-008, RISK-009, N-BUG-001, N-BUG-002, N-SEC-001, N-SEC-002)
 
 ---
@@ -100,6 +100,13 @@
 *   **상태:** `[Pending]`
 *   **리스크 내용:** 비디오 렌더링 블록 에러 오버레이는 `"비디오 에러: ..."`, 이미지 에러 오버레이는 `"에러: ..."`로 텍스트 접두어가 달라 디테일 일관성이 떨어짐.
 *   **대응 방안:** 추후 UI 텍스트 하드코딩 정리 작업 시 통일.
+
+### 🛠️ PND-005: 네거티브 프롬프트 저작권(IP) 보호 조항 완화 리스크 (P3 잠재 리스크)
+*   **관련 컴포넌트:** `main.py`
+*   **영향도:** 낮음 (Low / P3)
+*   **상태:** `[Pending]`
+*   **리스크 내용:** 구글 필터 우회를 위해 `copyrighted characters` 단어를 제거하여 상업용 광고 생성 시 저작권이 있는 애니메이션/가상 캐릭터가 생성될 잠재적 IP 침해 위험이 약간 증가함.
+*   **대응 방안:** 추후 프롬프트 개선 이터레이션 시 안전 필터를 자극하지 않는 선에서 `intellectual property` 단어 추가 권장 (`DO NOT generate public figures, recognizable characters, or intellectual property.`).
 
 
 ### 🛠️ RISK-010: Koyeb 백엔드 계정 결제 락(Billing Lock)에 의한 서비스 중단 결함
