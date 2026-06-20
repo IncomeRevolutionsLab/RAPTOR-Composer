@@ -1400,62 +1400,66 @@ export default function RaptorWorkflow() {
                   </div>
                 </div>
 
-                <CostSimulatorWidget 
-                  initialScenes={totalScenes || 5} 
-                  initialDuration={productData?.duration || 15} 
-                  initialTextEngine={textEngine || 'claude-sonnet-4-6'} 
-                  initialImageEngine={imageEngine || 'gpt-image-2'} 
-                  initialVideoEngine={videoEngine || 'veo_lite'} 
-                />
-
-                {/* [NEW UI] [토큰 방어] 이미지 설정 분기 선택 카드 */}
-                <div className="bg-neutral-900/90 border border-purple-500/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden animate-in fade-in duration-500">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-                    <div className="space-y-2">
-                      <span className="px-2.5 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded-full text-yellow-400 text-[9px] font-black tracking-wider uppercase">
-                        Hybrid Image Pipeline
-                      </span>
-                      <h3 className="text-lg font-black text-white flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-yellow-400" />
-                        AI 이미지 일괄 생성
-                      </h3>
-                      <p className="text-xs text-gray-400 max-w-xl leading-relaxed">
-                        각 씬에 직접 업로드한 이미지가 있거나 이미 생성된 이미지가 있는 경우 AI 요청은 자동으로 스킵됩니다. 이미지가 비어있는 씬에 대해서만 아래의 모델을 이용해 AI 이미지를 일괄 생성합니다.
-                      </p>
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row gap-4 shrink-0 items-center">
-                      <div className="flex flex-col gap-1.5 min-w-[16rem]">
-                        <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest">AI 이미지 생성 모델 선택</label>
-                        <select 
-                          className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer" 
-                          value={imageEngine || 'gpt-image-2'} 
-                          onChange={(e) => setEngineSettings({ imageEngine: e.target.value })}
-                        >
-                          <option value="gpt-image-2">📝 GPT-Image-2 (DALL-E 3)</option>
-                          <option value="nano-banana-2">⚡ Nano Banana 2</option>
-                          <option value="grok">🧠 Grok-Imagine</option>
-                        </select>
-                        <button 
-                          onClick={handleGenerateImages}
-                          disabled={allImagesReady || loading}
-                          className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1 ${
-                            allImagesReady 
-                              ? 'bg-gray-800 text-gray-500 cursor-not-allowed pointer-events-none border border-white/5' 
-                              : 'bg-purple-600 hover:bg-purple-500 text-white'
-                          }`}
-                        >
-                          {loading ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 생성 중...</>
-                          ) : allImagesReady ? (
-                            "AI 이미지 생성 완료"
-                          ) : (
-                            "AI 이미지 일괄 생성 시작"
-                          )}
-                        </button>
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                  {/* [NEW UI] [토큰 방어] 이미지 설정 분기 선택 카드 */}
+                  <div className="xl:col-span-3 bg-neutral-900/90 border border-purple-500/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden animate-in fade-in duration-500 h-fit">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                      <div className="space-y-2">
+                        <span className="px-2.5 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded-full text-yellow-400 text-[9px] font-black tracking-wider uppercase">
+                          Hybrid Image Pipeline
+                        </span>
+                        <h3 className="text-lg font-black text-white flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-yellow-400" />
+                          AI 이미지 일괄 생성
+                        </h3>
+                        <p className="text-xs text-gray-400 max-w-xl leading-relaxed">
+                          각 씬에 직접 업로드한 이미지가 있거나 이미 생성된 이미지가 있는 경우 AI 요청은 자동으로 스킵됩니다. 이미지가 비어있는 씬에 대해서만 아래의 모델을 이용해 AI 이미지를 일괄 생성합니다.
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row gap-4 shrink-0 items-center">
+                        <div className="flex flex-col gap-1.5 min-w-[16rem]">
+                          <label className="text-[10px] font-black text-purple-400 uppercase tracking-widest">AI 이미지 생성 모델 선택</label>
+                          <select 
+                            className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer" 
+                            value={imageEngine || 'gpt-image-2'} 
+                            onChange={(e) => setEngineSettings({ imageEngine: e.target.value })}
+                          >
+                            <option value="gpt-image-2">📝 GPT-Image-2 (DALL-E 3)</option>
+                            <option value="nano-banana-2">⚡ Nano Banana 2</option>
+                            <option value="grok">🧠 Grok-Imagine</option>
+                          </select>
+                          <button 
+                            onClick={handleGenerateImages}
+                            disabled={allImagesReady || loading}
+                            className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1 ${
+                              allImagesReady 
+                                ? 'bg-gray-800 text-gray-500 cursor-not-allowed pointer-events-none border border-white/5' 
+                                : 'bg-purple-600 hover:bg-purple-500 text-white'
+                            }`}
+                          >
+                            {loading ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 생성 중...</>
+                            ) : allImagesReady ? (
+                              "AI 이미지 생성 완료"
+                            ) : (
+                              "AI 이미지 일괄 생성 시작"
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="xl:col-span-1">
+                    <CostSimulatorWidget 
+                      initialScenes={totalScenes || 5} 
+                      initialDuration={productData?.duration || 15} 
+                      initialTextEngine={textEngine || 'claude-sonnet-4-6'} 
+                      initialImageEngine={imageEngine || 'gpt-image-2'} 
+                      initialVideoEngine={videoEngine || 'veo_lite'} 
+                    />
                   </div>
                 </div>
               </>
@@ -2016,6 +2020,13 @@ export default function RaptorWorkflow() {
             </div>
             
             <div className="flex flex-col gap-6">
+              <CostSimulatorWidget 
+                initialScenes={totalScenes || 5} 
+                initialDuration={productData?.duration || 15} 
+                initialTextEngine={textEngine || 'claude-sonnet-4-6'} 
+                initialImageEngine={imageEngine || 'gpt-image-2'} 
+                initialVideoEngine={videoEngine || 'veo_lite'} 
+              />
               <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4 backdrop-blur-xl">
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> 비디오 생성 엔진 &amp; 렌더링 옵션

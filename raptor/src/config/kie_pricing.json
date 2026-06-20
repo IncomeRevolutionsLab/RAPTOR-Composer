@@ -8,7 +8,7 @@
   "image": {
     "gpt-image-2": 0.03,
     "nano-banana-2": 0.04,
-    "grok": 0.05
+    "grok": 0.02
   },
   "video": {
     "veo_lite": 0.15,
