@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Link as LinkIcon, Sparkles, CheckCircle, Download, Wand2, Trash2, Plus, Play, Loader2, Image as ImageIcon, Languages, Monitor, Smartphone, Square, RotateCcw, AlertCircle, Upload, Film } from 'lucide-react';
 import { useWorkflowStore } from '@/store/useWorkflowStore';
+import CostSimulatorWidget from './CostSimulatorWidget';
 import { api } from '@/lib/api-client';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -1398,6 +1399,14 @@ export default function RaptorWorkflow() {
                   <div className="flex flex-wrap items-center gap-3">
                   </div>
                 </div>
+
+                <CostSimulatorWidget 
+                  initialScenes={totalScenes || 5} 
+                  initialDuration={productData?.duration || 15} 
+                  initialTextEngine={textEngine || 'claude-sonnet-4-6'} 
+                  initialImageEngine={imageEngine || 'gpt-image-2'} 
+                  initialVideoEngine={videoEngine || 'veo_lite'} 
+                />
 
                 {/* [NEW UI] [토큰 방어] 이미지 설정 분기 선택 카드 */}
                 <div className="bg-neutral-900/90 border border-purple-500/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden animate-in fade-in duration-500">

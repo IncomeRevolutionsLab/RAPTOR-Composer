@@ -12,6 +12,7 @@
   },
   "video": {
     "veo_lite": 0.15,
+    "veo_fast": 0.20,
     "grok": 0.10
   },
   "tts": {
