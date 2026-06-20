@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { User, LogOut, FolderSync, Download, Settings, Lock, Mail, AlertCircle, CheckCircle, Loader2, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { User, LogOut, FolderSync, Download, Settings, Lock, Mail, AlertCircle, CheckCircle, Loader2, Eye, EyeOff, RefreshCw, Calculator } from 'lucide-react';
 import { useWorkflowStore } from '@/store/useWorkflowStore';
 import { supabase } from '@/lib/supabaseClient';
+import CostSimulatorWidget from './CostSimulatorWidget';
 
 // ============================================================
 // [UTIL] localStorage 파싱 공통 함수 (중복 제거)
@@ -155,7 +156,7 @@ export default function AuthDashboard() {
 
   // Dashboard Modal Toggle
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'project' | 'settings' | 'account'>('project');
+  const [activeTab, setActiveTab] = useState<'project' | 'settings' | 'account' | 'simulator'>('project');
 
   // Auth Form State (Logged Out)
   const [email, setEmail] = useState('');
@@ -1070,6 +1071,13 @@ export default function AuthDashboard() {
                     <span>KIE API 설정</span>
                   </button>
                   <button
+                    onClick={() => setActiveTab('simulator')}
+                    className={`flex-1 md:flex-none py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider text-left flex items-center gap-2 transition-all ${activeTab === 'simulator' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-white/5 text-gray-400 hover:text-white border border-transparent'}`}
+                  >
+                    <Calculator className="w-4 h-4" />
+                    <span>예상 비용 시뮬레이터</span>
+                  </button>
+                  <button
                     onClick={() => setActiveTab('account')}
                     className={`flex-1 md:flex-none py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider text-left flex items-center gap-2 transition-all ${activeTab === 'account' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-white/5 text-gray-400 hover:text-white border border-transparent'}`}
                   >
@@ -1231,6 +1239,16 @@ export default function AuthDashboard() {
                   )}
 
                   {/* TAB 3: ACCOUNT & LOGOUT */}
+                  {/* TAB 3: COST SIMULATOR */}
+                  {activeTab === 'simulator' && (
+                    <div className="flex-1 w-full flex items-center justify-center">
+                      <div className="w-full max-w-4xl h-full">
+                        <CostSimulatorWidget />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: ACCOUNT */}
                   {activeTab === 'account' && (
                     <div className="max-w-md space-y-6">
                       <div>

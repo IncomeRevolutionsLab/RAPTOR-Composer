@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Link as LinkIcon, Sparkles, CheckCircle, Download, Wand2, Trash2, Plus, Play, Loader2, Image as ImageIcon, Languages, Monitor, Smartphone, Square, RotateCcw, AlertCircle, Upload, Film } from 'lucide-react';
 import { useWorkflowStore } from '@/store/useWorkflowStore';
-import CostSimulatorWidget from './CostSimulatorWidget';
 import { api } from '@/lib/api-client';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -1452,14 +1451,6 @@ export default function RaptorWorkflow() {
                     </div>
                   </div>
 
-                  <div className="xl:col-span-1">
-                    <CostSimulatorWidget 
-                      initialScenes={totalScenes || 5} 
-                      initialDuration={productData?.duration || 15} 
-                      initialTextEngine={textEngine || 'claude-sonnet-4-6'} 
-                      initialImageEngine={imageEngine || 'gpt-image-2'} 
-                      initialVideoEngine={videoEngine || 'veo_lite'} 
-                    />
                   </div>
                 </div>
               </>
@@ -2020,13 +2011,6 @@ export default function RaptorWorkflow() {
             </div>
             
             <div className="flex flex-col gap-6">
-              <CostSimulatorWidget 
-                initialScenes={totalScenes || 5} 
-                initialDuration={productData?.duration || 15} 
-                initialTextEngine={textEngine || 'claude-sonnet-4-6'} 
-                initialImageEngine={imageEngine || 'gpt-image-2'} 
-                initialVideoEngine={videoEngine || 'veo_lite'} 
-              />
               <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4 backdrop-blur-xl">
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> 비디오 생성 엔진 &amp; 렌더링 옵션
