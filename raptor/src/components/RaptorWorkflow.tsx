@@ -1452,7 +1452,6 @@ export default function RaptorWorkflow() {
                   </div>
 
                   </div>
-                </div>
               </>
             );
           })()}
